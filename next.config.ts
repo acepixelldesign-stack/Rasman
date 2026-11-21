@@ -26,13 +26,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  output: 'standalone',
   transpilePackages: ['motion'],
   experimental: {
-    webpackMemoryOptimizations: true,
-    webpackBuildWorker: true,
-    memoryBasedWorkersCount: true,
-    cpus: 1,
     optimizePackageImports: ['react-icons', 'lucide-react', 'motion'],
   },
   webpack: (config, {dev}) => {
