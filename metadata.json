@@ -1,0 +1,6 @@
+{
+  "name": "Rasman",
+  "description": "Rasman — Architecture, Sustainable Design, and Spatial Research Studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

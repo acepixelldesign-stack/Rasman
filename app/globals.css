@@ -1,0 +1,289 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant desktop (@media (min-width: 768px) and (min-height: 520px) and (orientation: landscape));
+@custom-variant desktop-wide (@media (min-width: 1280px) and (min-height: 520px) and (orientation: landscape));
+
+/* ==========================================================================
+   RASMAN ARCHITECTURAL FRAME — SEMANTIC DESIGN TOKENS
+   Pure White (#ffffff) Light Mode / Pure Black (#000000) Dark Mode
+   Brand Primary: Rasman Olivine (#597838 Light / #74984a Dark)
+   Desktop Grid: 48px Header, 48px Side Rails, 48px Bottom Grid
+   ========================================================================== */
+
+:root {
+  /* Core Surfaces — Pure White */
+  --bg-canvas: #ffffff;
+  --bg-rail: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-header-glass: rgba(255, 255, 255, 0.72);
+  --bg-overlay: rgba(255, 255, 255, 0.96);
+
+  /* Ink Hierarchy */
+  --ink-primary: #000000;
+  --ink-secondary: #525252;
+  --ink-muted: #737373;
+
+  /* Architectural Grid & Crosshairs */
+  --grid-line: rgba(0, 0, 0, 0.12);
+  --grid-line-strong: rgba(0, 0, 0, 0.22);
+  --grid-crosshair: rgba(0, 0, 0, 0.34);
+
+  /* Brand Primary (Rasman Olivine Scale) */
+  --brand-primary: #597838;
+  --brand-primary-hover: #465d2e;
+  --brand-primary-active: #3a4b29;
+  --brand-ink-on-primary: #ffffff;
+  --brand-text-hover: #597838;
+  --accent-khaki: #9e7658;
+
+  /* Interactive States */
+  --surface-hover: rgba(0, 0, 0, 0.05);
+  --surface-active: rgba(0, 0, 0, 0.09);
+  --focus-ring: #597838;
+  --scrollbar-thumb: rgba(0, 0, 0, 0.11);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+
+  /* Borderless Frosted Muted-Grey Glass Controls (Shadowless) */
+  --glass-control-bg: rgba(115, 115, 115, 0.11);
+  --glass-control-hover: rgba(115, 115, 115, 0.18);
+  --glass-control-thumb: rgba(255, 255, 255, 0.86);
+  --glass-popover-bg: rgba(238, 238, 238, 0.82);
+
+  /* Responsive Perimeter Grid Dimensions (8pt scale — 16px bottom on Mobile, 64px on Desktop) */
+  --grid-header: 56px;
+  --grid-rail: 16px;
+  --grid-bottom: 16px;
+  --crosshair-size: 13px;
+  --crosshair-half: 6px;
+}
+
+@media (min-width: 768px) and (min-height: 520px) and (orientation: landscape) {
+  :root {
+    --grid-header: 64px;
+    --grid-rail: 32px;
+    --grid-bottom: 48px;
+  }
+}
+
+@media (min-width: 1024px) and (min-height: 520px) and (orientation: landscape) {
+  :root {
+    --grid-header: 64px;
+    --grid-rail: 64px;
+    --grid-bottom: 64px;
+  }
+}
+
+.dark {
+  /* Core Surfaces — Pure Black */
+  --bg-canvas: #000000;
+  --bg-rail: #000000;
+  --bg-surface-elevated: #0a0a0a;
+  --bg-header-glass: rgba(0, 0, 0, 0.72);
+  --bg-overlay: rgba(0, 0, 0, 0.96);
+
+  /* Ink Hierarchy */
+  --ink-primary: #ffffff;
+  --ink-secondary: #a3a3a3;
+  --ink-muted: #737373;
+
+  /* Architectural Grid & Crosshairs */
+  --grid-line: rgba(255, 255, 255, 0.16);
+  --grid-line-strong: rgba(255, 255, 255, 0.28);
+  --grid-crosshair: rgba(255, 255, 255, 0.38);
+
+  /* Brand Primary (High-Contrast Olivine on Pure Black) & Secondary Brown */
+  --brand-primary: #74984a;
+  --brand-primary-hover: #597838;
+  --brand-primary-active: #465d2e;
+  --brand-ink-on-primary: #ffffff;
+  --brand-text-hover: #9bba74;
+  --accent-khaki: #9e7658;
+
+  /* Interactive States */
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --surface-active: rgba(255, 255, 255, 0.16);
+  --focus-ring: #9bba74;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.26);
+
+  /* Borderless Frosted Muted-Grey Glass Controls (Dark Mode, Shadowless) */
+  --glass-control-bg: rgba(163, 163, 163, 0.13);
+  --glass-control-hover: rgba(163, 163, 163, 0.22);
+  --glass-control-thumb: rgba(255, 255, 255, 0.16);
+  --glass-popover-bg: rgba(24, 24, 24, 0.82);
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    margin-block: 24px;
+    margin-inline: 24px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    border: none;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  html {
+    background-color: var(--bg-canvas);
+    color: var(--ink-primary);
+    color-scheme: only light;
+    touch-action: pan-x pan-y;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html.dark {
+    color-scheme: only dark;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--ink-primary);
+    font-family: var(--font-latin), system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+    touch-action: pan-x pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+  }
+
+  html[dir="rtl"] body {
+    font-family: var(--font-persian), var(--font-latin), system-ui, sans-serif;
+    line-height: 1.75;
+    letter-spacing: 0;
+  }
+
+  /* Accessible keyboard focus treatment */
+  :focus-visible {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Crosshair Intersection Positioning (Logical Start / End for full LTR/RTL parity) */
+.crosshair-top-start {
+  inset-block-start: calc(var(--grid-header) - var(--crosshair-half) - 1px);
+  inset-inline-start: calc(var(--grid-rail) - var(--crosshair-half) - 1px);
+}
+
+.crosshair-top-end {
+  inset-block-start: calc(var(--grid-header) - var(--crosshair-half) - 1px);
+  inset-inline-end: calc(var(--grid-rail) - var(--crosshair-half) - 1px);
+}
+
+.crosshair-bottom-start {
+  inset-block-end: calc(var(--grid-bottom) - var(--crosshair-half) - 1px);
+  inset-inline-start: calc(var(--grid-rail) - var(--crosshair-half) - 1px);
+}
+
+.crosshair-bottom-end {
+  inset-block-end: calc(var(--grid-bottom) - var(--crosshair-half) - 1px);
+  inset-inline-end: calc(var(--grid-rail) - var(--crosshair-half) - 1px);
+}
+
+/* Header & footer vertical hairline continuations aligned to exact side rail borders */
+.header-rail-divider-start {
+  inset-inline-start: calc(var(--grid-rail) - 1px);
+}
+
+.header-rail-divider-end {
+  inset-inline-end: calc(var(--grid-rail) - 1px);
+}
+
+/* BiDi isolation helper for LTR tokens embedded in RTL copy */
+.bidi-isolate {
+  unicode-bidi: isolate;
+}
+
+/* Hide scrollbars cleanly for horizontal touch-scrollable chip strips */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Cross-Browser GPU-Composited Frosted Glass Surfaces (Shadowless, Borderless) */
+.rasman-glass {
+  background-color: var(--glass-control-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  backdrop-filter: blur(18px) saturate(165%);
+  transform: translateZ(0);
+  isolation: isolate;
+  box-shadow: none;
+}
+
+.rasman-glass-popover {
+  background-color: var(--glass-popover-bg);
+  -webkit-backdrop-filter: blur(22px) saturate(175%);
+  backdrop-filter: blur(22px) saturate(175%);
+  transform: translateZ(0);
+  isolation: isolate;
+  box-shadow: none;
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .rasman-glass {
+    background-color: var(--glass-popover-bg);
+  }
+
+  .rasman-glass-popover {
+    background-color: var(--bg-overlay);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
