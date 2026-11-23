@@ -24,12 +24,10 @@ import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
 import { SmoothScrollProvider } from '@/components/providers/smooth-scroll-provider';
 import { PersistentShell } from '@/components/frame/persistent-shell';
 
-const StartProjectModal = dynamic(
-  () =>
-    import('@/components/auth/start-project-modal').then(
-      (mod) => mod.StartProjectModal
-    ),
-  { ssr: false }
+const StartProjectModal = dynamic(() =>
+  import('@/components/auth/start-project-modal').then(
+    (mod) => mod.StartProjectModal
+  )
 );
 
 export type AccountType = 'individual' | 'legal';
@@ -190,6 +188,24 @@ function markClientMounted(): void {
   mountedListeners.forEach((listener) => listener());
 }
 
+function hasPendingSuspenseTemplates(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.querySelector('template[id^="B:"]') !== null;
+}
+
+/**
+ * Commit client-stored locale, profile, and mounted theme only after streamed
+ * Suspense route boundaries have finished hydrating so client renders match SSR HTML.
+ */
+export function markRouteContentHydrated(): void {
+  if (typeof window === 'undefined') return;
+  if (clientInitialized && isClientMounted) return;
+  if (hasPendingSuspenseTemplates()) return;
+
+  hydrateClientPreferencesFromStorage();
+  markClientMounted();
+}
+
 function isEditableElement(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   return Boolean(
@@ -240,8 +256,54 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
   );
 
   useEffect(() => {
-    hydrateClientPreferencesFromStorage();
-    markClientMounted();
+    if (clientInitialized && isClientMounted) return;
+
+    let rafId: number | null = null;
+    let observer: MutationObserver | null = null;
+
+    const trySync = () => {
+      if (hasPendingSuspenseTemplates()) return false;
+      markRouteContentHydrated();
+      return true;
+    };
+
+    const scheduleAfterCommit = () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        trySync();
+      });
+    };
+
+    if (hasPendingSuspenseTemplates()) {
+      observer = new MutationObserver(() => {
+        if (!hasPendingSuspenseTemplates()) {
+          observer?.disconnect();
+          observer = null;
+          scheduleAfterCommit();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      scheduleAfterCommit();
+    }
+
+    const fallbackTimer = window.setTimeout(() => {
+      observer?.disconnect();
+      observer = null;
+      hydrateClientPreferencesFromStorage();
+      markClientMounted();
+    }, 600);
+
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      observer?.disconnect();
+      window.clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const { locale, userProfile } = preferences;
@@ -389,7 +451,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
         <SmoothScrollProvider isPaused={isStartProjectOpen}>
           <PersistentShell>{children}</PersistentShell>
         </SmoothScrollProvider>
-        <StartProjectModal />
+        {isHydrated || isStartProjectOpen ? <StartProjectModal /> : null}
         <div
           role="status"
           aria-live="polite"

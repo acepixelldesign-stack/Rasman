@@ -4,7 +4,7 @@ import { ProjectsStage } from '@/components/projects/projects-stage';
 
 export default function ProjectsPage() {
   return (
-    <FramedSection>
+    <FramedSection deferHydrationSync>
       <Suspense fallback={null}>
         <ProjectsStage />
       </Suspense>

@@ -33,7 +33,10 @@ import {
   type ProjectStatusId,
   type ProjectTypeId,
 } from '@/lib/data/projects';
-import { useAppContext } from '@/components/providers/app-provider';
+import {
+  markRouteContentHydrated,
+  useAppContext,
+} from '@/components/providers/app-provider';
 import {
   ARCHITECTURAL_EASE,
   CARD_STAGGER_CONTAINER_VARIANTS,
@@ -96,6 +99,10 @@ export function ProjectsStage({
   const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileFilterId = useId();
   useArchitecturalEntrance(stageRef, { isRtl });
+
+  useEffect(() => {
+    markRouteContentHydrated();
+  }, []);
   const targetOffsetRef = useRef(0);
   const currentOffsetRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
