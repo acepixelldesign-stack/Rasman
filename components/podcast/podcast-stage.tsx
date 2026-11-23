@@ -1,18 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import Image from 'next/image';
-import { AnimatePresence, motion } from 'motion/react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   MdCalendarToday,
   MdCheck,
-  MdFavorite,
-  MdFavoriteBorder,
   MdHeadphones,
   MdKeyboardArrowDown,
   MdOutlineShare,
-  MdPause,
-  MdPlayArrow,
   MdPodcasts,
   MdQueueMusic,
   MdRecordVoiceOver,
@@ -27,24 +32,118 @@ import {
   type PodcastCategoryId,
 } from '@/lib/data/podcasts';
 import { useAppContext } from '@/components/providers/app-provider';
-import { useArchitecturalEntrance } from '@/components/motion/architectural-motion';
 import { PodcastSidebar } from '@/components/podcast/podcast-sidebar';
 import { PodcastPlayer } from '@/components/podcast/podcast-player';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
 import { cn } from '@/lib/utils';
 
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(useGSAP);
+}
+
 const PLAYBACK_RATES = [1, 1.25, 1.5, 2] as const;
+
+const EQUALIZER_BARS = [
+  {
+    id: 'bar-1',
+    restingScale: 0.42,
+    activeKeyframes: [0.32, 0.96, 0.44, 0.82, 0.32],
+    duration: 0.92,
+    delay: 0,
+  },
+  {
+    id: 'bar-2',
+    restingScale: 0.88,
+    activeKeyframes: [0.92, 0.38, 1.0, 0.52, 0.92],
+    duration: 1.08,
+    delay: 0.14,
+  },
+  {
+    id: 'bar-3',
+    restingScale: 0.56,
+    activeKeyframes: [0.45, 0.88, 0.34, 0.96, 0.45],
+    duration: 0.86,
+    delay: 0.26,
+  },
+  {
+    id: 'bar-4',
+    restingScale: 0.72,
+    activeKeyframes: [0.76, 0.36, 0.9, 0.42, 0.76],
+    duration: 1.02,
+    delay: 0.1,
+  },
+] as const;
+
+interface AudioPlaybackIndicatorProps {
+  readonly isPlaying: boolean;
+  readonly isSelected: boolean;
+}
+
+/**
+ * 16px x 16px semantic equalizer indicator (zero custom SVG):
+ * - Smoothly animates bars up & down when the episode is actively playing
+ * - Holds a calm resting soundwave silhouette when selected/idle
+ */
+function AudioPlaybackIndicator({
+  isPlaying,
+  isSelected,
+}: AudioPlaybackIndicatorProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = isPlaying && !prefersReducedMotion;
+
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex h-4 w-4 shrink-0 items-end justify-between gap-[2px] py-[1px]"
+    >
+      {EQUALIZER_BARS.map((bar) => (
+        <motion.span
+          key={bar.id}
+          initial={false}
+          animate={
+            shouldAnimate
+              ? { scaleY: [...bar.activeKeyframes] }
+              : { scaleY: bar.restingScale }
+          }
+          transition={
+            shouldAnimate
+              ? {
+                  duration: bar.duration,
+                  repeat: Infinity,
+                  repeatType: 'loop',
+                  ease: 'easeInOut',
+                  delay: bar.delay,
+                }
+              : {
+                  duration: 0.28,
+                  ease: SITE_CONFIG.motion.ease,
+                }
+          }
+          className={cn(
+            'block h-full w-[2px] origin-bottom rounded-full transition-colors duration-200',
+            isSelected
+              ? 'bg-[var(--brand-primary)]'
+              : 'bg-[var(--grid-line-strong)] group-hover:bg-[var(--brand-text-hover)]'
+          )}
+        />
+      ))}
+    </span>
+  );
+}
 
 /**
  * Full Rasman Podcast Studio composition inside the architectural frame:
- * - Desktop: docked start sidebar + animated episode hero + exact 4-row tracklist viewport + integrated bottom player
- * - Mobile: fixed Episodes bar right under header; expands vertically all the way to the bottom of the viewport
- *   with horizontal category chips (no divider under bar or chips) + live-filtered episodes + fixed bottom player
+ * - Desktop: docked start sidebar (16px category header padding, 2s/1s category accordion, 24px list padding)
+ *   + 24px padded episode hero + 24px padded tracklist with 16px animated audio indicator + 24px padded waveform player
+ * - 3.00s initial GSAP entrance choreography (sidebar -> hero artwork/title/word-by-word body -> tracklist rising bottom-to-top)
+ * - Mobile: fixed Categories & Podcasts bar with bottom architectural '+' crosshairs + 2.00s downward sliding drawer
  */
 export function PodcastStage() {
   const { locale, dictionary, isRtl, announce } = useAppContext();
+  const prefersReducedMotion = useReducedMotion();
 
   const [activeCategory, setActiveCategory] = useState<PodcastCategoryId>('all');
+  const [hasSelectedCategory, setHasSelectedCategory] = useState<boolean>(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState<boolean>(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string>(
@@ -54,12 +153,10 @@ export function PodcastStage() {
   const [currentTime, setCurrentTime] = useState<number>(193);
   const [speedIndex, setSpeedIndex] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [likedIds, setLikedIds] = useState<Record<string, boolean>>({});
   const [copiedEpisodeId, setCopiedEpisodeId] = useState<string | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const mobilePanelId = useId();
-  useArchitecturalEntrance(stageRef, { isRtl });
   const currentTimeRef = useRef<number>(currentTime);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscRef = useRef<OscillatorNode | null>(null);
@@ -79,7 +176,319 @@ export function PodcastStage() {
     return inAll ?? PODCAST_EPISODES[0];
   }, [filteredEpisodes, selectedEpisodeId]);
 
+  const heroDescriptionWords = useMemo(
+    () =>
+      getLocalizedText(activeEpisode.description, locale)
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean),
+    [activeEpisode.description, locale]
+  );
+
   const playbackRate = PLAYBACK_RATES[speedIndex] ?? 1;
+
+  // 3.00s staged entrance choreography:
+  // 1) Sidebar episodes (desktop) -> 2) Hero artwork, title, word-by-word description, controls -> 3) Tracklist rows from bottom to top + player
+  useGSAP(
+    () => {
+      const container = stageRef.current;
+      if (!container || typeof window === 'undefined') return;
+
+      const reduced = window.matchMedia(
+        '(prefers-reduced-motion: reduce)'
+      ).matches;
+
+      const isDesktop = window.matchMedia(
+        '(min-width: 768px) and (min-height: 520px) and (orientation: landscape)'
+      ).matches;
+
+      const sidebarHeader = container.querySelector<HTMLElement>(
+        '[data-podcast-anim="sidebar-header"]'
+      );
+      const sidebarItems = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          '[data-podcast-anim="sidebar-item"]'
+        )
+      );
+      const heroMedia = container.querySelector<HTMLElement>(
+        '[data-podcast-anim="hero-media"]'
+      );
+      const heroTitle = container.querySelector<HTMLElement>(
+        '[data-podcast-anim="hero-title"]'
+      );
+      const heroWords = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          '[data-podcast-anim="hero-word"]'
+        )
+      );
+      const heroMeta = container.querySelector<HTMLElement>(
+        '[data-podcast-anim="hero-meta"]'
+      );
+      const heroControls = container.querySelector<HTMLElement>(
+        '[data-podcast-anim="hero-control"]'
+      );
+      const trackItems = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          '[data-podcast-anim="track-item"]'
+        )
+      );
+      const playerEls = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-podcast-anim="player"]')
+      );
+
+      const allTargets = [
+        ...(sidebarHeader ? [sidebarHeader] : []),
+        ...sidebarItems,
+        ...(heroMedia ? [heroMedia] : []),
+        ...(heroTitle ? [heroTitle] : []),
+        ...heroWords,
+        ...(heroMeta ? [heroMeta] : []),
+        ...(heroControls ? [heroControls] : []),
+        ...trackItems,
+        ...playerEls,
+      ];
+
+      if (reduced) {
+        gsap.set(allTargets, { clearProps: 'all' });
+        return;
+      }
+
+      const tl = gsap.timeline({
+        defaults: {
+          ease: 'power3.out',
+          clearProps: 'transform,filter',
+        },
+      });
+
+      if (isDesktop) {
+        // Phase 1 (0.00s -> 0.90s): Sidebar header & episodes appear one by one
+        if (sidebarHeader) {
+          tl.fromTo(
+            sidebarHeader,
+            { autoAlpha: 0, y: 10 },
+            { autoAlpha: 1, y: 0, duration: 0.36 },
+            0
+          );
+        }
+
+        if (sidebarItems.length > 0) {
+          const itemDur = 0.36;
+          const itemWindow = 0.82; // 0.08 + 0.82 = 0.90s
+          const itemStagger =
+            sidebarItems.length > 1
+              ? (itemWindow - itemDur) / (sidebarItems.length - 1)
+              : 0;
+
+          tl.fromTo(
+            sidebarItems,
+            { autoAlpha: 0, y: 14, filter: 'blur(4px)' },
+            {
+              autoAlpha: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: itemDur,
+              stagger: itemStagger,
+            },
+            0.08
+          );
+        }
+
+        // Phase 2 (0.78s -> 2.10s): Hero artwork, title, word-by-word description, metadata & controls
+        if (heroMedia) {
+          tl.fromTo(
+            heroMedia,
+            { autoAlpha: 0, y: 14, scale: 0.96, filter: 'blur(6px)' },
+            {
+              autoAlpha: 1,
+              y: 0,
+              scale: 1,
+              filter: 'blur(0px)',
+              duration: 0.48,
+            },
+            0.78
+          );
+        }
+
+        if (heroTitle) {
+          tl.fromTo(
+            heroTitle,
+            { autoAlpha: 0, y: 12, filter: 'blur(5px)' },
+            { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.42 },
+            0.9
+          );
+        }
+
+        if (heroWords.length > 0) {
+          const wordDur = 0.34;
+          const wordWindow = 0.86; // 1.04 + 0.86 = 1.90s
+          const wordStagger =
+            heroWords.length > 1
+              ? (wordWindow - wordDur) / (heroWords.length - 1)
+              : 0;
+
+          tl.fromTo(
+            heroWords,
+            { autoAlpha: 0, y: 6, filter: 'blur(7px)' },
+            {
+              autoAlpha: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: wordDur,
+              stagger: wordStagger,
+            },
+            1.04
+          );
+        }
+
+        if (heroMeta) {
+          tl.fromTo(
+            heroMeta,
+            { autoAlpha: 0, y: 8 },
+            { autoAlpha: 1, y: 0, duration: 0.36 },
+            1.58
+          );
+        }
+
+        if (heroControls) {
+          tl.fromTo(
+            heroControls,
+            { autoAlpha: 0, y: 10 },
+            { autoAlpha: 1, y: 0, duration: 0.4 },
+            1.7
+          );
+        }
+
+        // Phase 3 (1.96s -> 3.00s): Tracklist rows rise bottom-to-top + player bar
+        if (trackItems.length > 0) {
+          const trackDur = 0.44;
+          const trackWindow = 0.96; // 1.96 + 0.96 = 2.92s
+          const trackStagger =
+            trackItems.length > 1
+              ? (trackWindow - trackDur) / (trackItems.length - 1)
+              : 0;
+
+          tl.fromTo(
+            trackItems,
+            { autoAlpha: 0, y: 24, filter: 'blur(3px)' },
+            {
+              autoAlpha: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: trackDur,
+              stagger: trackStagger,
+            },
+            1.96
+          );
+        }
+
+        if (playerEls.length > 0) {
+          tl.fromTo(
+            playerEls,
+            { autoAlpha: 0, y: 16 },
+            { autoAlpha: 1, y: 0, duration: 0.44 },
+            2.56
+          );
+        }
+      } else {
+        // Mobile (0.00s -> 3.00s total; desktop sidebar is hidden so start hero right away)
+        if (heroMedia) {
+          tl.fromTo(
+            heroMedia,
+            { autoAlpha: 0, y: 14, scale: 0.96, filter: 'blur(6px)' },
+            {
+              autoAlpha: 1,
+              y: 0,
+              scale: 1,
+              filter: 'blur(0px)',
+              duration: 0.48,
+            },
+            0
+          );
+        }
+
+        if (heroTitle) {
+          tl.fromTo(
+            heroTitle,
+            { autoAlpha: 0, y: 12, filter: 'blur(5px)' },
+            { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.44 },
+            0.18
+          );
+        }
+
+        if (heroWords.length > 0) {
+          const wordDur = 0.36;
+          const wordWindow = 1.08; // 0.34 + 1.08 = 1.42s
+          const wordStagger =
+            heroWords.length > 1
+              ? (wordWindow - wordDur) / (heroWords.length - 1)
+              : 0;
+
+          tl.fromTo(
+            heroWords,
+            { autoAlpha: 0, y: 6, filter: 'blur(7px)' },
+            {
+              autoAlpha: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: wordDur,
+              stagger: wordStagger,
+            },
+            0.34
+          );
+        }
+
+        if (heroMeta) {
+          tl.fromTo(
+            heroMeta,
+            { autoAlpha: 0, y: 8 },
+            { autoAlpha: 1, y: 0, duration: 0.38 },
+            1.22
+          );
+        }
+
+        if (heroControls) {
+          tl.fromTo(
+            heroControls,
+            { autoAlpha: 0, y: 10 },
+            { autoAlpha: 1, y: 0, duration: 0.4 },
+            1.36
+          );
+        }
+
+        if (trackItems.length > 0) {
+          const trackDur = 0.46;
+          const trackWindow = 1.2; // 1.64 + 1.20 = 2.84s
+          const trackStagger =
+            trackItems.length > 1
+              ? (trackWindow - trackDur) / (trackItems.length - 1)
+              : 0;
+
+          tl.fromTo(
+            trackItems,
+            { autoAlpha: 0, y: 26, filter: 'blur(3px)' },
+            {
+              autoAlpha: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: trackDur,
+              stagger: trackStagger,
+            },
+            1.64
+          );
+        }
+
+        if (playerEls.length > 0) {
+          tl.fromTo(
+            playerEls,
+            { autoAlpha: 0, y: 16 },
+            { autoAlpha: 1, y: 0, duration: 0.48 },
+            2.52
+          );
+        }
+      }
+    },
+    { scope: stageRef, dependencies: [locale, isRtl] }
+  );
 
   // Close mobile episodes sheet on Escape
   useEffect(() => {
@@ -222,6 +631,7 @@ export function PodcastStage() {
   const handleSelectCategory = useCallback(
     (categoryId: PodcastCategoryId, collapseDesktopCategory = true) => {
       setActiveCategory(categoryId);
+      setHasSelectedCategory(true);
       if (collapseDesktopCategory) {
         setIsCategoryOpen(false);
       }
@@ -240,7 +650,8 @@ export function PodcastStage() {
 
   const handleStepEpisode = useCallback(
     (delta: -1 | 1) => {
-      const list = filteredEpisodes.length > 0 ? filteredEpisodes : PODCAST_EPISODES;
+      const list =
+        filteredEpisodes.length > 0 ? filteredEpisodes : PODCAST_EPISODES;
       const currentIdx = list.findIndex((ep) => ep.id === activeEpisode.id);
       const safeIdx = currentIdx === -1 ? 0 : currentIdx;
       const nextIdx = (safeIdx + delta + list.length) % list.length;
@@ -260,13 +671,6 @@ export function PodcastStage() {
 
   const handleCycleSpeed = useCallback(() => {
     setSpeedIndex((prev) => (prev + 1) % PLAYBACK_RATES.length);
-  }, []);
-
-  const handleToggleLike = useCallback((episodeId: string) => {
-    setLikedIds((prev) => ({
-      ...prev,
-      [episodeId]: !prev[episodeId],
-    }));
   }, []);
 
   const handleShare = useCallback(async () => {
@@ -293,6 +697,13 @@ export function PodcastStage() {
   const enterX = isRtl ? -18 : 18;
   const isCopied = copiedEpisodeId === activeEpisode.id;
 
+  const mobileCategoryStep =
+    PODCAST_CATEGORIES.length > 1
+      ? 0.42 / (PODCAST_CATEGORIES.length - 1)
+      : 0;
+  const mobileEpisodeStep =
+    filteredEpisodes.length > 1 ? 0.74 / (filteredEpisodes.length - 1) : 0;
+
   return (
     <div
       ref={stageRef}
@@ -307,6 +718,7 @@ export function PodcastStage() {
       <div className="hidden h-full w-[264px] shrink-0 border-e border-[var(--grid-line)] desktop:block desktop-wide:w-[304px]">
         <PodcastSidebar
           activeCategory={activeCategory}
+          hasSelectedCategory={hasSelectedCategory}
           isCategoryOpen={isCategoryOpen}
           episodes={filteredEpisodes}
           activeEpisodeId={activeEpisode.id}
@@ -316,11 +728,11 @@ export function PodcastStage() {
         />
       </div>
 
-      {/* Mobile Fixed Episodes Bar + Full-Height Vertical Sliding Sheet (Exact Header Glass) */}
+      {/* Mobile Fixed "Categories & Podcasts" Sticky Bar + 2.00s Vertical Sliding Sheet + Rail Crosshairs */}
       <div
         className={cn(
           'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
-          'flex flex-col bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150 transition-colors duration-200 desktop:hidden',
+          'flex flex-col bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-200 desktop:hidden',
           !isMobileFilterOpen && 'border-b border-[var(--grid-line)]'
         )}
       >
@@ -330,7 +742,7 @@ export function PodcastStage() {
           aria-expanded={isMobileFilterOpen}
           aria-controls={mobilePanelId}
           className={cn(
-            'flex h-12 w-full shrink-0 cursor-pointer items-center justify-between gap-3 px-4 text-start',
+            'flex h-12 w-full shrink-0 cursor-pointer items-center justify-between gap-3 ps-4 pe-0 text-start',
             'text-[15px] font-normal text-[var(--ink-primary)]'
           )}
         >
@@ -341,13 +753,33 @@ export function PodcastStage() {
           <span
             aria-hidden="true"
             className={cn(
-              'inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-muted)] transition-transform duration-200',
+              'inline-flex shrink-0 items-center justify-center p-3 text-[var(--ink-muted)] transition-transform duration-300',
               isMobileFilterOpen && 'rotate-180'
             )}
           >
             <MdKeyboardArrowDown size={20} />
           </span>
         </button>
+
+        {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs (Matching Header) */}
+        {!isMobileFilterOpen && (
+          <>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
+          </>
+        )}
 
         <AnimatePresence initial={false}>
           {isMobileFilterOpen && (
@@ -358,26 +790,52 @@ export function PodcastStage() {
                 height:
                   'calc(100dvh - var(--grid-header) - var(--grid-bottom) - 48px)',
                 opacity: 1,
+                transition: prefersReducedMotion
+                  ? { duration: 0.01 }
+                  : {
+                      height: { duration: 0.72, ease: SITE_CONFIG.motion.ease },
+                      opacity: { duration: 0.45, ease: SITE_CONFIG.motion.ease },
+                    },
               }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{
-                duration: SITE_CONFIG.motion.standardDuration,
-                ease: SITE_CONFIG.motion.ease,
+              exit={{
+                height: 0,
+                opacity: 0,
+                transition: prefersReducedMotion
+                  ? { duration: 0.01 }
+                  : {
+                      duration: 0.48,
+                      ease: SITE_CONFIG.motion.ease,
+                    },
               }}
               className="flex flex-col overflow-hidden"
             >
-              {/* Horizontal Category Chips (No divider under bar, no divider under chips) */}
+              {/* Horizontal 32px-Height Category Chips (16px mobile side padding) */}
               <div className="no-scrollbar flex shrink-0 items-center gap-2 overflow-x-auto px-4 pt-2 pb-3">
-                {PODCAST_CATEGORIES.map((category) => {
+                {PODCAST_CATEGORIES.map((category, idx) => {
                   const isActive = category.id === activeCategory;
                   return (
-                    <button
+                    <motion.button
                       key={category.id}
                       type="button"
                       onClick={() => handleSelectCategory(category.id, false)}
                       aria-pressed={isActive}
+                      initial={
+                        prefersReducedMotion
+                          ? { opacity: 1, y: 0 }
+                          : { opacity: 0, y: -10 }
+                      }
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={
+                        prefersReducedMotion
+                          ? { duration: 0.01 }
+                          : {
+                              duration: 0.42,
+                              delay: 0.3 + idx * mobileCategoryStep,
+                              ease: SITE_CONFIG.motion.ease,
+                            }
+                      }
                       className={cn(
-                        'shrink-0 cursor-pointer rounded-full border px-3.5 py-1.5 text-[12px] leading-none whitespace-nowrap',
+                        'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full border px-3.5 text-[12px] leading-none whitespace-nowrap',
                         'transition-colors duration-200',
                         isActive
                           ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] font-medium text-[var(--brand-ink-on-primary)]'
@@ -385,21 +843,41 @@ export function PodcastStage() {
                       )}
                     >
                       {getLocalizedText(category.label, locale)}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
 
-              {/* Full-Height Live-Filtered Episodes List */}
-              <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 pb-6">
+              {/* Full-Height Live-Filtered Episodes List (16px mobile padding, rising one by one to finish at 2.00s) */}
+              <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 pb-4">
                 <ul className="divide-y divide-[var(--grid-line)]">
-                  {filteredEpisodes.map((episode) => {
+                  {filteredEpisodes.map((episode, idx) => {
                     const isSelected = episode.id === activeEpisode.id;
                     return (
-                      <li key={episode.id} className="py-3.5 first:pt-2">
+                      <motion.li
+                        key={`${activeCategory}-${episode.id}`}
+                        initial={
+                          prefersReducedMotion
+                            ? { opacity: 1, y: 0 }
+                            : { opacity: 0, y: 20 }
+                        }
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={
+                          prefersReducedMotion
+                            ? { duration: 0.01 }
+                            : {
+                                duration: 0.48,
+                                delay: 0.78 + idx * mobileEpisodeStep,
+                                ease: SITE_CONFIG.motion.ease,
+                              }
+                        }
+                        className="py-3.5 first:pt-2"
+                      >
                         <button
                           type="button"
-                          onClick={() => handleSelectEpisode(episode.id, false, true)}
+                          onClick={() =>
+                            handleSelectEpisode(episode.id, false, true)
+                          }
                           className="group flex w-full cursor-pointer items-center gap-3 text-start"
                         >
                           <span
@@ -420,10 +898,10 @@ export function PodcastStage() {
                               className="object-cover"
                             />
                           </span>
-                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="flex min-w-0 flex-1 items-center">
                             <span
                               className={cn(
-                                'line-clamp-1 text-[13px] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)]',
+                                'line-clamp-2 text-[14px] leading-[1.4] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)]',
                                 isSelected
                                   ? 'font-medium text-[var(--brand-text-hover)]'
                                   : 'font-normal text-[var(--ink-primary)]'
@@ -431,12 +909,9 @@ export function PodcastStage() {
                             >
                               {getLocalizedText(episode.title, locale)}
                             </span>
-                            <span className="line-clamp-1 text-[11px] text-[var(--ink-muted)]">
-                              {getLocalizedText(episode.subtitle, locale)}
-                            </span>
                           </span>
                         </button>
-                      </li>
+                      </motion.li>
                     );
                   })}
                 </ul>
@@ -446,10 +921,10 @@ export function PodcastStage() {
         </AnimatePresence>
       </div>
 
-      {/* Main Content Stage: Animated Hero + 4-Row Episode Tracklist + Waveform Player */}
+      {/* Main Content Stage: Animated Hero + 24px Tracklist + Waveform Player */}
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-canvas)] desktop:h-full desktop:overflow-hidden">
-        {/* Band 1: Featured Episode Hero (Animated on Episode Selection) */}
-        <div className="shrink-0 border-b border-[var(--grid-line)] px-4 py-5 desktop:px-8 desktop:py-6">
+        {/* Band 1: Featured Episode Hero (16px padding on mobile, 24px on desktop) */}
+        <div className="shrink-0 border-b border-[var(--grid-line)] p-4 desktop:p-6">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={activeEpisode.id}
@@ -463,14 +938,8 @@ export function PodcastStage() {
               className="flex flex-col gap-5 desktop:flex-row desktop:items-stretch desktop:gap-7"
             >
               {/* Square Episode Artwork */}
-              <motion.div
-                data-gsap="media"
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
-                  duration: SITE_CONFIG.motion.standardDuration,
-                  ease: SITE_CONFIG.motion.ease,
-                }}
+              <div
+                data-podcast-anim="hero-media"
                 className="relative aspect-square w-40 shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:w-48 desktop-wide:w-52"
               >
                 <Image
@@ -482,27 +951,37 @@ export function PodcastStage() {
                   referrerPolicy="no-referrer"
                   className="object-cover"
                 />
-              </motion.div>
+              </div>
 
-              {/* Episode Title, Synopsis, Duration & Speakers, and Actions */}
+              {/* Episode Title, Word-by-Word Synopsis, Duration & Speakers, and Actions */}
               <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
                 <div className="space-y-2.5">
                   <h1
-                    data-gsap="heading"
+                    data-podcast-anim="hero-title"
                     className="text-[clamp(1.2rem,1.9vw,1.65rem)] font-medium leading-[1.25] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.4] rtl:tracking-normal"
                   >
                     {getLocalizedText(activeEpisode.title, locale)}
                   </h1>
 
-                  <p
-                    data-gsap="body"
-                    className="max-w-3xl text-[14px] leading-[1.65] text-[var(--ink-secondary)] rtl:leading-[1.85] desktop:text-[15px]"
-                  >
-                    {getLocalizedText(activeEpisode.description, locale)}
+                  <p className="max-w-3xl text-[14px] leading-[1.65] text-[var(--ink-secondary)] rtl:leading-[1.85] desktop:text-[15px]">
+                    {heroDescriptionWords.map((word, index) => (
+                      <span key={`${activeEpisode.id}-word-${index}`}>
+                        <span
+                          data-podcast-anim="hero-word"
+                          className="inline-block will-change-[opacity,transform,filter]"
+                        >
+                          {word}
+                        </span>
+                        {index < heroDescriptionWords.length - 1 ? ' ' : ''}
+                      </span>
+                    ))}
                   </p>
 
                   {/* Total Episode Duration + Speakers Row */}
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-[13px] text-[var(--ink-muted)]">
+                  <div
+                    data-podcast-anim="hero-meta"
+                    className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-[13px] text-[var(--ink-muted)]"
+                  >
                     <span className="inline-flex items-center gap-1.5">
                       <MdSchedule
                         size={15}
@@ -536,12 +1015,12 @@ export function PodcastStage() {
                   </div>
                 </div>
 
-                {/* Listen/See Platforms + Share Button With Material Icon */}
+                {/* Listen/See Platforms (aligned to container end on mobile: left in RTL, right in LTR) + Full-Width Mobile Share Button */}
                 <div
-                  data-gsap="control"
-                  className="flex flex-wrap items-center justify-between gap-4 pt-1"
+                  data-podcast-anim="hero-control"
+                  className="flex flex-col gap-3 pt-1 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:justify-between desktop:gap-4"
                 >
-                  <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex w-full items-center justify-between gap-3 desktop:w-auto desktop:justify-start">
                     <span className="text-[13px] text-[var(--ink-muted)]">
                       {dictionary.podcast.listenOrSeeIn}
                     </span>
@@ -589,7 +1068,7 @@ export function PodcastStage() {
                     type="button"
                     onClick={handleShare}
                     className={cn(
-                      'inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full px-5',
+                      'inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 desktop:w-auto',
                       'border border-[var(--grid-line-strong)] text-[13px] font-normal text-[var(--ink-primary)]',
                       'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]',
                       isCopied &&
@@ -613,8 +1092,8 @@ export function PodcastStage() {
           </AnimatePresence>
         </div>
 
-        {/* Band 2: Episode Tracklist (4-row desktop viewport, zero 4th bottom divider until scrolled) */}
-        <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 desktop:px-8">
+        {/* Band 2: Episode Tracklist (16px horizontal padding on mobile, 24px on desktop) */}
+        <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 desktop:px-6">
           {filteredEpisodes.length === 0 ? (
             <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-4 py-12 text-center">
               <p className="text-[15px] text-[var(--ink-secondary)]">
@@ -637,28 +1116,40 @@ export function PodcastStage() {
               {filteredEpisodes.map((episode) => {
                 const isSelected = episode.id === activeEpisode.id;
                 const isRowPlaying = isSelected && isPlaying;
-                const isLiked = Boolean(likedIds[episode.id]);
-                const likeCount = episode.initialLikes + (isLiked ? 1 : 0);
 
                 return (
                   <li
                     key={episode.id}
-                    data-gsap="card"
-                    className="group flex items-center justify-between gap-4 py-4 desktop:h-1/4 desktop:min-h-[76px] desktop:py-0"
+                    data-podcast-anim="track-item"
+                    className="group flex items-center py-4 desktop:h-1/4 desktop:min-h-[76px] desktop:py-0"
                   >
-                    <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+                    <div className="flex w-full min-w-0 flex-col items-start gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleSelectEpisode(episode.id, false)}
-                        className={cn(
-                          'cursor-pointer text-start text-[15px] leading-[1.4] transition-colors duration-200 desktop:text-[16px]',
-                          'group-hover:text-[var(--brand-text-hover)] hover:text-[var(--brand-text-hover)]',
-                          isSelected
-                            ? 'font-medium text-[var(--brand-text-hover)]'
-                            : 'font-normal text-[var(--ink-primary)]'
-                        )}
+                        onClick={() => handleSelectEpisode(episode.id, true)}
+                        aria-label={`${getLocalizedText(episode.title, locale)} — ${
+                          isRowPlaying
+                            ? dictionary.podcast.pauseEpisodeAriaLabel
+                            : dictionary.podcast.playEpisodeAriaLabel
+                        }`}
+                        className="flex w-full cursor-pointer items-center justify-between gap-4 text-start"
                       >
-                        {getLocalizedText(episode.title, locale)}
+                        <span
+                          className={cn(
+                            'text-[15px] leading-[1.4] transition-colors duration-200 desktop:text-[16px]',
+                            'group-hover:text-[var(--brand-text-hover)]',
+                            isSelected
+                              ? 'font-medium text-[var(--brand-text-hover)]'
+                              : 'font-normal text-[var(--ink-primary)]'
+                          )}
+                        >
+                          {getLocalizedText(episode.title, locale)}
+                        </span>
+
+                        <AudioPlaybackIndicator
+                          isPlaying={isRowPlaying}
+                          isSelected={isSelected}
+                        />
                       </button>
 
                       <div className="flex flex-wrap items-center gap-4 text-[12px] text-[var(--ink-muted)]">
@@ -675,53 +1166,8 @@ export function PodcastStage() {
                             {episode.durationLabel}
                           </span>
                         </span>
-
-                        <button
-                          type="button"
-                          onClick={() => handleToggleLike(episode.id)}
-                          aria-pressed={isLiked}
-                          aria-label={dictionary.podcast.likeEpisodeAriaLabel}
-                          className={cn(
-                            'inline-flex cursor-pointer items-center gap-1 rounded-full py-0.5 transition-colors duration-200',
-                            'hover:text-[var(--brand-text-hover)]',
-                            isLiked && 'text-[var(--brand-text-hover)]'
-                          )}
-                        >
-                          {isLiked ? (
-                            <MdFavorite size={14} aria-hidden="true" />
-                          ) : (
-                            <MdFavoriteBorder size={14} aria-hidden="true" />
-                          )}
-                          <span dir="ltr" className="bidi-isolate tabular-nums">
-                            {likeCount}
-                          </span>
-                        </button>
                       </div>
                     </div>
-
-                    {/* Full-Radius Play / Pause Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleSelectEpisode(episode.id, true)}
-                      aria-label={
-                        isRowPlaying
-                          ? dictionary.podcast.pauseEpisodeAriaLabel
-                          : dictionary.podcast.playEpisodeAriaLabel
-                      }
-                      className={cn(
-                        'inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full',
-                        'border transition-colors duration-200',
-                        isRowPlaying
-                          ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-ink-on-primary)] hover:bg-[var(--brand-primary-hover)]'
-                          : 'border-[var(--grid-line-strong)] text-[var(--ink-primary)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
-                      )}
-                    >
-                      {isRowPlaying ? (
-                        <MdPause size={18} aria-hidden="true" />
-                      ) : (
-                        <MdPlayArrow size={20} aria-hidden="true" />
-                      )}
-                    </button>
                   </li>
                 );
               })}

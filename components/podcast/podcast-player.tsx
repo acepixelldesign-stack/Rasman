@@ -162,8 +162,11 @@ export function PodcastPlayer({
 
   return (
     <>
-      {/* Desktop Integrated Bottom Player */}
-      <div className="hidden shrink-0 items-center gap-6 border-t border-[var(--grid-line)] bg-[var(--bg-canvas)] px-8 py-4 desktop:flex">
+      {/* Desktop Integrated Bottom Player (24px horizontal padding) */}
+      <div
+        data-podcast-anim="player"
+        className="hidden shrink-0 items-center gap-6 border-t border-[var(--grid-line)] bg-[var(--bg-canvas)] px-6 py-4 desktop:flex"
+      >
         {transportControls}
 
         <div className="flex min-w-0 flex-1 items-center gap-3.5">
@@ -190,16 +193,17 @@ export function PodcastPlayer({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          {speedButton}
           {volumeButton}
+          {speedButton}
         </div>
       </div>
 
-      {/* Mobile Fixed Bottom Player (pinned directly above the 16px bottom grid bar) */}
+      {/* Mobile Fixed Bottom Player (pinned directly above the 16px bottom grid bar, 16px horizontal padding) */}
       <div
+        data-podcast-anim="player"
         className={cn(
           'fixed bottom-[var(--grid-bottom)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-30',
-          'border-t border-[var(--grid-line)] bg-[var(--bg-canvas)] px-3 pt-2.5 pb-2 desktop:hidden'
+          'border-t border-[var(--grid-line)] bg-[var(--bg-canvas)] px-4 pt-2.5 pb-2 desktop:hidden'
         )}
       >
         {/* Top Row: Elapsed Time (start) + Responsive Waveform Slider + Total Duration (end) */}
@@ -226,11 +230,11 @@ export function PodcastPlayer({
           </span>
         </div>
 
-        {/* Bottom Row: Speed (start) | Prev · Play/Pause · Next (center) | Volume (end) */}
+        {/* Bottom Row: Volume (start) | Prev · Play/Pause · Next (center) | Speed (end) */}
         <div className="mt-1 flex items-center justify-between">
-          {speedButton}
-          {transportControls}
           {volumeButton}
+          {transportControls}
+          {speedButton}
         </div>
       </div>
     </>

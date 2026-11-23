@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ['motion'],
   experimental: {
     optimizePackageImports: ['react-icons', 'lucide-react', 'motion'],
+    webpackMemoryOptimizations: true,
   },
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.

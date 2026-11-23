@@ -1,31 +1,28 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Jost, Vazirmatn } from 'next/font/google';
+import '@fontsource/jost/latin-300.css';
+import '@fontsource/jost/latin-400.css';
+import '@fontsource/jost/latin-500.css';
+import '@fontsource/jost/latin-600.css';
+import '@fontsource/jost/latin-700.css';
+import '@fontsource/vazirmatn/arabic-300.css';
+import '@fontsource/vazirmatn/arabic-400.css';
+import '@fontsource/vazirmatn/arabic-500.css';
+import '@fontsource/vazirmatn/arabic-600.css';
+import '@fontsource/vazirmatn/arabic-700.css';
+import '@fontsource/vazirmatn/latin-300.css';
+import '@fontsource/vazirmatn/latin-400.css';
+import '@fontsource/vazirmatn/latin-500.css';
+import '@fontsource/vazirmatn/latin-600.css';
+import '@fontsource/vazirmatn/latin-700.css';
+import '@fontsource/cormorant-garamond/latin-500.css';
+import '@fontsource/cormorant-garamond/latin-600.css';
+import '@fontsource/cormorant-garamond/latin-700.css';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SITE_CONFIG } from '@/lib/config/site';
+import { getCustomPersianFontCss } from '@/lib/fonts/persian-fonts';
 import { AppProvider } from '@/components/providers/app-provider';
 import './globals.css';
-
-const jost = Jost({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-latin',
-  display: 'swap',
-});
-
-const vazirmatn = Vazirmatn({
-  subsets: ['arabic', 'latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-persian',
-  display: 'swap',
-});
-
-const cormorant = Cormorant_Garamond({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-wordmark',
-  display: 'swap',
-});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -59,13 +56,19 @@ export default function RootLayout({
 }: {
   readonly children: React.ReactNode;
 }) {
+  const customPersianFontCss = getCustomPersianFontCss();
+
   return (
     <html
       lang={SITE_CONFIG.defaultLocale}
       dir="ltr"
-      className={`${jost.variable} ${vazirmatn.variable} ${cormorant.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        {customPersianFontCss ? (
+          <style id="rasman-custom-persian-font">{customPersianFontCss}</style>
+        ) : null}
+      </head>
       <body suppressHydrationWarning>
         <AppProvider>{children}</AppProvider>
         <Analytics />

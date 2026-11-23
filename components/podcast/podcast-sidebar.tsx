@@ -1,8 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { AnimatePresence, motion } from 'motion/react';
-import { MdAdd, MdRemove } from 'react-icons/md';
+import { AnimatePresence, motion, type Variants } from 'motion/react';
+import { MdKeyboardArrowDown } from 'react-icons/md';
 import { SITE_CONFIG } from '@/lib/config/site';
 import {
   PODCAST_CATEGORIES,
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 
 interface PodcastSidebarProps {
   readonly activeCategory: PodcastCategoryId;
+  readonly hasSelectedCategory: boolean;
   readonly isCategoryOpen: boolean;
   readonly episodes: readonly PodcastEpisode[];
   readonly activeEpisodeId: string;
@@ -25,15 +26,56 @@ interface PodcastSidebarProps {
   readonly className?: string;
 }
 
+const CATEGORY_LIST_VARIANTS: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      delayChildren: 0.25,
+      staggerChildren: 0.23,
+    },
+  },
+  exit: {
+    transition: {
+      staggerChildren: 0.04,
+      staggerDirection: -1,
+    },
+  },
+};
+
+const CATEGORY_ITEM_VARIANTS: Variants = {
+  hidden: {
+    opacity: 0,
+    y: -10,
+    filter: 'blur(4px)',
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: {
+      duration: 0.6,
+      ease: SITE_CONFIG.motion.ease,
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -6,
+    transition: {
+      duration: 0.32,
+      ease: SITE_CONFIG.motion.ease,
+    },
+  },
+};
+
 /**
  * Desktop docked podcast architectural sidebar:
- * - 'category' heading stays neutral ink (never turns green/colored)
- * - Subtle muted gray (+ / -) accordion icon
- * - Full-width bottom divider beneath 'category' hides cleanly when categories slide open
- * - Pure vertical sliding open/close animation for the categories list directly underneath
+ * - 16px side padding on category dropdown header; label updates to active category on selection
+ * - 2.00s top-to-bottom sliding reveal with staggered categories; 1.00s upward collapse on selection
+ * - 24px horizontal list padding, 14px episode titles, zero subtitles, zero duplicate category heading
  */
 export function PodcastSidebar({
   activeCategory,
+  hasSelectedCategory,
   isCategoryOpen,
   episodes,
   activeEpisodeId,
@@ -48,6 +90,10 @@ export function PodcastSidebar({
     PODCAST_CATEGORIES.find((cat) => cat.id === activeCategory) ??
     PODCAST_CATEGORIES[0];
 
+  const headerLabel = hasSelectedCategory
+    ? getLocalizedText(activeCategoryObj.label, locale)
+    : dictionary.podcast.categoryTitle;
+
   return (
     <aside
       aria-label={dictionary.podcast.sidebarAriaLabel}
@@ -56,10 +102,11 @@ export function PodcastSidebar({
         className
       )}
     >
-      {/* Category Header Row (Divider disappears when categories open; text never turns green) */}
+      {/* Category Dropdown Header Row (16px horizontal padding, bottom divider hides when open) */}
       <div
+        data-podcast-anim="sidebar-header"
         className={cn(
-          'flex shrink-0 items-center justify-between gap-2 border-b px-6 py-4 transition-colors duration-200',
+          'flex shrink-0 items-center justify-between gap-2 border-b px-4 py-4 transition-colors duration-300',
           isCategoryOpen ? 'border-transparent' : 'border-[var(--grid-line)]'
         )}
       >
@@ -73,77 +120,73 @@ export function PodcastSidebar({
               : dictionary.podcast.openCategoriesAriaLabel
           }
           className={cn(
-            'flex flex-1 cursor-pointer items-center justify-between text-start',
-            'text-[22px] font-normal leading-[1.2] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[24px]',
-            'rtl:leading-[1.35] rtl:tracking-normal'
+            'flex flex-1 cursor-pointer items-center justify-between gap-3 text-start',
+            'text-[20px] font-normal leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[22px]',
+            'rtl:leading-[1.4] rtl:tracking-normal'
           )}
         >
-          <span>{dictionary.podcast.categoryTitle}</span>
-          <span
+          <span className="truncate">{headerLabel}</span>
+          <motion.span
             aria-hidden="true"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink-muted)]"
+            initial={false}
+            animate={{ rotate: isCategoryOpen ? 180 : 0 }}
+            transition={{
+              duration: 0.65,
+              ease: SITE_CONFIG.motion.ease,
+            }}
+            className="inline-flex shrink-0 items-center justify-center text-[var(--ink-muted)]"
           >
-            <AnimatePresence mode="wait" initial={false}>
-              {isCategoryOpen ? (
-                <motion.span
-                  key="minus"
-                  initial={{ opacity: 0, rotate: -90 }}
-                  animate={{ opacity: 1, rotate: 0 }}
-                  exit={{ opacity: 0, rotate: 90 }}
-                  transition={{
-                    duration: SITE_CONFIG.motion.fastDuration,
-                    ease: SITE_CONFIG.motion.ease,
-                  }}
-                  className="flex items-center justify-center"
-                >
-                  <MdRemove size={20} />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="plus"
-                  initial={{ opacity: 0, rotate: 90 }}
-                  animate={{ opacity: 1, rotate: 0 }}
-                  exit={{ opacity: 0, rotate: -90 }}
-                  transition={{
-                    duration: SITE_CONFIG.motion.fastDuration,
-                    ease: SITE_CONFIG.motion.ease,
-                  }}
-                  className="flex items-center justify-center"
-                >
-                  <MdAdd size={20} />
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </span>
+            <MdKeyboardArrowDown size={22} />
+          </motion.span>
         </button>
       </div>
 
-      {/* Vertical Sliding Body: Categories List (Open) OR Active Category Name + Episodes (Closed) */}
+      {/* Vertical Sliding Body: Categories List (2s open / 1s collapse) OR Episodes (24px side padding) */}
       <SmoothVerticalPane className="flex-1 overflow-y-auto px-6 pb-4">
         <AnimatePresence mode="wait" initial={false}>
           {isCategoryOpen ? (
             <motion.div
               key="category-drawer"
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{
-                duration: SITE_CONFIG.motion.standardDuration,
-                ease: SITE_CONFIG.motion.ease,
+              animate={{
+                height: 'auto',
+                opacity: 1,
+                transition: {
+                  height: { duration: 0.9, ease: SITE_CONFIG.motion.ease },
+                  opacity: { duration: 0.5, ease: SITE_CONFIG.motion.ease },
+                },
+              }}
+              exit={{
+                height: 0,
+                opacity: 0,
+                transition: {
+                  height: { duration: 1.0, ease: SITE_CONFIG.motion.ease },
+                  opacity: { duration: 0.7, ease: SITE_CONFIG.motion.ease },
+                },
               }}
               className="overflow-hidden"
             >
-              <ul className="flex flex-col items-start gap-3 pt-1 pb-2">
+              <motion.ul
+                variants={CATEGORY_LIST_VARIANTS}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="flex flex-col items-start gap-3 pt-1 pb-2"
+              >
                 {PODCAST_CATEGORIES.map((category) => {
                   const isActive = category.id === activeCategory;
                   return (
-                    <li key={category.id} className="w-full">
+                    <motion.li
+                      key={category.id}
+                      variants={CATEGORY_ITEM_VARIANTS}
+                      className="w-full"
+                    >
                       <button
                         type="button"
                         onClick={() => onSelectCategory(category.id)}
                         className={cn(
-                          'w-full cursor-pointer py-1 text-start text-[20px] leading-[1.35] tracking-[-0.015em] desktop:text-[22px]',
-                          'rtl:leading-[1.5] rtl:tracking-normal transition-colors duration-200',
+                          'w-full cursor-pointer py-1 text-start text-[19px] leading-[1.35] tracking-[-0.015em] desktop:text-[21px]',
+                          'rtl:leading-[1.5] rtl:tracking-normal transition-colors duration-300',
                           'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
                           isActive
                             ? 'font-normal text-[var(--brand-text-hover)]'
@@ -152,36 +195,56 @@ export function PodcastSidebar({
                       >
                         {getLocalizedText(category.label, locale)}
                       </button>
-                    </li>
+                    </motion.li>
                   );
                 })}
-              </ul>
+              </motion.ul>
             </motion.div>
           ) : (
             <motion.div
               key="episode-sidebar-list"
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{
-                duration: SITE_CONFIG.motion.standardDuration,
-                ease: SITE_CONFIG.motion.ease,
+              animate={{
+                height: 'auto',
+                opacity: 1,
+                transition: {
+                  height: {
+                    duration: SITE_CONFIG.motion.standardDuration,
+                    ease: SITE_CONFIG.motion.ease,
+                  },
+                  opacity: {
+                    duration: SITE_CONFIG.motion.standardDuration,
+                    ease: SITE_CONFIG.motion.ease,
+                  },
+                },
+              }}
+              exit={{
+                height: 0,
+                opacity: 0,
+                transition: {
+                  height: {
+                    duration: SITE_CONFIG.motion.fastDuration,
+                    ease: SITE_CONFIG.motion.ease,
+                  },
+                  opacity: {
+                    duration: SITE_CONFIG.motion.fastDuration,
+                    ease: SITE_CONFIG.motion.ease,
+                  },
+                },
               }}
               className="flex flex-col overflow-hidden pt-4"
             >
-              {/* Active Category Name directly beneath the full divider */}
-              <p className="pb-3.5 text-[15px] font-normal text-[var(--ink-primary)]">
-                {getLocalizedText(activeCategoryObj.label, locale)}
-              </p>
-
               <ul className="flex flex-col divide-y divide-[var(--grid-line)]">
                 {episodes.map((episode) => {
                   const isSelected = episode.id === activeEpisodeId;
                   const title = getLocalizedText(episode.title, locale);
-                  const subtitle = getLocalizedText(episode.subtitle, locale);
 
                   return (
-                    <li key={episode.id} className="py-3.5 first:pt-1">
+                    <li
+                      key={episode.id}
+                      data-podcast-anim="sidebar-item"
+                      className="py-3.5 first:pt-1"
+                    >
                       <button
                         type="button"
                         onClick={() => onSelectEpisode(episode.id)}
@@ -191,7 +254,7 @@ export function PodcastSidebar({
                         <span
                           className={cn(
                             'relative h-14 w-14 shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)]',
-                            'ring-1 transition-all duration-200',
+                            'ring-1 transition-all duration-300',
                             isSelected
                               ? 'ring-[var(--brand-primary)]'
                               : 'ring-transparent group-hover:ring-[var(--brand-primary)]'
@@ -208,10 +271,10 @@ export function PodcastSidebar({
                           />
                         </span>
 
-                        <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="flex min-w-0 flex-1 items-center">
                           <span
                             className={cn(
-                              'line-clamp-2 text-[13px] leading-[1.35] transition-colors duration-200',
+                              'line-clamp-2 text-[14px] leading-[1.4] transition-colors duration-300',
                               'group-hover:text-[var(--brand-text-hover)]',
                               isSelected
                                 ? 'font-medium text-[var(--brand-text-hover)]'
@@ -219,9 +282,6 @@ export function PodcastSidebar({
                             )}
                           >
                             {title}
-                          </span>
-                          <span className="line-clamp-1 text-[11px] text-[var(--ink-muted)]">
-                            {subtitle}
                           </span>
                         </span>
                       </button>

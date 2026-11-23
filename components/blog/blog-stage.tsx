@@ -116,6 +116,26 @@ export function BlogStage() {
           </span>
         </button>
 
+        {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs (Matching Header) */}
+        {!isMobileCategoriesOpen && (
+          <>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
+          </>
+        )}
+
         <AnimatePresence initial={false}>
           {isMobileCategoriesOpen && (
             <motion.div

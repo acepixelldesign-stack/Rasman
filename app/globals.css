@@ -11,6 +11,11 @@
    ========================================================================== */
 
 :root {
+  /* Bundled Font Families */
+  --font-latin: 'Jost';
+  --font-persian: 'Vazirmatn';
+  --font-wordmark: 'Cormorant Garamond';
+
   /* Core Surfaces — Pure White */
   --bg-canvas: #ffffff;
   --bg-rail: #ffffff;
@@ -191,7 +196,7 @@
   }
 
   html[dir="rtl"] body {
-    font-family: var(--font-persian), var(--font-latin), system-ui, sans-serif;
+    font-family: 'RasmanPersianCustom', var(--font-persian), var(--font-latin), system-ui, sans-serif;
     line-height: 1.75;
     letter-spacing: 0;
   }
