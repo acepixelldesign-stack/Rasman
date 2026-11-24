@@ -6,10 +6,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
+  type TouchEvent as ReactTouchEvent,
 } from 'react';
 import Image from 'next/image';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import {
   FaFacebookF,
   FaInstagram,
@@ -26,13 +26,12 @@ import {
 } from '@/lib/data/about';
 import { SITE_CONFIG } from '@/lib/config/site';
 import { useAppContext } from '@/components/providers/app-provider';
-import { useArchitecturalEntrance } from '@/components/motion/architectural-motion';
 import { cn } from '@/lib/utils';
 
-type ChapterId = 'studio' | 'principal' | 'core' | 'previous';
+type ChapterId = 'studio' | 'founder' | 'current' | 'previous';
 
-const HORIZONTAL_LERP = 0.095;
-const STOP_THRESHOLD_PX = 0.35;
+const SCROLL_LERP = 0.14;
+const SCROLL_STOP_PX = 0.4;
 
 function renderSocialIcon(platform: AuthorSocialPlatform) {
   switch (platform) {
@@ -48,197 +47,289 @@ function renderSocialIcon(platform: AuthorSocialPlatform) {
 }
 
 /**
- * Horizontal Architectural About & Rasman Team Stage:
- * - Always scrolls horizontally on both desktop AND mobile without visible scrollbar
- * - Vertical grid dividers separate sequential chapters (Studio | Principal | Core Team | Previous Team)
- * - Previous Team displays 2 stacked horizontal rows of square portraits with name/role/date to the side,
- *   sized and spaced so the combined height of 2 rows matches a single Core Team card
+ * Rasman Team Continuous Horizontal Architectural Ribbon (Desktop & Mobile):
+ * - Fixed top 48px segmented square progress bar directly below header:
+ *     - Square 48x48 step number cells (`1`, `2`, `3`, `4`); active step stretches smoothly to reveal its title
+ *     - Crisp unbroken bottom hairline beneath all cells (zero green progress loading bar)
+ *     - Square 48x48 percentage block at logical end + bottom frame rail '+' crosshairs
+ * - Continuous pixel-accurate horizontal scroll (zero discrete jump / zero swap animation):
+ *     - Vertical dividers between sections glide continuously toward logical start (left in EN, right in FA/AR)
+ *       as the user scrolls until each section docks cleanly
+ *     - Sections with overflowing content scroll horizontally through their members first before the next divider enters
+ * - Dynamic viewport-height-aware (`cqh`/`cqw`) photo sizing so images NEVER clip vertically on any screen:
+ *     - Section 1 (Rasman Team): Desktop 50/50 split (56px gap); Mobile photo first then editorial copy
+ *     - Section 2 (Founder): Founder portrait + bio & socials cleanly bounded inside viewport height
+ *     - Section 3 (Current Members): Sticky 32px title + side-by-side single horizontal row on BOTH mobile & desktop
+ *     - Section 4 (Previous Members): Sticky 32px title + ONLY 2 stacked rows flowing sequentially horizontally
+ *       with compact square photos and name/role/RTL-right-aligned tenure date below
  */
 export function AboutStage() {
-  const { locale, isRtl, dictionary } = useAppContext();
+  const { locale, dir, isRtl, dictionary } = useAppContext();
+  const prefersReducedMotion = useReducedMotion();
+
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [progressPercent, setProgressPercent] = useState<number>(0);
 
   const stageRef = useRef<HTMLElement>(null);
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const studioPanelRef = useRef<HTMLElement>(null);
-  const principalPanelRef = useRef<HTMLElement>(null);
-  const corePanelRef = useRef<HTMLElement>(null);
-  const previousPanelRef = useRef<HTMLElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<(HTMLElement | null)[]>([]);
 
-  useArchitecturalEntrance(stageRef, { isRtl });
-
-  const [progress, setProgress] = useState(0);
-  const [activeChapter, setActiveChapter] = useState<ChapterId>('studio');
-  const [isDragging, setIsDragging] = useState(false);
-
-  const targetOffsetRef = useRef(0);
-  const currentOffsetRef = useRef(0);
-  const rafIdRef = useRef<number | null>(null);
-  const isAnimatingRef = useRef(false);
-  const dragStateRef = useRef({
-    active: false,
-    startX: 0,
-    startOffset: 0,
-    pointerId: -1,
-  });
+  const targetScrollPosRef = useRef<number>(0);
+  const currentScrollPosRef = useRef<number>(0);
+  const isAnimatingRef = useRef<boolean>(false);
+  const rafRef = useRef<number | null>(null);
+  const touchRef = useRef<{
+    startX: number;
+    startY: number;
+    lastY: number;
+    axis: 'undecided' | 'vertical' | 'horizontal';
+  } | null>(null);
 
   const chapters = useMemo(
     () =>
       [
         {
           id: 'studio' as ChapterId,
+          number: '1',
           label: dictionary.about.sectionStudio,
-          ref: studioPanelRef,
         },
         {
-          id: 'principal' as ChapterId,
+          id: 'founder' as ChapterId,
+          number: '2',
           label: dictionary.about.sectionPrincipal,
-          ref: principalPanelRef,
         },
         {
-          id: 'core' as ChapterId,
+          id: 'current' as ChapterId,
+          number: '3',
           label: dictionary.about.sectionCoreTeam,
-          ref: corePanelRef,
         },
         {
           id: 'previous' as ChapterId,
+          number: '4',
           label: dictionary.about.sectionPreviousTeam,
-          ref: previousPanelRef,
         },
       ] as const,
     [dictionary.about]
   );
 
-  const getLogicalOffset = useCallback(
-    (el: HTMLDivElement): number => {
-      return isRtl ? Math.abs(el.scrollLeft) : el.scrollLeft;
+  const stopSmoothScroll = useCallback(() => {
+    if (rafRef.current !== null) {
+      window.cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    isAnimatingRef.current = false;
+  }, []);
+
+  /** Read normalized logical horizontal offset from start (0 -> maxScroll) in both LTR and RTL */
+  const readLogicalScrollPos = useCallback((track: HTMLDivElement): number => {
+    return Math.abs(track.scrollLeft);
+  }, []);
+
+  /** Write normalized logical horizontal offset (0 -> maxScroll) into browser scrollLeft */
+  const writeLogicalScrollPos = useCallback(
+    (track: HTMLDivElement, logicalPos: number) => {
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+      const clamped = Math.max(0, Math.min(maxScroll, logicalPos));
+      track.scrollLeft = isRtl ? -clamped : clamped;
     },
     [isRtl]
   );
 
-  const applyLogicalOffset = useCallback(
-    (el: HTMLDivElement, logicalOffset: number) => {
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-      const clamped = Math.max(0, Math.min(maxScroll, logicalOffset));
-      el.scrollLeft = isRtl ? -clamped : clamped;
-    },
-    [isRtl]
-  );
+  /** Compute exact logical distance from track start edge to each section's leading divider */
+  const getSectionLogicalOffset = useCallback(
+    (index: number): number => {
+      const track = trackRef.current;
+      const section = sectionRefs.current[index];
+      if (!track || !section) return 0;
 
-  const updateProgressAndChapter = useCallback(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
+      const trackRect = track.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      const currentPos = readLogicalScrollPos(track);
 
-    const maxScroll = Math.max(1, el.scrollWidth - el.clientWidth);
-    const logical = getLogicalOffset(el);
-    const ratio = Math.max(0, Math.min(1, logical / maxScroll));
-    setProgress(ratio);
-
-    const containerRect = el.getBoundingClientRect();
-    const probeX = isRtl
-      ? containerRect.right - containerRect.width * 0.3
-      : containerRect.left + containerRect.width * 0.3;
-
-    let detected: ChapterId = 'studio';
-    for (const chapter of chapters) {
-      const node = chapter.ref.current;
-      if (!node) continue;
-      const rect = node.getBoundingClientRect();
       if (isRtl) {
-        if (probeX <= rect.right + 40) {
-          detected = chapter.id;
-        }
-      } else {
-        if (probeX >= rect.left - 40) {
-          detected = chapter.id;
-        }
+        return Math.max(0, currentPos + (trackRect.right - sectionRect.right));
+      }
+      return Math.max(0, currentPos + (sectionRect.left - trackRect.left));
+    },
+    [isRtl, readLogicalScrollPos]
+  );
+
+  /** Sync active section index and continuous percentage from live horizontal scroll */
+  const syncProgress = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const maxScroll = Math.max(1, track.scrollWidth - track.clientWidth);
+    const pos = Math.min(maxScroll, readLogicalScrollPos(track));
+    const ratio = pos / maxScroll;
+    const nextPercent = Math.round(ratio * 100);
+    setProgressPercent(nextPercent);
+
+    const trackRect = track.getBoundingClientRect();
+    const thresholdPx = track.clientWidth * 0.28;
+    let resolvedIndex = 0;
+
+    for (let i = 0; i < chapters.length; i += 1) {
+      const el = sectionRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const leadingGap = isRtl
+        ? trackRect.right - rect.right
+        : rect.left - trackRect.left;
+      if (leadingGap <= thresholdPx) {
+        resolvedIndex = i;
       }
     }
-    setActiveChapter(detected);
-  }, [chapters, getLogicalOffset, isRtl]);
 
-  const startInertiaLoop = useCallback(() => {
+    setActiveIndex(resolvedIndex);
+  }, [chapters.length, isRtl, readLogicalScrollPos]);
+
+  /** Smooth lerp RAF driver for continuous wheel, keyboard, and progress-bar scrolling */
+  const ensureSmoothLoop = useCallback(() => {
     if (isAnimatingRef.current) return;
     isAnimatingRef.current = true;
 
     const tick = () => {
-      const el = scrollerRef.current;
-      if (!el) {
+      const track = trackRef.current;
+      if (!track) {
         isAnimatingRef.current = false;
-        rafIdRef.current = null;
+        rafRef.current = null;
         return;
       }
 
-      const diff = targetOffsetRef.current - currentOffsetRef.current;
-      if (Math.abs(diff) <= STOP_THRESHOLD_PX) {
-        currentOffsetRef.current = targetOffsetRef.current;
-        applyLogicalOffset(el, currentOffsetRef.current);
-        updateProgressAndChapter();
+      const diff = targetScrollPosRef.current - currentScrollPosRef.current;
+      if (Math.abs(diff) <= SCROLL_STOP_PX) {
+        currentScrollPosRef.current = targetScrollPosRef.current;
+        writeLogicalScrollPos(track, currentScrollPosRef.current);
+        syncProgress();
         isAnimatingRef.current = false;
-        rafIdRef.current = null;
+        rafRef.current = null;
         return;
       }
 
-      currentOffsetRef.current += diff * HORIZONTAL_LERP;
-      applyLogicalOffset(el, currentOffsetRef.current);
-      updateProgressAndChapter();
-      rafIdRef.current = window.requestAnimationFrame(tick);
+      currentScrollPosRef.current += diff * SCROLL_LERP;
+      writeLogicalScrollPos(track, currentScrollPosRef.current);
+      syncProgress();
+      rafRef.current = window.requestAnimationFrame(tick);
     };
 
-    rafIdRef.current = window.requestAnimationFrame(tick);
-  }, [applyLogicalOffset, updateProgressAndChapter]);
+    rafRef.current = window.requestAnimationFrame(tick);
+  }, [syncProgress, writeLogicalScrollPos]);
 
+  const scrollToLogicalPos = useCallback(
+    (nextPos: number) => {
+      const track = trackRef.current;
+      if (!track) return;
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+      const clamped = Math.max(0, Math.min(maxScroll, nextPos));
+
+      if (prefersReducedMotion) {
+        stopSmoothScroll();
+        currentScrollPosRef.current = clamped;
+        targetScrollPosRef.current = clamped;
+        writeLogicalScrollPos(track, clamped);
+        syncProgress();
+        return;
+      }
+
+      if (!isAnimatingRef.current) {
+        const livePos = readLogicalScrollPos(track);
+        currentScrollPosRef.current = livePos;
+      }
+      targetScrollPosRef.current = clamped;
+      ensureSmoothLoop();
+    },
+    [
+      ensureSmoothLoop,
+      prefersReducedMotion,
+      readLogicalScrollPos,
+      stopSmoothScroll,
+      syncProgress,
+      writeLogicalScrollPos,
+    ]
+  );
+
+  const handleJumpToChapter = useCallback(
+    (index: number) => {
+      const offset = getSectionLogicalOffset(index);
+      scrollToLogicalPos(offset);
+    },
+    [getSectionLogicalOffset, scrollToLogicalPos]
+  );
+
+  // Reset ribbon cleanly to start whenever direction/locale flips and sync on resize
   useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    targetOffsetRef.current = 0;
-    currentOffsetRef.current = 0;
-    el.scrollLeft = 0;
-    const raf = window.requestAnimationFrame(() => {
-      updateProgressAndChapter();
+    stopSmoothScroll();
+
+    const rafId = window.requestAnimationFrame(() => {
+      const track = trackRef.current;
+      if (track) {
+        track.scrollLeft = 0;
+        currentScrollPosRef.current = 0;
+        targetScrollPosRef.current = 0;
+      }
+      syncProgress();
     });
-    return () => window.cancelAnimationFrame(raf);
-  }, [isRtl, updateProgressAndChapter]);
 
+    const handleResize = () => syncProgress();
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [locale, isRtl, stopSmoothScroll, syncProgress]);
+
+  // Continuous Wheel & Keyboard -> Horizontal Ribbon Scroll (Zero discrete jump!)
   useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el || typeof window === 'undefined') return;
-
-    const prefersReducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)'
-    ).matches;
+    const stage = stageRef.current;
+    if (!stage || typeof window === 'undefined') return;
 
     const handleWheel = (event: WheelEvent) => {
       if (event.ctrlKey || event.metaKey) return;
+      const track = trackRef.current;
+      if (!track) return;
 
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-      if (maxScroll <= 0) return;
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+      if (maxScroll <= 1) return;
 
       event.preventDefault();
 
       const multiplier =
-        event.deltaMode === 1 ? 32 : event.deltaMode === 2 ? el.clientWidth : 1;
-      const dominantDelta =
-        Math.abs(event.deltaY) >= Math.abs(event.deltaX)
-          ? event.deltaY * multiplier
-          : (isRtl ? -event.deltaX : event.deltaX) * multiplier;
+        event.deltaMode === 1
+          ? 32
+          : event.deltaMode === 2
+            ? window.innerHeight
+            : 1;
+
+      const rawX = event.deltaX * multiplier;
+      const rawY = event.deltaY * multiplier;
+
+      // Vertical wheel always advances forward along reading direction (left in EN, right in FA/AR).
+      // Native horizontal trackpad swipe respects physical scroll sign relative to direction.
+      const logicalDelta =
+        Math.abs(rawX) > Math.abs(rawY) ? (isRtl ? -rawX : rawX) : rawY;
+
+      if (Math.abs(logicalDelta) < 0.25) return;
 
       if (!isAnimatingRef.current) {
-        const current = getLogicalOffset(el);
-        currentOffsetRef.current = current;
-        targetOffsetRef.current = current;
+        const livePos = readLogicalScrollPos(track);
+        currentScrollPosRef.current = livePos;
+        targetScrollPosRef.current = livePos;
       }
 
-      targetOffsetRef.current = Math.max(
+      const nextTarget = Math.max(
         0,
-        Math.min(maxScroll, targetOffsetRef.current + dominantDelta * 1.15)
+        Math.min(maxScroll, targetScrollPosRef.current + logicalDelta)
       );
+      targetScrollPosRef.current = nextTarget;
 
       if (prefersReducedMotion) {
-        currentOffsetRef.current = targetOffsetRef.current;
-        applyLogicalOffset(el, currentOffsetRef.current);
-        updateProgressAndChapter();
+        currentScrollPosRef.current = nextTarget;
+        writeLogicalScrollPos(track, nextTarget);
+        syncProgress();
       } else {
-        startInertiaLoop();
+        ensureSmoothLoop();
       }
     };
 
@@ -249,142 +340,99 @@ export function AboutStage() {
       ) {
         return;
       }
-      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      const track = trackRef.current;
+      if (!track) return;
+      const stepPx = Math.max(220, Math.round(track.clientWidth * 0.45));
+      const basePos = isAnimatingRef.current
+        ? targetScrollPosRef.current
+        : readLogicalScrollPos(track);
 
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-      if (maxScroll <= 0) return;
-
-      const step = Math.round(el.clientWidth * 0.45);
-      const direction =
-        event.key === 'ArrowRight' ? (isRtl ? -1 : 1) : isRtl ? 1 : -1;
-
-      if (!isAnimatingRef.current) {
-        const current = getLogicalOffset(el);
-        currentOffsetRef.current = current;
-        targetOffsetRef.current = current;
-      }
-
-      targetOffsetRef.current = Math.max(
-        0,
-        Math.min(maxScroll, targetOffsetRef.current + direction * step)
-      );
-
-      if (prefersReducedMotion) {
-        currentOffsetRef.current = targetOffsetRef.current;
-        applyLogicalOffset(el, currentOffsetRef.current);
-        updateProgressAndChapter();
-      } else {
-        startInertiaLoop();
+      if (
+        event.key === 'ArrowDown' ||
+        event.key === 'PageDown' ||
+        (!isRtl && event.key === 'ArrowRight') ||
+        (isRtl && event.key === 'ArrowLeft')
+      ) {
+        event.preventDefault();
+        scrollToLogicalPos(basePos + stepPx);
+      } else if (
+        event.key === 'ArrowUp' ||
+        event.key === 'PageUp' ||
+        (!isRtl && event.key === 'ArrowLeft') ||
+        (isRtl && event.key === 'ArrowRight')
+      ) {
+        event.preventDefault();
+        scrollToLogicalPos(basePos - stepPx);
       }
     };
 
-    const handleScroll = () => {
-      if (!isAnimatingRef.current) {
-        const current = getLogicalOffset(el);
-        currentOffsetRef.current = current;
-        targetOffsetRef.current = current;
-      }
-      updateProgressAndChapter();
-    };
-
-    el.addEventListener('wheel', handleWheel, { passive: false });
-    el.addEventListener('scroll', handleScroll, { passive: true });
+    stage.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('resize', updateProgressAndChapter);
 
     return () => {
-      el.removeEventListener('wheel', handleWheel);
-      el.removeEventListener('scroll', handleScroll);
+      stage.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('resize', updateProgressAndChapter);
-      if (rafIdRef.current !== null) {
-        window.cancelAnimationFrame(rafIdRef.current);
-      }
+      stopSmoothScroll();
     };
   }, [
-    applyLogicalOffset,
-    getLogicalOffset,
+    ensureSmoothLoop,
     isRtl,
-    startInertiaLoop,
-    updateProgressAndChapter,
+    prefersReducedMotion,
+    readLogicalScrollPos,
+    scrollToLogicalPos,
+    stopSmoothScroll,
+    syncProgress,
+    writeLogicalScrollPos,
   ]);
 
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'touch') return;
-    if (event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    if (target.closest('a, button, input')) return;
-
-    const el = scrollerRef.current;
-    if (!el) return;
-
-    const current = getLogicalOffset(el);
-    currentOffsetRef.current = current;
-    targetOffsetRef.current = current;
-
-    dragStateRef.current = {
-      active: true,
-      startX: event.clientX,
-      startOffset: current,
-      pointerId: event.pointerId,
+  // Mobile Touch Support: both vertical finger drag AND native horizontal swipe glide the ribbon continuously
+  const handleTouchStart = (event: ReactTouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    stopSmoothScroll();
+    touchRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastY: touch.clientY,
+      axis: 'undecided',
     };
-    setIsDragging(true);
-    el.setPointerCapture(event.pointerId);
   };
 
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragStateRef.current.active) return;
-    const el = scrollerRef.current;
-    if (!el) return;
+  const handleTouchMove = (event: ReactTouchEvent<HTMLElement>) => {
+    const state = touchRef.current;
+    const touch = event.touches[0];
+    const track = trackRef.current;
+    if (!state || !touch || !track) return;
 
-    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-    const deltaX = event.clientX - dragStateRef.current.startX;
-    const logicalDelta = isRtl ? deltaX : -deltaX;
-    targetOffsetRef.current = Math.max(
-      0,
-      Math.min(maxScroll, dragStateRef.current.startOffset + logicalDelta * 1.25)
-    );
-    startInertiaLoop();
-  };
-
-  const handlePointerUp = () => {
-    if (!dragStateRef.current.active) return;
-    const el = scrollerRef.current;
-    if (el && dragStateRef.current.pointerId !== -1) {
-      try {
-        el.releasePointerCapture(dragStateRef.current.pointerId);
-      } catch {
-        // Ignore if capture was already released
-      }
+    if (state.axis === 'undecided') {
+      const dx = Math.abs(touch.clientX - state.startX);
+      const dy = Math.abs(touch.clientY - state.startY);
+      if (dx < 6 && dy < 6) return;
+      state.axis = dy > dx ? 'vertical' : 'horizontal';
     }
-    dragStateRef.current.active = false;
-    dragStateRef.current.pointerId = -1;
-    setIsDragging(false);
+
+    if (state.axis === 'vertical') {
+      const deltaY = state.lastY - touch.clientY;
+      state.lastY = touch.clientY;
+      const livePos = readLogicalScrollPos(track);
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+      const nextPos = Math.max(0, Math.min(maxScroll, livePos + deltaY * 1.15));
+      currentScrollPosRef.current = nextPos;
+      targetScrollPosRef.current = nextPos;
+      writeLogicalScrollPos(track, nextPos);
+      syncProgress();
+    }
   };
 
-  const scrollToChapter = (chapterId: ChapterId) => {
-    const chapter = chapters.find((item) => item.id === chapterId);
-    const panel = chapter?.ref.current;
-    const el = scrollerRef.current;
-    if (!panel || !el) return;
-
-    const containerRect = el.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const current = getLogicalOffset(el);
-    const delta = isRtl
-      ? containerRect.right - panelRect.right
-      : panelRect.left - containerRect.left;
-
-    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-    currentOffsetRef.current = current;
-    targetOffsetRef.current = Math.max(0, Math.min(maxScroll, current + delta));
-    startInertiaLoop();
+  const handleTouchEnd = () => {
+    touchRef.current = null;
   };
 
   const studioParagraph = getAboutLocalizedText(
     STUDIO_PROFILE.paragraph,
     locale
   );
+  const studioImageAlt = getAboutLocalizedText(STUDIO_PROFILE.imageAlt, locale);
   const founderName = getAboutLocalizedText(STUDIO_FOUNDER.name, locale);
   const founderRole = getAboutLocalizedText(STUDIO_FOUNDER.role, locale);
   const founderBio = STUDIO_FOUNDER.bio
@@ -398,96 +446,197 @@ export function AboutStage() {
   return (
     <section
       ref={stageRef}
+      data-smooth-prevent=""
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       aria-label={dictionary.about.regionAriaLabel}
-      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)]"
+      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)] pt-12"
     >
-      {/* Unified Horizontal Gallery Track on BOTH Mobile and Desktop (Hidden Scrollbar) */}
-      <div
-        ref={scrollerRef}
-        data-smooth-prevent=""
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+      {/* Top Fixed Segmented Architectural Progress Bar (48px, Unbroken Bottom Hairline, Zero Green Loading Bar) */}
+      <nav
+        aria-label={dictionary.about.chapterNavAriaLabel}
         className={cn(
-          'no-scrollbar flex w-full flex-1 flex-row items-stretch overflow-x-auto overflow-y-hidden touch-pan-x',
-          isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
+          'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
+          'flex h-12 items-stretch border-b border-[var(--grid-line)]',
+          'bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-200'
         )}
       >
-        {/* PANEL 01: Rasman Team — Contact-scale Heading + Centered Editorial Paragraph */}
-        <article
-          ref={studioPanelRef}
-          className="flex w-[86vw] shrink-0 flex-col border-e border-[var(--grid-line)] px-6 py-6 desktop:w-[540px] desktop:px-10 desktop:py-8 desktop-wide:w-[620px] desktop-wide:px-14 desktop-wide:py-8"
+        {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
         >
-          <h1
-            data-gsap="heading"
-            className="text-[24px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[38px] desktop:leading-[1.15] desktop:tracking-[-0.025em] rtl:leading-[1.35] rtl:tracking-normal"
-          >
-            {dictionary.about.sectionStudio}
-          </h1>
+          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+        </span>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
+        >
+          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+        </span>
 
-          <div className="flex flex-1 items-center py-4">
-            <p
-              data-gsap="body"
-              className="max-w-xl text-[15px] font-normal leading-[1.85] text-[var(--ink-primary)] desktop:text-[17px] desktop:leading-[1.9] rtl:leading-[2.05]"
-            >
-              {studioParagraph}
-            </p>
+        {/* 4 Segmented Step Cells: Square 48px Inactive Cells | Stretched Active Step Container */}
+        <div className="flex h-full min-w-0 flex-1 items-stretch">
+          {chapters.map((chapter, index) => {
+            const isActive = index === activeIndex;
+            return (
+              <button
+                key={chapter.id}
+                type="button"
+                onClick={() => handleJumpToChapter(index)}
+                aria-current={isActive ? 'step' : undefined}
+                aria-label={`${chapter.number} ${chapter.label}`}
+                style={{
+                  flexGrow: isActive ? 1 : 0,
+                  flexShrink: isActive ? 1 : 0,
+                  flexBasis: '48px',
+                }}
+                className={cn(
+                  'relative flex h-full min-w-[48px] cursor-pointer items-center overflow-hidden border-e border-[var(--grid-line)]',
+                  'transition-[flex-grow,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                  isActive
+                    ? 'justify-start gap-2.5 bg-transparent px-3.5 text-start text-[var(--ink-primary)] desktop:px-5'
+                    : 'justify-center px-0 text-center text-[var(--ink-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]'
+                )}
+              >
+                <span
+                  dir="ltr"
+                  className={cn(
+                    'bidi-isolate shrink-0 text-[13px] leading-none tabular-nums transition-colors duration-300 desktop:text-[14px]',
+                    isActive
+                      ? 'font-medium text-[var(--brand-text-hover)]'
+                      : 'font-normal text-current'
+                  )}
+                >
+                  {chapter.number}
+                </span>
+
+                {isActive ? (
+                  <motion.span
+                    key={`${chapter.id}-${locale}`}
+                    initial={
+                      prefersReducedMotion
+                        ? { opacity: 1, y: 0 }
+                        : { opacity: 0, y: 5 }
+                    }
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.36,
+                      ease: SITE_CONFIG.motion.ease,
+                    }}
+                    className="min-w-0 flex-1 truncate text-start text-[13px] font-medium leading-none text-[var(--ink-primary)] desktop:text-[14px]"
+                  >
+                    {chapter.label}
+                  </motion.span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Square Percentage Cell (48px x full height) at Logical End */}
+        <div
+          aria-live="polite"
+          className="flex h-full w-12 shrink-0 items-center justify-center"
+        >
+          <span
+            dir="ltr"
+            className="bidi-isolate text-[12px] font-normal leading-none text-[var(--ink-secondary)] tabular-nums"
+          >
+            {progressPercent}%
+          </span>
+        </div>
+      </nav>
+
+      {/* Container-Queried Stage Viewport Below the 48px Progress Bar (Exact 100cqw / 100cqh) */}
+      <div className="relative min-h-0 flex-1 w-full [container-type:size]">
+        {/* Continuous Horizontal Scrolling Architectural Ribbon (All 4 Sections Separated by Moving Vertical Dividers) */}
+        <div
+          ref={trackRef}
+          dir={dir}
+          onScroll={syncProgress}
+          className="no-scrollbar flex h-full w-full flex-row items-stretch overflow-x-auto overflow-y-hidden"
+        >
+          {/* SECTION 1: RASMAN TEAM (Desktop: Text Start + 56px Gap + Equal-Width Photo End | Mobile: Photo First -> Text) */}
+          <article
+            ref={(el) => {
+              sectionRefs.current[0] = el;
+            }}
+            className="flex h-full w-[100cqw] shrink-0 flex-col justify-between gap-4 overflow-hidden border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-8 desktop:px-14 desktop:py-12"
+          >
+            <h1 className="shrink-0 text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
+              {dictionary.about.sectionStudio}
+            </h1>
+
+            <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] items-center gap-4 desktop:grid-cols-2 desktop:grid-rows-1 desktop:gap-[56px]">
+              {/* Studio Photo: First on Mobile, Equal-Width End Column on Desktop, Dynamically Height-Constrained */}
+              <div className="order-1 relative h-full max-h-[calc(100cqh-220px)] min-h-[140px] w-full overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:order-2 desktop:max-h-[min(460px,calc(100cqh-172px))]">
+              <Image
+                src={STUDIO_PROFILE.image}
+                alt={studioImageAlt}
+                fill
+                priority
+                sizes="(max-width: 768px) calc(100vw - 64px), 44vw"
+                referrerPolicy="no-referrer"
+                className="object-cover"
+              />
+            </div>
+
+            {/* Studio Editorial Copy: Second on Mobile, Equal-Width Start Column on Desktop */}
+            <div className="order-2 flex w-full flex-col justify-center text-start desktop:order-1">
+              <p className="text-[13px] font-normal leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[17px] desktop:leading-[1.9] rtl:leading-[1.9] desktop:rtl:leading-[2.05]">
+                {studioParagraph}
+              </p>
+            </div>
           </div>
         </article>
 
-        {/* PANEL 02: Principal — Single 18px Title + Portrait + Name + Role + Bio + Socials */}
+        {/* SECTION 2: FOUNDER / بنیان‌گذار / المؤسس */}
         <article
-          ref={principalPanelRef}
-          className="flex w-[90vw] shrink-0 flex-col border-e border-[var(--grid-line)] px-6 py-6 desktop:w-[660px] desktop:px-10 desktop:py-8 desktop-wide:w-[760px] desktop-wide:px-14 desktop-wide:py-8"
+          ref={(el) => {
+            sectionRefs.current[1] = el;
+          }}
+          className="flex h-full w-[100cqw] shrink-0 flex-col justify-between gap-4 overflow-hidden border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-8 desktop:px-14 desktop:py-12"
         >
-          <h2
-            data-gsap="heading"
-            className="text-[18px] font-medium leading-[1.3] text-[var(--ink-primary)]"
-          >
+          <h2 className="shrink-0 text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
             {dictionary.about.sectionPrincipal}
           </h2>
 
-          <div className="flex flex-1 flex-col items-start justify-center gap-5 py-4 desktop:flex-row desktop:items-center desktop:justify-start desktop:gap-8 desktop-wide:gap-10">
-            {/* Tall Architectural Portrait (4px border radius, monochrome -> color on hover) */}
-            <div
-              data-gsap="media"
-              className="group relative aspect-[3/4] w-[144px] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:w-[228px] desktop-wide:h-[384px] desktop-wide:w-[288px]"
-            >
+          <div className="flex min-h-0 flex-1 flex-col items-start justify-center gap-4 desktop:flex-row desktop:items-center desktop:gap-[56px]">
+            {/* Dynamically Height-Constrained Founder Portrait */}
+            <div className="group relative aspect-[3/4] h-[clamp(150px,calc(100cqh-280px),280px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(220px,calc(100cqh-188px),420px)]">
               <Image
                 src={STUDIO_FOUNDER.portrait}
                 alt={founderPortraitAlt}
                 fill
                 priority
-                sizes="(max-width: 640px) 144px, (max-width: 1024px) 228px, 300px"
+                sizes="(max-width: 768px) 220px, 320px"
                 referrerPolicy="no-referrer"
                 className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
               />
             </div>
 
             {/* Founder Name, Role, Bio & Social Links */}
-            <div className="flex min-w-0 flex-1 flex-col gap-3 desktop:gap-4">
-              <div data-gsap="body" className="flex flex-col gap-1">
-                <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[26px] desktop-wide:text-[30px] rtl:leading-[1.45] rtl:tracking-normal">
+            <div className="flex min-w-0 max-w-2xl flex-1 flex-col gap-3 text-start desktop:gap-4">
+              <div className="flex flex-col gap-0.5">
+                <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
                   {founderName}
                 </h3>
-                <p className="text-[13px] font-normal text-[var(--ink-secondary)] desktop:text-[14px]">
+                <p className="text-[13px] font-normal text-[var(--ink-secondary)] desktop:text-[15px]">
                   {founderRole}
                 </p>
               </div>
 
-              <p
-                data-gsap="body"
-                className="line-clamp-4 text-[13px] leading-[1.7] text-[var(--ink-secondary)] desktop:line-clamp-none desktop:text-[14px] desktop:leading-[1.8] rtl:leading-[1.95]"
-              >
+              <p className="text-[13px] leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[16px] desktop:leading-[1.85] rtl:leading-[1.9] desktop:rtl:leading-[2]">
                 {founderBio}
               </p>
 
-              {/* Social Links Row */}
               <nav
-                data-gsap="control"
                 aria-label={`${founderName} — ${dictionary.about.memberSocialsAriaLabel}`}
-                className="flex flex-wrap items-center gap-2 pt-1"
+                className="flex flex-wrap items-center gap-2 pt-0.5"
               >
                 {STUDIO_FOUNDER.socials.map((social) => (
                   <a
@@ -497,7 +646,7 @@ export function AboutStage() {
                     rel="noopener noreferrer"
                     aria-label={`${founderName} — ${dictionary.socials[social.platform]}`}
                     className={cn(
-                      'inline-flex h-9 w-9 items-center justify-center rounded-full',
+                      'inline-flex h-9 w-9 items-center justify-center rounded-full desktop:h-10 desktop:w-10',
                       'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)]',
                       'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
                     )}
@@ -510,20 +659,21 @@ export function AboutStage() {
           </div>
         </article>
 
-        {/* PANEL 03: Core Team — Single 18px Title + Horizontal Portrait Cards with Socials */}
+        {/* SECTION 3: CURRENT MEMBERS (Sticky 32px Title + Side-by-Side Single Horizontal Row on BOTH Mobile & Desktop) */}
         <article
-          ref={corePanelRef}
-          className="flex w-auto shrink-0 flex-col border-e border-[var(--grid-line)] px-6 py-6 desktop:px-10 desktop:py-8 desktop-wide:px-14 desktop-wide:py-8"
+          ref={(el) => {
+            sectionRefs.current[2] = el;
+          }}
+          className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
         >
-          <h2
-            data-gsap="heading"
-            className="text-[18px] font-medium leading-[1.3] text-[var(--ink-primary)]"
-          >
-            {dictionary.about.sectionCoreTeam}
-          </h2>
+          <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
+            <h2 className="text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
+              {dictionary.about.sectionCoreTeam}
+            </h2>
+          </div>
 
-          <div className="flex flex-1 items-center py-4">
-            <ul className="flex flex-row items-start gap-5 desktop:gap-6 desktop-wide:gap-8">
+          {/* Single Side-by-Side Horizontal Row with Dynamic Height-Constrained Portraits (Zero Clipping) */}
+          <ul className="flex min-h-0 flex-1 flex-row items-center gap-5 pe-4 desktop:gap-8 desktop:pe-8">
             {CORE_TEAM_MEMBERS.map((member) => {
               const memberName = getAboutLocalizedText(member.name, locale);
               const memberRole = getAboutLocalizedText(member.role, locale);
@@ -535,36 +685,33 @@ export function AboutStage() {
               return (
                 <li
                   key={member.id}
-                  data-gsap="card"
-                  className="group flex w-[184px] shrink-0 flex-col gap-3 desktop:w-[216px] desktop-wide:w-[248px] desktop-wide:gap-3.5"
+                  className="group flex h-full shrink-0 flex-col justify-center gap-2.5"
                 >
-                  {/* Portrait Photo (4px border radius) */}
-                  <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop-wide:h-[312px]">
+                  {/* Dynamic 3:4 Portrait Container Sized From Exact Ribbon Height */}
+                  <div className="relative aspect-[3/4] h-[clamp(150px,calc(100cqh-216px),400px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(180px,calc(100cqh-272px),440px)]">
                     <Image
                       src={member.portrait}
                       alt={memberAlt}
                       fill
                       loading="lazy"
-                      sizes="(max-width: 640px) 184px, (max-width: 1024px) 216px, 248px"
+                      sizes="(max-width: 768px) 240px, 340px"
                       referrerPolicy="no-referrer"
                       className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
                     />
                   </div>
 
-                  {/* Name & Role */}
-                  <div className="flex flex-col gap-0.5 pt-0.5">
-                    <h3 className="text-[15px] font-medium leading-[1.35] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[16px]">
+                  <div className="flex shrink-0 flex-col gap-0.5 text-start">
+                    <h3 className="text-[15px] font-medium leading-[1.35] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[17px]">
                       {memberName}
                     </h3>
-                    <p className="text-[12px] leading-[1.5] text-[var(--ink-secondary)] desktop:text-[13px]">
+                    <p className="text-[12px] leading-[1.45] text-[var(--ink-secondary)] desktop:text-[13px]">
                       {memberRole}
                     </p>
                   </div>
 
-                  {/* Member Social Network Icons */}
                   <nav
                     aria-label={`${memberName} — ${dictionary.about.memberSocialsAriaLabel}`}
-                    className="flex items-center gap-2 pt-0.5"
+                    className="flex shrink-0 items-center gap-2"
                   >
                     {member.socials.map((social) => (
                       <a
@@ -586,155 +733,74 @@ export function AboutStage() {
                 </li>
               );
             })}
-            </ul>
-          </div>
+          </ul>
         </article>
 
-        {/* PANEL 04: Previous Team — 2 Stacked Rows, Vertically Centered */}
+        {/* SECTION 4: PREVIOUS MEMBERS (Sticky 32px Title + ONLY 2 Stacked Horizontal Rows, Dynamic Square Size, RTL-Right-Aligned Tenure) */}
         <article
-          ref={previousPanelRef}
-          className="flex w-auto shrink-0 flex-col px-6 py-6 desktop:px-10 desktop:py-8 desktop-wide:px-14 desktop-wide:py-8"
+          ref={(el) => {
+            sectionRefs.current[3] = el;
+          }}
+          className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
         >
-          <h2 className="text-[18px] font-medium leading-[1.3] text-[var(--ink-primary)]">
-            {dictionary.about.sectionPreviousTeam}
-          </h2>
+          <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
+            <h2 className="text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
+              {dictionary.about.sectionPreviousTeam}
+            </h2>
+          </div>
 
-          <div className="flex flex-1 items-center py-4">
-            <ul className="grid grid-flow-col grid-rows-2 gap-x-6 gap-y-4 desktop:gap-x-8 desktop:gap-y-5 desktop-wide:gap-x-10 desktop-wide:gap-y-5">
-              {PREVIOUS_TEAM_MEMBERS.map((member) => {
-                const memberName = getAboutLocalizedText(member.name, locale);
-                const memberRole = getAboutLocalizedText(member.role, locale);
-                const memberAlt = getAboutLocalizedText(
-                  member.portraitAlt,
-                  locale
-                );
+          {/* 2 Stacked Rows Flowing Sequentially Horizontally (Left in EN, Right in FA/AR), Zero Vertical Overflow */}
+          <ul className="grid min-h-0 flex-1 grid-flow-col grid-rows-2 items-center gap-x-5 gap-y-4 pe-4 desktop:gap-x-8 desktop:gap-y-5 desktop:pe-8">
+            {PREVIOUS_TEAM_MEMBERS.map((member) => {
+              const memberName = getAboutLocalizedText(member.name, locale);
+              const memberRole = getAboutLocalizedText(member.role, locale);
+              const memberAlt = getAboutLocalizedText(
+                member.portraitAlt,
+                locale
+              );
 
-                return (
-                  <li
-                    key={member.id}
-                    className="group flex h-[164px] w-[336px] shrink-0 flex-row items-center gap-4 desktop:h-[184px] desktop:w-[372px] desktop-wide:h-[196px] desktop-wide:w-[404px] desktop-wide:gap-5"
-                  >
-                    {/* Square Portrait Photo (4px border radius, NO social buttons) */}
-                    <div className="relative aspect-square h-[164px] w-[164px] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[184px] desktop:w-[184px] desktop-wide:h-[196px] desktop-wide:w-[196px]">
-                      <Image
-                        src={member.portrait}
-                        alt={memberAlt}
-                        fill
-                        loading="lazy"
-                        sizes="(max-width: 640px) 164px, (max-width: 1024px) 184px, 204px"
-                        referrerPolicy="no-referrer"
-                        className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
-                      />
-                    </div>
+              return (
+                <li
+                  key={member.id}
+                  className="group flex shrink-0 flex-col gap-2"
+                >
+                  {/* Dynamic Compact Square Portrait Fitted Cleanly for 2 Rows Inside Ribbon Height */}
+                  <div className="relative aspect-square h-[clamp(76px,calc((100cqh-264px)/2),172px)] w-[clamp(76px,calc((100cqh-264px)/2),172px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(96px,calc((100cqh-320px)/2),192px)] desktop:w-[clamp(96px,calc((100cqh-320px)/2),192px)]">
+                    <Image
+                      src={member.portrait}
+                      alt={memberAlt}
+                      fill
+                      loading="lazy"
+                      sizes="(max-width: 768px) 160px, 200px"
+                      referrerPolicy="no-referrer"
+                      className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
+                    />
+                  </div>
 
-                    {/* Name + Role + Tenure Date positioned beside photo (end side: right in LTR, left in RTL) */}
-                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 text-start">
-                      <h3 className="text-[15px] font-medium leading-[1.35] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[16px]">
-                        {memberName}
-                      </h3>
-                      <p className="line-clamp-2 text-[12px] leading-[1.5] text-[var(--ink-secondary)] desktop:text-[13px]">
-                        {memberRole}
-                      </p>
+                  {/* Name, Role & Tenure Date Below Image (Right-Aligned in Persian & Arabic / Left-Aligned in English) */}
+                  <div className="flex w-[clamp(124px,calc((100cqh-232px)/2),192px)] flex-col gap-0.5 text-start">
+                    <h3 className="truncate text-[13px] font-medium leading-[1.3] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[14px]">
+                      {memberName}
+                    </h3>
+                    <p className="truncate text-[11px] leading-[1.4] text-[var(--ink-secondary)] desktop:text-[12px]">
+                      {memberRole}
+                    </p>
+                    <p className="text-start text-[11px] font-normal leading-[1.35] text-[var(--ink-muted)] desktop:text-[12px]">
                       <span
                         dir="ltr"
-                        className="bidi-isolate pt-1 text-[12px] font-normal text-[var(--ink-muted)] tabular-nums"
+                        className="bidi-isolate inline-block tabular-nums"
                       >
                         {member.tenure}
                       </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </article>
-      </div>
-
-      {/* Chapter Progress Bar (Mobile: numbers only + active section text; Desktop: full labels) */}
-      <nav
-        aria-label={dictionary.about.chapterNavAriaLabel}
-        className="relative flex h-11 shrink-0 items-center justify-between gap-3 border-t border-[var(--grid-line)] bg-[var(--bg-canvas)] px-4 desktop:gap-4 desktop:px-8"
-      >
-        <div className="no-scrollbar flex items-center gap-3.5 overflow-x-auto desktop:gap-6">
-          {chapters.map((chapter, index) => {
-            const isActive = activeChapter === chapter.id;
-            const chapterNumber = String(index + 1).padStart(2, '0');
-            return (
-              <button
-                key={chapter.id}
-                type="button"
-                onClick={() => scrollToChapter(chapter.id)}
-                aria-current={isActive ? 'true' : undefined}
-                aria-label={`${chapterNumber} ${chapter.label}`}
-                className={cn(
-                  'inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap text-[12px] tracking-[0.04em] transition-colors duration-200 rtl:tracking-normal',
-                  isActive
-                    ? 'font-medium text-[var(--brand-text-hover)]'
-                    : 'font-normal text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'
-                )}
-              >
-                <span
-                  dir="ltr"
-                  className={cn(
-                    'bidi-isolate text-[11px] tabular-nums transition-colors duration-200',
-                    isActive
-                      ? 'text-[var(--brand-text-hover)]'
-                      : 'text-[var(--ink-muted)]'
-                  )}
-                >
-                  {chapterNumber}
-                </span>
-
-                {/* Mobile (< desktop): Reveal label text only on active chapter */}
-                <span className="inline-flex items-center overflow-hidden desktop:hidden">
-                  <AnimatePresence initial={false}>
-                    {isActive && (
-                      <motion.span
-                        key={`${chapter.id}-mobile-label`}
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: 'auto', opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        transition={{
-                          duration: SITE_CONFIG.motion.standardDuration,
-                          ease: SITE_CONFIG.motion.ease,
-                        }}
-                        className="overflow-hidden whitespace-nowrap ps-1.5"
-                      >
-                        {chapter.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </span>
-
-                {/* Desktop & Landscape Tablet: Always show full chapter label */}
-                <span className="hidden desktop:inline desktop:ps-1.5">
-                  {chapter.label}
-                </span>
-              </button>
-            );
-          })}
         </div>
-
-        <span
-          dir="ltr"
-          className="bidi-isolate shrink-0 text-[12px] text-[var(--ink-muted)] tabular-nums"
-        >
-          {Math.round(progress * 100)}%
-        </span>
-
-        {/* Hairline Progress Indicator */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5px] bg-transparent"
-        >
-          <motion.span
-            initial={false}
-            animate={{ scaleX: Math.max(0.02, progress) }}
-            transition={{ duration: 0.08, ease: 'linear' }}
-            className="block h-full origin-left bg-[var(--brand-primary)] rtl:origin-right"
-          />
-        </span>
-      </nav>
+      </div>
     </section>
   );
 }

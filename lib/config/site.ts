@@ -1,4 +1,4 @@
-export type Locale = 'en' | 'fa';
+export type Locale = 'en' | 'fa' | 'ar';
 export type Direction = 'ltr' | 'rtl';
 export type ThemeMode = 'light' | 'dark';
 
@@ -27,7 +27,7 @@ export interface NavItemConfig {
 export const SITE_CONFIG = {
   defaultLocale: 'en' as Locale,
   defaultTheme: 'light' as ThemeMode,
-  supportedLocales: ['en', 'fa'] as const,
+  supportedLocales: ['en', 'fa', 'ar'] as const,
   storageKeys: {
     locale: 'rasman.locale',
     theme: 'rasman.theme',
@@ -92,5 +92,5 @@ export const SITE_CONFIG = {
 } as const;
 
 export function getDirectionForLocale(locale: Locale): Direction {
-  return locale === 'fa' ? 'rtl' : 'ltr';
+  return locale === 'fa' || locale === 'ar' ? 'rtl' : 'ltr';
 }

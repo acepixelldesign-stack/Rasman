@@ -3,6 +3,8 @@ import type { AuthorSocialLink, LocalizedText } from '@/lib/data/blog';
 
 export interface StudioProfile {
   readonly paragraph: LocalizedText;
+  readonly image: string;
+  readonly imageAlt: LocalizedText;
 }
 
 export interface StudioMember {
@@ -28,6 +30,13 @@ export const STUDIO_PROFILE: StudioProfile = {
   paragraph: {
     en: 'Rasman is an independent architectural and spatial research practice founded in 2018 between Tehran and Zurich. Dedicated to passive environmental design, vernacular materiality, and quiet tectonic restraint, every commission—from residential courtyards in arid plateaus to cultural pavilions built of compacted earth and precision timber—begins by reading site wind, solar altitude, and local craft before drawing a single structural line.',
     fa: 'رسمان یک استودیوی مستقل معماری و پژوهش فضایی است که در سال ۱۳۹۷ میان تهران و زوریخ بنیان نهاده شد. تمرکز این استودیو بر طراحی اقلیمی غیرفعال، مصالح بومی و خویشتن‌داری تکتونیک است؛ از حیاط‌های مسکونی در فلات‌های خشک تا پاویون‌های فرهنگی با خاک کوبیده و چوب مهندسی‌شده، هر پروژه پیش از کشیدن نخستین خط با خوانش باد، زاویه خورشید و مهارت ساخت بومی آغاز می‌شود.',
+    ar: 'رسمان استوديو مستقل للعمارة والبحث المكاني تأسس عام ٢٠١٨ بين طهران وزيورخ. يكرّس الاستوديو عمله للتصميم البيئي السلبي، والمواد المحلية، والرصانة التكتونية الهادئة؛ حيث يبدأ كل مشروع — من أفنية السكن في الهضاب الجافة إلى الأجنحة الثقافية المشيّدة بالطين المدكوك والخشب الدقيق — بقراءة الرياح وزاوية الشمس والحرفية المحلية قبل رسم أول خط إنشائي.',
+  },
+  image: '/images/team/rasman-studio.jpg',
+  imageAlt: {
+    en: 'Rasman Architecture Studio interior with timber drafting table, architectural models, and natural morning light',
+    fa: 'فضای داخلی استودیو معماری رسمان با میز طراحی چوبی، ماکت‌های معماری و نور طبیعی صبح',
+    ar: 'الفضاء الداخلي لاستوديو رسمان للعمارة مع طاولة رسم خشبية ونماذج معمارية وضوء الصباح الطبيعي',
   },
 } as const;
 
@@ -36,19 +45,23 @@ export const STUDIO_FOUNDER: StudioMember = {
   name: {
     en: 'Dariush Rasman',
     fa: 'داریوش رسمان',
+    ar: 'داريوش رسمان',
   },
   role: {
     en: 'Founder & Principal Architect',
     fa: 'بنیان‌گذار و معمار ارشد',
+    ar: 'المؤسس والمعماري الرئيسي',
   },
   bio: {
     en: 'Founded Rasman Studio in 2018 after a decade of practice across Tehran and Basel. His work investigates thermal mass, shaded microclimates, and tactile tectonic assemblies that age with quiet dignity.',
     fa: 'استودیو رسمان را در سال ۱۳۹۷ پس از یک دهه فعالیت حرفه‌ای در تهران و بازل بنیان نهاد. پژوهش و آثار او بر جرم حرارتی، خرداقلیم‌های سایه‌دار و اتصالات ملموس معماری متمرکز است.',
+    ar: 'أسّس استوديو رسمان عام ٢٠١٨ بعد عقد من الممارسة المهنية بين طهران وبازل. يبحث في أعماله الكتلة الحرارية والمناخات المصغّرة المظلّلة والتفاصيل الإنشائية الملموسة التي تشيخ بوقار هادئ.',
   },
   portrait: '/images/team/dariush-rasman.jpg',
   portraitAlt: {
     en: 'Portrait of Dariush Rasman, Founder and Principal Architect',
     fa: 'پرتره داریوش رسمان، بنیان‌گذار و معمار ارشد رسمان',
+    ar: 'صورة داريوش رسمان، المؤسس والمعماري الرئيسي',
   },
   socials: [
     { platform: 'instagram', href: 'https://instagram.com/rasmanstudio' },

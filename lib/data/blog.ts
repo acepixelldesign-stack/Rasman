@@ -10,6 +10,7 @@ export type BlogCategoryId =
 export interface LocalizedText {
   readonly en: string;
   readonly fa: string;
+  readonly ar?: string;
 }
 
 export interface BlogCategory {
@@ -57,23 +58,35 @@ export interface BlogPost {
 export const BLOG_CATEGORIES: readonly BlogCategory[] = [
   {
     id: 'all',
-    label: { en: 'All Essays', fa: 'همه مقالات' },
+    label: { en: 'All Essays', fa: 'همه مقالات', ar: 'جميع المقالات' },
   },
   {
     id: 'sustainable',
-    label: { en: 'Sustainable Architecture', fa: 'معماری پایدار' },
+    label: {
+      en: 'Sustainable Architecture',
+      fa: 'معماری پایدار',
+      ar: 'العمارة المستدامة',
+    },
   },
   {
     id: 'materials',
-    label: { en: 'Materials & Craft', fa: 'مصالح و ساخت' },
+    label: {
+      en: 'Materials & Craft',
+      fa: 'مصالح و ساخت',
+      ar: 'المواد والحرفية',
+    },
   },
   {
     id: 'urban',
-    label: { en: 'Urban Tectonics', fa: 'تکتونیک شهری' },
+    label: {
+      en: 'Urban Tectonics',
+      fa: 'تکتونیک شهری',
+      ar: 'التكتونيك الحضري',
+    },
   },
   {
     id: 'theory',
-    label: { en: 'Spatial Theory', fa: 'نظریه فضا' },
+    label: { en: 'Spatial Theory', fa: 'نظریه فضا', ar: 'نظرية الفضاء' },
   },
 ] as const;
 
@@ -380,6 +393,15 @@ export const BLOG_POSTS: readonly BlogPost[] = [
 
 export function getBlogPostBySlug(slug: string): BlogPost | undefined {
   return BLOG_POSTS.find((post) => post.slug === slug);
+}
+
+export function getPreviousBlogPost(currentSlug: string): BlogPost {
+  const index = BLOG_POSTS.findIndex((post) => post.slug === currentSlug);
+  const prevIndex =
+    index === -1
+      ? BLOG_POSTS.length - 1
+      : (index - 1 + BLOG_POSTS.length) % BLOG_POSTS.length;
+  return BLOG_POSTS[prevIndex];
 }
 
 export function getNextBlogPost(currentSlug: string): BlogPost {

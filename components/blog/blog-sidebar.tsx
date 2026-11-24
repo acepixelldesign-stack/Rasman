@@ -36,9 +36,15 @@ export function BlogSidebar({
         className
       )}
     >
+      <div className="shrink-0 px-6 pt-4 pb-2">
+        <h2 className="text-[20px] font-normal leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[22px] rtl:leading-[1.4] rtl:tracking-normal">
+          {dictionary.blog.categoryTitle}
+        </h2>
+      </div>
+
       <nav
         aria-label={dictionary.blog.categoriesAriaLabel}
-        className="flex-1 overflow-y-auto px-6 py-6"
+        className="flex-1 overflow-y-auto px-6 pt-2 pb-6"
       >
         <ul className="flex flex-col divide-y divide-[var(--grid-line)]">
           {BLOG_CATEGORIES.map((category) => {

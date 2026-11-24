@@ -2,7 +2,11 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { MdKeyboardArrowDown } from 'react-icons/md';
+import {
+  MdArrowBack,
+  MdArrowForward,
+  MdKeyboardArrowDown,
+} from 'react-icons/md';
 import {
   BLOG_CATEGORIES,
   BLOG_POSTS,
@@ -24,17 +28,22 @@ import { BlogCategoryIcon } from '@/components/blog/blog-category-icon';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
 import { cn } from '@/lib/utils';
 
+const POSTS_PER_PAGE = 3;
+
 /**
  * Primary Blog / Magazine Architectural Stage:
  * - Calm Framer Motion staggered category drawer on mobile & staggered card entrance
- * - GSAP hierarchical entrance for sidebar items & stage structure
+ * - Architectural pagination anchored cleanly after the last blog card in the feed
+ *   with 16px (p-4) padding on Previous and Next controls
  */
 export function BlogStage() {
   const { locale, isRtl, dictionary } = useAppContext();
   const [activeCategory, setActiveCategory] = useState<BlogCategoryId>('all');
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [isMobileCategoriesOpen, setIsMobileCategoriesOpen] = useState(false);
   const mobileCategoriesPanelId = useId();
   const stageRef = useRef<HTMLElement>(null);
+  const feedTopRef = useRef<HTMLDivElement>(null);
 
   useArchitecturalEntrance(stageRef, { isRtl });
 
@@ -63,10 +72,54 @@ export function BlogStage() {
     return BLOG_POSTS.filter((post) => post.categoryId === activeCategory);
   }, [activeCategory]);
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredPosts.length / POSTS_PER_PAGE)
+  );
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedPosts = useMemo(() => {
+    const startIndex = (safePage - 1) * POSTS_PER_PAGE;
+    return filteredPosts.slice(startIndex, startIndex + POSTS_PER_PAGE);
+  }, [filteredPosts, safePage]);
+
+  const scrollFeedToTop = () => {
+    if (typeof window === 'undefined') return;
+    const desktopPane = feedTopRef.current?.closest(
+      '[data-smooth-pane="vertical"]'
+    );
+    if (desktopPane instanceof HTMLElement && desktopPane.scrollTop > 0) {
+      desktopPane.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (window.scrollY > 0) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleSelectCategory = (categoryId: BlogCategoryId) => {
+    setActiveCategory(categoryId);
+    setCurrentPage(1);
+    scrollFeedToTop();
+  };
+
   const handleSelectMobileCategory = (categoryId: BlogCategoryId) => {
     setActiveCategory(categoryId);
+    setCurrentPage(1);
     setIsMobileCategoriesOpen(false);
+    scrollFeedToTop();
   };
+
+  const handlePageChange = (nextPage: number) => {
+    const clamped = Math.max(1, Math.min(totalPages, nextPage));
+    if (clamped === safePage) return;
+    setCurrentPage(clamped);
+    scrollFeedToTop();
+  };
+
+  const pageNumbers = useMemo(
+    () => Array.from({ length: totalPages }, (_, index) => index + 1),
+    [totalPages]
+  );
 
   return (
     <section
@@ -178,7 +231,9 @@ export function BlogStage() {
                       >
                         <button
                           type="button"
-                          onClick={() => handleSelectMobileCategory(category.id)}
+                          onClick={() =>
+                            handleSelectMobileCategory(category.id)
+                          }
                           aria-current={isActive ? 'true' : undefined}
                           className={cn(
                             'group flex w-full cursor-pointer items-center gap-3.5 py-4 text-start transition-colors duration-250',
@@ -219,61 +274,137 @@ export function BlogStage() {
       >
         <BlogSidebar
           activeCategory={activeCategory}
-          onSelectCategory={setActiveCategory}
+          onSelectCategory={handleSelectCategory}
         />
       </div>
 
-      {/* End Main Blog Stories Feed (Staggered Calm Entrance) */}
+      {/* End Main Blog Stories Feed (Staggered Calm Entrance + Bottom Pagination) */}
       <SmoothVerticalPane className="flex min-w-0 flex-1 flex-col bg-[var(--bg-canvas)] desktop:h-full desktop:overflow-y-auto">
-        <div className="w-full px-4 desktop:px-8">
-          <AnimatePresence mode="wait" initial={false}>
-            {filteredPosts.length > 0 ? (
-              <motion.ul
-                key={activeCategory}
-                variants={CARD_STAGGER_CONTAINER_VARIANTS}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="flex flex-col divide-y divide-[var(--grid-line)]"
-              >
-                {filteredPosts.map((post, idx) => (
-                  <motion.li
-                    key={post.slug}
-                    variants={CARD_STAGGER_ITEM_VARIANTS}
-                  >
-                    <BlogCard post={post} priority={idx < 2} />
-                  </motion.li>
-                ))}
-              </motion.ul>
-            ) : (
-              <motion.div
-                key="blog-empty"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: 0.42,
-                  ease: ARCHITECTURAL_EASE,
-                }}
-                className="flex flex-col items-start gap-4 py-16"
-              >
-                <p className="text-[16px] text-[var(--ink-secondary)]">
-                  {dictionary.blog.emptyTitle}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setActiveCategory('all')}
-                  className={cn(
-                    'inline-flex h-10 cursor-pointer items-center justify-center rounded-full px-5',
-                    'bg-[var(--brand-primary)] text-[14px] font-medium text-[var(--brand-ink-on-primary)]',
-                    'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)]'
-                  )}
+        <div
+          ref={feedTopRef}
+          className="flex min-h-full w-full flex-col justify-between"
+        >
+          <div className="w-full px-4 desktop:px-8">
+            <AnimatePresence mode="wait" initial={false}>
+              {paginatedPosts.length > 0 ? (
+                <motion.ul
+                  key={`${activeCategory}-page-${safePage}`}
+                  variants={CARD_STAGGER_CONTAINER_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="flex flex-col divide-y divide-[var(--grid-line)]"
                 >
-                  {dictionary.blog.emptyResetLabel}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  {paginatedPosts.map((post, idx) => (
+                    <motion.li
+                      key={post.slug}
+                      variants={CARD_STAGGER_ITEM_VARIANTS}
+                    >
+                      <BlogCard post={post} priority={idx < 2} />
+                    </motion.li>
+                  ))}
+                </motion.ul>
+              ) : (
+                <motion.div
+                  key="blog-empty"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 0.42,
+                    ease: ARCHITECTURAL_EASE,
+                  }}
+                  className="flex flex-col items-start gap-4 py-16"
+                >
+                  <p className="text-[16px] text-[var(--ink-secondary)]">
+                    {dictionary.blog.emptyTitle}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCategory('all')}
+                    className={cn(
+                      'inline-flex h-10 cursor-pointer items-center justify-center rounded-full px-5',
+                      'bg-[var(--brand-primary)] text-[14px] font-medium text-[var(--brand-ink-on-primary)]',
+                      'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)]'
+                    )}
+                  >
+                    {dictionary.blog.emptyResetLabel}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Architectural Pagination at End of Blog List (16px Padding on Prev/Next Buttons) */}
+          {filteredPosts.length > 0 && (
+            <nav
+              aria-label={dictionary.blog.paginationAriaLabel}
+              className="mt-4 flex w-full items-center justify-between border-t border-[var(--grid-line)] bg-[var(--bg-canvas)]"
+            >
+              <button
+                type="button"
+                disabled={safePage <= 1}
+                onClick={() => handlePageChange(safePage - 1)}
+                className={cn(
+                  'group inline-flex cursor-pointer items-center gap-2.5 border-e border-[var(--grid-line)] p-4 text-start text-[13px] font-medium transition-colors duration-200 desktop:text-[14px]',
+                  safePage <= 1
+                    ? 'cursor-not-allowed text-[var(--ink-muted)] opacity-45'
+                    : 'text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--brand-text-hover)]'
+                )}
+              >
+                <MdArrowBack
+                  size={18}
+                  aria-hidden="true"
+                  className={cn('shrink-0', isRtl && '-scale-x-100')}
+                />
+                <span>{dictionary.blog.previousPageLabel}</span>
+              </button>
+
+              <div className="flex items-center justify-center gap-1 px-2">
+                {pageNumbers.map((pageNum) => {
+                  const isCurrent = pageNum === safePage;
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => handlePageChange(pageNum)}
+                      aria-current={isCurrent ? 'page' : undefined}
+                      aria-label={`${dictionary.blog.pageAriaLabel} ${pageNum}`}
+                      className={cn(
+                        'inline-flex h-9 w-9 cursor-pointer items-center justify-center text-[13px] tabular-nums transition-colors duration-200 desktop:text-[14px]',
+                        isCurrent
+                          ? 'font-medium text-[var(--brand-text-hover)]'
+                          : 'font-normal text-[var(--ink-muted)] hover:text-[var(--ink-primary)]'
+                      )}
+                    >
+                      <span dir="ltr" className="bidi-isolate">
+                        {pageNum}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                disabled={safePage >= totalPages}
+                onClick={() => handlePageChange(safePage + 1)}
+                className={cn(
+                  'group inline-flex cursor-pointer items-center gap-2.5 border-s border-[var(--grid-line)] p-4 text-end text-[13px] font-medium transition-colors duration-200 desktop:text-[14px]',
+                  safePage >= totalPages
+                    ? 'cursor-not-allowed text-[var(--ink-muted)] opacity-45'
+                    : 'text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--brand-text-hover)]'
+                )}
+              >
+                <span>{dictionary.blog.nextPageLabel}</span>
+                <MdArrowForward
+                  size={18}
+                  aria-hidden="true"
+                  className={cn('shrink-0', isRtl && '-scale-x-100')}
+                />
+              </button>
+            </nav>
+          )}
         </div>
       </SmoothVerticalPane>
     </section>

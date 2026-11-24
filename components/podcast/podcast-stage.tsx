@@ -146,6 +146,7 @@ export function PodcastStage() {
   const [hasSelectedCategory, setHasSelectedCategory] = useState<boolean>(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState<boolean>(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
+  const [isMobileDetailsOpen, setIsMobileDetailsOpen] = useState<boolean>(false);
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string>(
     PODCAST_EPISODES[0].id
   );
@@ -157,6 +158,7 @@ export function PodcastStage() {
 
   const stageRef = useRef<HTMLDivElement>(null);
   const mobilePanelId = useId();
+  const mobileDetailsId = useId();
   const currentTimeRef = useRef<number>(currentTime);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscRef = useRef<OscillatorNode | null>(null);
@@ -213,8 +215,10 @@ export function PodcastStage() {
       const heroMedia = container.querySelector<HTMLElement>(
         '[data-podcast-anim="hero-media"]'
       );
-      const heroTitle = container.querySelector<HTMLElement>(
-        '[data-podcast-anim="hero-title"]'
+      const heroTitles = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          '[data-podcast-anim="hero-title"]'
+        )
       );
       const heroWords = Array.from(
         container.querySelectorAll<HTMLElement>(
@@ -240,7 +244,7 @@ export function PodcastStage() {
         ...(sidebarHeader ? [sidebarHeader] : []),
         ...sidebarItems,
         ...(heroMedia ? [heroMedia] : []),
-        ...(heroTitle ? [heroTitle] : []),
+        ...heroTitles,
         ...heroWords,
         ...(heroMeta ? [heroMeta] : []),
         ...(heroControls ? [heroControls] : []),
@@ -309,9 +313,9 @@ export function PodcastStage() {
           );
         }
 
-        if (heroTitle) {
+        if (heroTitles.length > 0) {
           tl.fromTo(
-            heroTitle,
+            heroTitles,
             { autoAlpha: 0, y: 12, filter: 'blur(5px)' },
             { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.42 },
             0.9
@@ -406,9 +410,9 @@ export function PodcastStage() {
           );
         }
 
-        if (heroTitle) {
+        if (heroTitles.length > 0) {
           tl.fromTo(
-            heroTitle,
+            heroTitles,
             { autoAlpha: 0, y: 12, filter: 'blur(5px)' },
             { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.44 },
             0.18
@@ -882,7 +886,7 @@ export function PodcastStage() {
                         >
                           <span
                             className={cn(
-                              'relative h-12 w-12 shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] ring-1 transition-all duration-200',
+                              'relative h-16 w-16 shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] ring-1 transition-all duration-200',
                               isSelected
                                 ? 'ring-[var(--brand-primary)]'
                                 : 'ring-transparent group-hover:ring-[var(--brand-primary)]'
@@ -893,7 +897,7 @@ export function PodcastStage() {
                               alt={getLocalizedText(episode.coverAlt, locale)}
                               fill
                               loading="lazy"
-                              sizes="48px"
+                              sizes="64px"
                               referrerPolicy="no-referrer"
                               className="object-cover"
                             />
@@ -901,7 +905,7 @@ export function PodcastStage() {
                           <span className="flex min-w-0 flex-1 items-center">
                             <span
                               className={cn(
-                                'line-clamp-2 text-[14px] leading-[1.4] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)]',
+                                'line-clamp-2 text-[16px] leading-[1.4] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] rtl:leading-[1.55]',
                                 isSelected
                                   ? 'font-medium text-[var(--brand-text-hover)]'
                                   : 'font-normal text-[var(--ink-primary)]'
@@ -923,7 +927,7 @@ export function PodcastStage() {
 
       {/* Main Content Stage: Animated Hero + 24px Tracklist + Waveform Player */}
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-canvas)] desktop:h-full desktop:overflow-hidden">
-        {/* Band 1: Featured Episode Hero (16px padding on mobile, 24px on desktop) */}
+        {/* Band 1: Featured Episode Hero (16px padding on mobile with full-width cover + expandable details dropdown; 24px on desktop) */}
         <div className="shrink-0 border-b border-[var(--grid-line)] p-4 desktop:p-6">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -935,26 +939,211 @@ export function PodcastStage() {
                 duration: SITE_CONFIG.motion.standardDuration,
                 ease: SITE_CONFIG.motion.ease,
               }}
-              className="flex flex-col gap-5 desktop:flex-row desktop:items-stretch desktop:gap-7"
+              className="flex flex-col gap-4 desktop:flex-row desktop:items-stretch desktop:gap-7"
             >
-              {/* Square Episode Artwork */}
+              {/* Square Episode Artwork: full-width inside 16px frame padding on mobile; compact square on desktop */}
               <div
                 data-podcast-anim="hero-media"
-                className="relative aspect-square w-40 shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:w-48 desktop-wide:w-52"
+                className="relative aspect-square w-full shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:w-48 desktop-wide:w-52"
               >
                 <Image
                   src={activeEpisode.coverImage}
                   alt={getLocalizedText(activeEpisode.coverAlt, locale)}
                   fill
                   priority
-                  sizes="(max-width: 768px) 176px, 208px"
+                  sizes="(max-width: 768px) calc(100vw - 64px), 208px"
                   referrerPolicy="no-referrer"
                   className="object-cover"
                 />
               </div>
 
-              {/* Episode Title, Word-by-Word Synopsis, Duration & Speakers, and Actions */}
-              <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
+              {/* Mobile Expandable Title + Dropdown Trigger + Smooth Accordion Details */}
+              <div className="flex min-w-0 flex-col desktop:hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileDetailsOpen((prev) => !prev)}
+                  aria-expanded={isMobileDetailsOpen}
+                  aria-controls={mobileDetailsId}
+                  aria-label={
+                    isMobileDetailsOpen
+                      ? dictionary.podcast.closeDetailsAriaLabel
+                      : dictionary.podcast.openDetailsAriaLabel
+                  }
+                  data-podcast-anim="hero-title"
+                  className="group flex w-full cursor-pointer items-start justify-between gap-3 py-1 text-start"
+                >
+                  <h1 className="min-w-0 flex-1 text-[18px] font-medium leading-[1.35] tracking-[-0.015em] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] rtl:leading-[1.5] rtl:tracking-normal">
+                    {getLocalizedText(activeEpisode.title, locale)}
+                  </h1>
+                  <motion.span
+                    aria-hidden="true"
+                    initial={false}
+                    animate={{ rotate: isMobileDetailsOpen ? 180 : 0 }}
+                    transition={{
+                      duration: 0.45,
+                      ease: SITE_CONFIG.motion.ease,
+                    }}
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center text-[var(--ink-muted)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)]"
+                  >
+                    <MdKeyboardArrowDown size={22} />
+                  </motion.span>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {isMobileDetailsOpen && (
+                    <motion.div
+                      id={mobileDetailsId}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{
+                        height: 'auto',
+                        opacity: 1,
+                        transition: prefersReducedMotion
+                          ? { duration: 0.01 }
+                          : {
+                              height: {
+                                duration: 0.56,
+                                ease: SITE_CONFIG.motion.ease,
+                              },
+                              opacity: {
+                                duration: 0.42,
+                                delay: 0.08,
+                                ease: SITE_CONFIG.motion.ease,
+                              },
+                            },
+                      }}
+                      exit={{
+                        height: 0,
+                        opacity: 0,
+                        transition: prefersReducedMotion
+                          ? { duration: 0.01 }
+                          : {
+                              opacity: {
+                                duration: 0.24,
+                                ease: SITE_CONFIG.motion.ease,
+                              },
+                              height: {
+                                duration: 0.42,
+                                delay: 0.05,
+                                ease: SITE_CONFIG.motion.ease,
+                              },
+                            },
+                      }}
+                      className="overflow-hidden"
+                    >
+                      <div className="flex flex-col gap-4 pt-3">
+                        <p className="text-[14px] leading-[1.7] text-[var(--ink-secondary)] rtl:leading-[1.9]">
+                          {getLocalizedText(activeEpisode.description, locale)}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] text-[var(--ink-muted)]">
+                          <span className="inline-flex items-center gap-1.5">
+                            <MdSchedule
+                              size={15}
+                              aria-hidden="true"
+                              className="shrink-0 text-[var(--ink-secondary)]"
+                            />
+                            <span className="sr-only">
+                              {dictionary.podcast.totalTimeLabel}:
+                            </span>
+                            <span
+                              dir="ltr"
+                              className="bidi-isolate font-normal text-[var(--ink-primary)] tabular-nums"
+                            >
+                              {activeEpisode.durationLabel}
+                            </span>
+                          </span>
+
+                          <span className="inline-flex items-center gap-1.5">
+                            <MdRecordVoiceOver
+                              size={15}
+                              aria-hidden="true"
+                              className="shrink-0 text-[var(--ink-secondary)]"
+                            />
+                            <span className="sr-only">
+                              {dictionary.podcast.speakersLabel}:
+                            </span>
+                            <span className="text-[var(--ink-primary)]">
+                              {getLocalizedText(activeEpisode.speakers, locale)}
+                            </span>
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-3 pt-1">
+                          <div className="flex w-full items-center justify-between gap-3">
+                            <span className="text-[13px] text-[var(--ink-muted)]">
+                              {dictionary.podcast.listenOrSeeIn}
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={activeEpisode.platforms.castbox}
+                                aria-label={dictionary.podcast.platformCastboxLabel}
+                                className={cn(
+                                  'inline-flex h-10 w-10 items-center justify-center rounded-full',
+                                  'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
+                                  'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                                )}
+                              >
+                                <MdPodcasts size={18} aria-hidden="true" />
+                              </a>
+
+                              <a
+                                href={activeEpisode.platforms.spotify}
+                                aria-label={dictionary.podcast.platformSpotifyLabel}
+                                className={cn(
+                                  'inline-flex h-10 w-10 items-center justify-center rounded-full',
+                                  'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
+                                  'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                                )}
+                              >
+                                <MdHeadphones size={18} aria-hidden="true" />
+                              </a>
+
+                              <a
+                                href={activeEpisode.platforms.youtube}
+                                aria-label={dictionary.podcast.platformYoutubeLabel}
+                                className={cn(
+                                  'inline-flex h-10 w-10 items-center justify-center rounded-full',
+                                  'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
+                                  'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                                )}
+                              >
+                                <MdSmartDisplay size={18} aria-hidden="true" />
+                              </a>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleShare}
+                            className={cn(
+                              'inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5',
+                              'border border-[var(--grid-line-strong)] text-[13px] font-normal text-[var(--ink-primary)]',
+                              'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]',
+                              isCopied &&
+                                'border-[var(--brand-primary)] text-[var(--brand-text-hover)]'
+                            )}
+                          >
+                            {isCopied ? (
+                              <MdCheck size={16} aria-hidden="true" />
+                            ) : (
+                              <MdOutlineShare size={16} aria-hidden="true" />
+                            )}
+                            <span>
+                              {isCopied
+                                ? dictionary.podcast.shareCopiedLabel
+                                : dictionary.podcast.shareLabel}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Desktop Episode Title, Word-by-Word Synopsis, Duration & Speakers, and Actions */}
+              <div className="hidden min-w-0 flex-1 flex-col justify-between gap-4 desktop:flex">
                 <div className="space-y-2.5">
                   <h1
                     data-podcast-anim="hero-title"
@@ -1015,12 +1204,12 @@ export function PodcastStage() {
                   </div>
                 </div>
 
-                {/* Listen/See Platforms (aligned to container end on mobile: left in RTL, right in LTR) + Full-Width Mobile Share Button */}
+                {/* Listen/See Platforms + Share Button */}
                 <div
                   data-podcast-anim="hero-control"
-                  className="flex flex-col gap-3 pt-1 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:justify-between desktop:gap-4"
+                  className="flex flex-row flex-wrap items-center justify-between gap-4 pt-1"
                 >
-                  <div className="flex w-full items-center justify-between gap-3 desktop:w-auto desktop:justify-start">
+                  <div className="flex w-auto items-center justify-start gap-3">
                     <span className="text-[13px] text-[var(--ink-muted)]">
                       {dictionary.podcast.listenOrSeeIn}
                     </span>
@@ -1068,7 +1257,7 @@ export function PodcastStage() {
                     type="button"
                     onClick={handleShare}
                     className={cn(
-                      'inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 desktop:w-auto',
+                      'inline-flex h-10 w-auto cursor-pointer items-center justify-center gap-2 rounded-full px-5',
                       'border border-[var(--grid-line-strong)] text-[13px] font-normal text-[var(--ink-primary)]',
                       'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]',
                       isCopied &&

@@ -59,7 +59,7 @@ const listeners = new Set<() => void>();
 function readStoredLocale(): Locale {
   try {
     const raw = window.localStorage.getItem(SITE_CONFIG.storageKeys.locale);
-    if (raw === 'en' || raw === 'fa') {
+    if (raw === 'en' || raw === 'fa' || raw === 'ar') {
       return raw;
     }
   } catch {

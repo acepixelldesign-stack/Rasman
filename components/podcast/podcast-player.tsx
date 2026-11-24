@@ -47,7 +47,7 @@ export function PodcastPlayer({
   onCycleSpeed,
   onToggleMute,
 }: PodcastPlayerProps) {
-  const { dictionary, isRtl } = useAppContext();
+  const { dictionary } = useAppContext();
 
   const progress =
     episode.durationSeconds > 0 ? currentTime / episode.durationSeconds : 0;
@@ -111,11 +111,7 @@ export function PodcastPlayer({
           'hover:text-[var(--brand-text-hover)]'
         )}
       >
-        <MdSkipPrevious
-          size={22}
-          aria-hidden="true"
-          className={cn(isRtl && '-scale-x-100')}
-        />
+        <MdSkipPrevious size={22} aria-hidden="true" />
       </button>
 
       <button
@@ -151,19 +147,16 @@ export function PodcastPlayer({
           'hover:text-[var(--brand-text-hover)]'
         )}
       >
-        <MdSkipNext
-          size={22}
-          aria-hidden="true"
-          className={cn(isRtl && '-scale-x-100')}
-        />
+        <MdSkipNext size={22} aria-hidden="true" />
       </button>
     </div>
   );
 
   return (
     <>
-      {/* Desktop Integrated Bottom Player (24px horizontal padding) */}
+      {/* Desktop Integrated Bottom Player (always LTR English layout, 24px horizontal padding) */}
       <div
+        dir="ltr"
         data-podcast-anim="player"
         className="hidden shrink-0 items-center gap-6 border-t border-[var(--grid-line)] bg-[var(--bg-canvas)] px-6 py-4 desktop:flex"
       >
@@ -198,8 +191,9 @@ export function PodcastPlayer({
         </div>
       </div>
 
-      {/* Mobile Fixed Bottom Player (pinned directly above the 16px bottom grid bar, 16px horizontal padding) */}
+      {/* Mobile Fixed Bottom Player (always LTR English layout, pinned above bottom bar, 16px padding) */}
       <div
+        dir="ltr"
         data-podcast-anim="player"
         className={cn(
           'fixed bottom-[var(--grid-bottom)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-30',

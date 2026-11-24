@@ -3,6 +3,7 @@ import type { Locale } from '@/lib/config/site';
 export interface LocalizedContactText {
   readonly en: string;
   readonly fa: string;
+  readonly ar?: string;
 }
 
 export type ContactSocialPlatform = 'instagram' | 'linkedin' | 'x';
@@ -32,6 +33,7 @@ export const STUDIO_CONTACT: StudioContactConfig = {
   address: {
     en: 'Tehran, Motahari St., No. 55',
     fa: 'تهران، خیابان مطهری، پلاک ۵۵',
+    ar: 'طهران، شارع مطهري، رقم ٥٥',
   },
   mapsHref: 'https://maps.google.com/?q=Motahari+St+55+Tehran',
   socials: [

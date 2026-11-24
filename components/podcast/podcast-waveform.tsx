@@ -22,19 +22,15 @@ export function PodcastWaveform({
   isPlaying,
   onSeek,
 }: PodcastWaveformProps) {
-  const { dictionary, isRtl } = useAppContext();
+  const { dictionary } = useAppContext();
   const trackRef = useRef<HTMLDivElement>(null);
 
-  const computeRatioFromClientX = useCallback(
-    (clientX: number): number => {
-      const rect = trackRef.current?.getBoundingClientRect();
-      if (!rect || rect.width <= 0) return 0;
-      const raw = (clientX - rect.left) / rect.width;
-      const clamped = Math.min(1, Math.max(0, raw));
-      return isRtl ? 1 - clamped : clamped;
-    },
-    [isRtl]
-  );
+  const computeRatioFromClientX = useCallback((clientX: number): number => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return 0;
+    const raw = (clientX - rect.left) / rect.width;
+    return Math.min(1, Math.max(0, raw));
+  }, []);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -50,10 +46,10 @@ export function PodcastWaveform({
     const step = 0.05;
     if (event.key === 'ArrowRight') {
       event.preventDefault();
-      onSeek(Math.min(1, Math.max(0, progress + (isRtl ? -step : step))));
+      onSeek(Math.min(1, Math.max(0, progress + step)));
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      onSeek(Math.min(1, Math.max(0, progress + (isRtl ? step : -step))));
+      onSeek(Math.min(1, Math.max(0, progress - step)));
     } else if (event.key === 'Home') {
       event.preventDefault();
       onSeek(0);
@@ -68,6 +64,7 @@ export function PodcastWaveform({
   return (
     <div
       ref={trackRef}
+      dir="ltr"
       role="slider"
       tabIndex={0}
       aria-label={dictionary.podcast.waveformSeekAriaLabel}

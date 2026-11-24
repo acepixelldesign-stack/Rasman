@@ -11,6 +11,7 @@ export type PodcastCategoryId =
 export interface LocalizedText {
   readonly en: string;
   readonly fa: string;
+  readonly ar?: string;
 }
 
 export interface PodcastCategory {
@@ -59,27 +60,47 @@ function buildWaveform(seed: number, count = 72): readonly number[] {
 export const PODCAST_CATEGORIES: readonly PodcastCategory[] = [
   {
     id: 'all',
-    label: { en: 'All Episodes', fa: 'همه اپیزودها' },
+    label: { en: 'All Episodes', fa: 'همه اپیزودها', ar: 'جميع الحلقات' },
   },
   {
     id: 'sustainable',
-    label: { en: 'Sustainable Architecture', fa: 'معماری پایدار' },
+    label: {
+      en: 'Sustainable Architecture',
+      fa: 'معماری پایدار',
+      ar: 'العمارة المستدامة',
+    },
   },
   {
     id: 'urban',
-    label: { en: 'Urban Architecture', fa: 'معماری شهری' },
+    label: {
+      en: 'Urban Architecture',
+      fa: 'معماری شهری',
+      ar: 'العمارة الحضرية',
+    },
   },
   {
     id: 'acoustics',
-    label: { en: 'Acoustic Spaces', fa: 'فضاهای آکوستیک' },
+    label: {
+      en: 'Acoustic Spaces',
+      fa: 'فضاهای آکوستیک',
+      ar: 'الفضاءات الصوتية',
+    },
   },
   {
     id: 'materials',
-    label: { en: 'Vernacular Materials', fa: 'مصالح بوم‌آورد' },
+    label: {
+      en: 'Vernacular Materials',
+      fa: 'مصالح بوم‌آورد',
+      ar: 'المواد المحلية',
+    },
   },
   {
     id: 'research',
-    label: { en: 'Spatial Research', fa: 'پژوهش فضایی' },
+    label: {
+      en: 'Spatial Research',
+      fa: 'پژوهش فضایی',
+      ar: 'البحث المكاني',
+    },
   },
 ] as const;
 
