@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type TouchEvent as ReactTouchEvent,
 } from 'react';
 import Image from 'next/image';
 import { motion, useReducedMotion } from 'motion/react';
@@ -30,8 +29,12 @@ import { cn } from '@/lib/utils';
 
 type ChapterId = 'studio' | 'founder' | 'current' | 'previous';
 
-const SCROLL_LERP = 0.14;
-const SCROLL_STOP_PX = 0.4;
+/** Time-calibrated exponential damping rates (frame-rate independent across 60Hz/120Hz displays) */
+const COAST_DAMPING = 7.2;
+const DRAG_DAMPING = 22;
+const STOP_THRESHOLD_PX = 0.25;
+const TOUCH_MOMENTUM_MS = 320;
+const MAX_TOUCH_VELOCITY_PX_PER_MS = 3.6;
 
 function renderSocialIcon(platform: AuthorSocialPlatform) {
   switch (platform) {
@@ -48,20 +51,13 @@ function renderSocialIcon(platform: AuthorSocialPlatform) {
 
 /**
  * Rasman Team Continuous Horizontal Architectural Ribbon (Desktop & Mobile):
- * - Fixed top 48px segmented square progress bar directly below header:
- *     - Square 48x48 step number cells (`1`, `2`, `3`, `4`); active step stretches smoothly to reveal its title
- *     - Crisp unbroken bottom hairline beneath all cells (zero green progress loading bar)
- *     - Square 48x48 percentage block at logical end + bottom frame rail '+' crosshairs
- * - Continuous pixel-accurate horizontal scroll (zero discrete jump / zero swap animation):
- *     - Vertical dividers between sections glide continuously toward logical start (left in EN, right in FA/AR)
- *       as the user scrolls until each section docks cleanly
- *     - Sections with overflowing content scroll horizontally through their members first before the next divider enters
- * - Dynamic viewport-height-aware (`cqh`/`cqw`) photo sizing so images NEVER clip vertically on any screen:
- *     - Section 1 (Rasman Team): Desktop 50/50 split (56px gap); Mobile photo first then editorial copy
- *     - Section 2 (Founder): Founder portrait + bio & socials cleanly bounded inside viewport height
- *     - Section 3 (Current Members): Sticky 32px title + side-by-side single horizontal row on BOTH mobile & desktop
- *     - Section 4 (Previous Members): Sticky 32px title + ONLY 2 stacked rows flowing sequentially horizontally
- *       with compact square photos and name/role/RTL-right-aligned tenure date below
+ * - Fixed top 48px segmented square progress bar directly below header (unbroken bottom hairline, zero green bar)
+ * - Frame-rate-independent kinetic inertial scroll engine (desktop wheel + mobile upward/downward/horizontal touch flick):
+ *     - Silky frame-by-frame gliding with momentum coast after finger release
+ *     - Vertical dividers between sections glide smoothly toward logical start (left in EN, right in FA/AR)
+ * - Mobile titles 28px (4px smaller than desktop 32px)
+ * - Section 3 (Current Members): portrait scaled ~24px narrower (proportionally shorter) with name & role matching Founder typography
+ * - Section 4 (Previous Members): 2 stacked sequential horizontal rows with compact square portraits and RTL-right-aligned tenure
  */
 export function AboutStage() {
   const { locale, dir, isRtl, dictionary } = useAppContext();
@@ -77,13 +73,9 @@ export function AboutStage() {
   const targetScrollPosRef = useRef<number>(0);
   const currentScrollPosRef = useRef<number>(0);
   const isAnimatingRef = useRef<boolean>(false);
+  const isDraggingRef = useRef<boolean>(false);
+  const lastFrameTimeRef = useRef<number>(0);
   const rafRef = useRef<number | null>(null);
-  const touchRef = useRef<{
-    startX: number;
-    startY: number;
-    lastY: number;
-    axis: 'undecided' | 'vertical' | 'horizontal';
-  } | null>(null);
 
   const chapters = useMemo(
     () =>
@@ -162,8 +154,7 @@ export function AboutStage() {
     const maxScroll = Math.max(1, track.scrollWidth - track.clientWidth);
     const pos = Math.min(maxScroll, readLogicalScrollPos(track));
     const ratio = pos / maxScroll;
-    const nextPercent = Math.round(ratio * 100);
-    setProgressPercent(nextPercent);
+    setProgressPercent(Math.round(ratio * 100));
 
     const trackRect = track.getBoundingClientRect();
     const thresholdPx = track.clientWidth * 0.28;
@@ -184,12 +175,13 @@ export function AboutStage() {
     setActiveIndex(resolvedIndex);
   }, [chapters.length, isRtl, readLogicalScrollPos]);
 
-  /** Smooth lerp RAF driver for continuous wheel, keyboard, and progress-bar scrolling */
+  /** Frame-rate-independent exponential damping loop for buttery-smooth wheel & touch inertia */
   const ensureSmoothLoop = useCallback(() => {
     if (isAnimatingRef.current) return;
     isAnimatingRef.current = true;
+    lastFrameTimeRef.current = performance.now();
 
-    const tick = () => {
+    const tick = (now: number) => {
       const track = trackRef.current;
       if (!track) {
         isAnimatingRef.current = false;
@@ -197,8 +189,14 @@ export function AboutStage() {
         return;
       }
 
+      const dtSeconds = Math.min(
+        0.05,
+        Math.max(0.001, (now - lastFrameTimeRef.current) / 1000)
+      );
+      lastFrameTimeRef.current = now;
+
       const diff = targetScrollPosRef.current - currentScrollPosRef.current;
-      if (Math.abs(diff) <= SCROLL_STOP_PX) {
+      if (!isDraggingRef.current && Math.abs(diff) <= STOP_THRESHOLD_PX) {
         currentScrollPosRef.current = targetScrollPosRef.current;
         writeLogicalScrollPos(track, currentScrollPosRef.current);
         syncProgress();
@@ -207,7 +205,9 @@ export function AboutStage() {
         return;
       }
 
-      currentScrollPosRef.current += diff * SCROLL_LERP;
+      const damping = isDraggingRef.current ? DRAG_DAMPING : COAST_DAMPING;
+      const alpha = 1 - Math.exp(-damping * dtSeconds);
+      currentScrollPosRef.current += diff * alpha;
       writeLogicalScrollPos(track, currentScrollPosRef.current);
       syncProgress();
       rafRef.current = window.requestAnimationFrame(tick);
@@ -233,8 +233,7 @@ export function AboutStage() {
       }
 
       if (!isAnimatingRef.current) {
-        const livePos = readLogicalScrollPos(track);
-        currentScrollPosRef.current = livePos;
+        currentScrollPosRef.current = readLogicalScrollPos(track);
       }
       targetScrollPosRef.current = clamped;
       ensureSmoothLoop();
@@ -260,6 +259,7 @@ export function AboutStage() {
   // Reset ribbon cleanly to start whenever direction/locale flips and sync on resize
   useEffect(() => {
     stopSmoothScroll();
+    isDraggingRef.current = false;
 
     const rafId = window.requestAnimationFrame(() => {
       const track = trackRef.current;
@@ -280,13 +280,22 @@ export function AboutStage() {
     };
   }, [locale, isRtl, stopSmoothScroll, syncProgress]);
 
-  // Continuous Wheel & Keyboard -> Horizontal Ribbon Scroll (Zero discrete jump!)
+  // Continuous Wheel, Non-Passive Bidirectional Touch + Kinetic Inertia, & Keyboard Navigation
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || typeof window === 'undefined') return;
 
+    let touchLastX = 0;
+    let touchLastY = 0;
+    let touchLastTime = 0;
+    let touchVelocity = 0;
+    let touchMoved = false;
+
+    const isBackgroundLocked = () =>
+      document.documentElement.dataset.scrollLocked === 'true';
+
     const handleWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || event.metaKey) return;
+      if (event.ctrlKey || event.metaKey || isBackgroundLocked()) return;
       const track = trackRef.current;
       if (!track) return;
 
@@ -304,13 +313,10 @@ export function AboutStage() {
 
       const rawX = event.deltaX * multiplier;
       const rawY = event.deltaY * multiplier;
-
-      // Vertical wheel always advances forward along reading direction (left in EN, right in FA/AR).
-      // Native horizontal trackpad swipe respects physical scroll sign relative to direction.
       const logicalDelta =
         Math.abs(rawX) > Math.abs(rawY) ? (isRtl ? -rawX : rawX) : rawY;
 
-      if (Math.abs(logicalDelta) < 0.25) return;
+      if (Math.abs(logicalDelta) < 0.2) return;
 
       if (!isAnimatingRef.current) {
         const livePos = readLogicalScrollPos(track);
@@ -333,7 +339,104 @@ export function AboutStage() {
       }
     };
 
+    const handleTouchStart = (event: TouchEvent) => {
+      if (isBackgroundLocked()) return;
+      if (event.touches.length !== 1) return;
+
+      // Let taps on interactive controls (links/buttons in progress bar or social icons) click normally
+      const target = event.target as Element | null;
+      if (target?.closest('nav[aria-label]')) return;
+
+      const touch = event.touches[0];
+      const track = trackRef.current;
+      if (!touch || !track) return;
+
+      const livePos = readLogicalScrollPos(track);
+      currentScrollPosRef.current = livePos;
+      targetScrollPosRef.current = livePos;
+      isDraggingRef.current = true;
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      touchLastTime = performance.now();
+      touchVelocity = 0;
+      touchMoved = false;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!isDraggingRef.current || isBackgroundLocked()) return;
+      const touch = event.touches[0];
+      const track = trackRef.current;
+      if (!touch || !track) return;
+
+      const now = performance.now();
+      const dx = touchLastX - touch.clientX; // positive when dragging finger left
+      const dy = touchLastY - touch.clientY; // positive when dragging finger up, negative when dragging down (scroll up!)
+      const dt = Math.max(4, now - touchLastTime);
+
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      touchLastTime = now;
+
+      // Choose dominant axis so BOTH vertical up/down swipes and horizontal swipes work reliably
+      const logicalDelta =
+        Math.abs(dy) >= Math.abs(dx) ? dy : isRtl ? -dx : dx;
+
+      if (Math.abs(logicalDelta) > 0.4) {
+        touchMoved = true;
+      }
+
+      // Prevent mobile browser pull-to-refresh / native page scroll takeover on both upward and downward swipes
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+      const scaledDelta = logicalDelta * 1.25;
+      targetScrollPosRef.current = Math.max(
+        0,
+        Math.min(maxScroll, targetScrollPosRef.current + scaledDelta)
+      );
+
+      // Exponentially smoothed velocity (px / ms) for buttery kinetic throw upon release
+      const instantVelocity = Math.max(
+        -MAX_TOUCH_VELOCITY_PX_PER_MS,
+        Math.min(MAX_TOUCH_VELOCITY_PX_PER_MS, scaledDelta / dt)
+      );
+      touchVelocity = touchVelocity * 0.55 + instantVelocity * 0.45;
+
+      if (prefersReducedMotion) {
+        currentScrollPosRef.current = targetScrollPosRef.current;
+        writeLogicalScrollPos(track, currentScrollPosRef.current);
+        syncProgress();
+      } else {
+        ensureSmoothLoop();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+
+      const track = trackRef.current;
+      if (!track || !touchMoved) {
+        touchVelocity = 0;
+        return;
+      }
+
+      if (!prefersReducedMotion && Math.abs(touchVelocity) > 0.08) {
+        const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+        const momentumThrow = touchVelocity * TOUCH_MOMENTUM_MS;
+        targetScrollPosRef.current = Math.max(
+          0,
+          Math.min(maxScroll, targetScrollPosRef.current + momentumThrow)
+        );
+        ensureSmoothLoop();
+      }
+      touchVelocity = 0;
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isBackgroundLocked()) return;
       if (
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement
@@ -367,11 +470,20 @@ export function AboutStage() {
     };
 
     stage.addEventListener('wheel', handleWheel, { passive: false });
+    stage.addEventListener('touchstart', handleTouchStart, { passive: true });
+    stage.addEventListener('touchmove', handleTouchMove, { passive: false });
+    stage.addEventListener('touchend', handleTouchEnd, { passive: true });
+    stage.addEventListener('touchcancel', handleTouchEnd, { passive: true });
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       stage.removeEventListener('wheel', handleWheel);
+      stage.removeEventListener('touchstart', handleTouchStart);
+      stage.removeEventListener('touchmove', handleTouchMove);
+      stage.removeEventListener('touchend', handleTouchEnd);
+      stage.removeEventListener('touchcancel', handleTouchEnd);
       window.removeEventListener('keydown', handleKeyDown);
+      isDraggingRef.current = false;
       stopSmoothScroll();
     };
   }, [
@@ -384,49 +496,6 @@ export function AboutStage() {
     syncProgress,
     writeLogicalScrollPos,
   ]);
-
-  // Mobile Touch Support: both vertical finger drag AND native horizontal swipe glide the ribbon continuously
-  const handleTouchStart = (event: ReactTouchEvent<HTMLElement>) => {
-    const touch = event.touches[0];
-    if (!touch) return;
-    stopSmoothScroll();
-    touchRef.current = {
-      startX: touch.clientX,
-      startY: touch.clientY,
-      lastY: touch.clientY,
-      axis: 'undecided',
-    };
-  };
-
-  const handleTouchMove = (event: ReactTouchEvent<HTMLElement>) => {
-    const state = touchRef.current;
-    const touch = event.touches[0];
-    const track = trackRef.current;
-    if (!state || !touch || !track) return;
-
-    if (state.axis === 'undecided') {
-      const dx = Math.abs(touch.clientX - state.startX);
-      const dy = Math.abs(touch.clientY - state.startY);
-      if (dx < 6 && dy < 6) return;
-      state.axis = dy > dx ? 'vertical' : 'horizontal';
-    }
-
-    if (state.axis === 'vertical') {
-      const deltaY = state.lastY - touch.clientY;
-      state.lastY = touch.clientY;
-      const livePos = readLogicalScrollPos(track);
-      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
-      const nextPos = Math.max(0, Math.min(maxScroll, livePos + deltaY * 1.15));
-      currentScrollPosRef.current = nextPos;
-      targetScrollPosRef.current = nextPos;
-      writeLogicalScrollPos(track, nextPos);
-      syncProgress();
-    }
-  };
-
-  const handleTouchEnd = () => {
-    touchRef.current = null;
-  };
 
   const studioParagraph = getAboutLocalizedText(
     STUDIO_PROFILE.paragraph,
@@ -447,11 +516,8 @@ export function AboutStage() {
     <section
       ref={stageRef}
       data-smooth-prevent=""
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       aria-label={dictionary.about.regionAriaLabel}
-      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)] pt-12"
+      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)] pt-12 touch-none overscroll-none"
     >
       {/* Top Fixed Segmented Architectural Progress Bar (48px, Unbroken Bottom Hairline, Zero Green Loading Bar) */}
       <nav
@@ -558,7 +624,7 @@ export function AboutStage() {
           ref={trackRef}
           dir={dir}
           onScroll={syncProgress}
-          className="no-scrollbar flex h-full w-full flex-row items-stretch overflow-x-auto overflow-y-hidden"
+          className="no-scrollbar flex h-full w-full flex-row items-stretch overflow-x-auto overflow-y-hidden touch-none overscroll-none"
         >
           {/* SECTION 1: RASMAN TEAM (Desktop: Text Start + 56px Gap + Equal-Width Photo End | Mobile: Photo First -> Text) */}
           <article
@@ -567,238 +633,239 @@ export function AboutStage() {
             }}
             className="flex h-full w-[100cqw] shrink-0 flex-col justify-between gap-4 overflow-hidden border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-8 desktop:px-14 desktop:py-12"
           >
-            <h1 className="shrink-0 text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
+            <h1 className="shrink-0 text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
               {dictionary.about.sectionStudio}
             </h1>
 
             <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] items-center gap-4 desktop:grid-cols-2 desktop:grid-rows-1 desktop:gap-[56px]">
               {/* Studio Photo: First on Mobile, Equal-Width End Column on Desktop, Dynamically Height-Constrained */}
               <div className="order-1 relative h-full max-h-[calc(100cqh-220px)] min-h-[140px] w-full overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:order-2 desktop:max-h-[min(460px,calc(100cqh-172px))]">
-              <Image
-                src={STUDIO_PROFILE.image}
-                alt={studioImageAlt}
-                fill
-                priority
-                sizes="(max-width: 768px) calc(100vw - 64px), 44vw"
-                referrerPolicy="no-referrer"
-                className="object-cover"
-              />
-            </div>
-
-            {/* Studio Editorial Copy: Second on Mobile, Equal-Width Start Column on Desktop */}
-            <div className="order-2 flex w-full flex-col justify-center text-start desktop:order-1">
-              <p className="text-[13px] font-normal leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[17px] desktop:leading-[1.9] rtl:leading-[1.9] desktop:rtl:leading-[2.05]">
-                {studioParagraph}
-              </p>
-            </div>
-          </div>
-        </article>
-
-        {/* SECTION 2: FOUNDER / بنیان‌گذار / المؤسس */}
-        <article
-          ref={(el) => {
-            sectionRefs.current[1] = el;
-          }}
-          className="flex h-full w-[100cqw] shrink-0 flex-col justify-between gap-4 overflow-hidden border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-8 desktop:px-14 desktop:py-12"
-        >
-          <h2 className="shrink-0 text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
-            {dictionary.about.sectionPrincipal}
-          </h2>
-
-          <div className="flex min-h-0 flex-1 flex-col items-start justify-center gap-4 desktop:flex-row desktop:items-center desktop:gap-[56px]">
-            {/* Dynamically Height-Constrained Founder Portrait */}
-            <div className="group relative aspect-[3/4] h-[clamp(150px,calc(100cqh-280px),280px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(220px,calc(100cqh-188px),420px)]">
-              <Image
-                src={STUDIO_FOUNDER.portrait}
-                alt={founderPortraitAlt}
-                fill
-                priority
-                sizes="(max-width: 768px) 220px, 320px"
-                referrerPolicy="no-referrer"
-                className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
-              />
-            </div>
-
-            {/* Founder Name, Role, Bio & Social Links */}
-            <div className="flex min-w-0 max-w-2xl flex-1 flex-col gap-3 text-start desktop:gap-4">
-              <div className="flex flex-col gap-0.5">
-                <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
-                  {founderName}
-                </h3>
-                <p className="text-[13px] font-normal text-[var(--ink-secondary)] desktop:text-[15px]">
-                  {founderRole}
-                </p>
+                <Image
+                  src={STUDIO_PROFILE.image}
+                  alt={studioImageAlt}
+                  fill
+                  priority
+                  sizes="(max-width: 768px) calc(100vw - 64px), 44vw"
+                  referrerPolicy="no-referrer"
+                  className="object-cover"
+                />
               </div>
 
-              <p className="text-[13px] leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[16px] desktop:leading-[1.85] rtl:leading-[1.9] desktop:rtl:leading-[2]">
-                {founderBio}
-              </p>
-
-              <nav
-                aria-label={`${founderName} — ${dictionary.about.memberSocialsAriaLabel}`}
-                className="flex flex-wrap items-center gap-2 pt-0.5"
-              >
-                {STUDIO_FOUNDER.socials.map((social) => (
-                  <a
-                    key={social.platform}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${founderName} — ${dictionary.socials[social.platform]}`}
-                    className={cn(
-                      'inline-flex h-9 w-9 items-center justify-center rounded-full desktop:h-10 desktop:w-10',
-                      'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)]',
-                      'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
-                    )}
-                  >
-                    {renderSocialIcon(social.platform)}
-                  </a>
-                ))}
-              </nav>
+              {/* Studio Editorial Copy: Second on Mobile, Equal-Width Start Column on Desktop */}
+              <div className="order-2 flex w-full flex-col justify-center text-start desktop:order-1">
+                <p className="text-[13px] font-normal leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[17px] desktop:leading-[1.9] rtl:leading-[1.9] desktop:rtl:leading-[2.05]">
+                  {studioParagraph}
+                </p>
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
 
-        {/* SECTION 3: CURRENT MEMBERS (Sticky 32px Title + Side-by-Side Single Horizontal Row on BOTH Mobile & Desktop) */}
-        <article
-          ref={(el) => {
-            sectionRefs.current[2] = el;
-          }}
-          className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
-        >
-          <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
-            <h2 className="text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
-              {dictionary.about.sectionCoreTeam}
+          {/* SECTION 2: FOUNDER / بنیان‌گذار / المؤسس */}
+          <article
+            ref={(el) => {
+              sectionRefs.current[1] = el;
+            }}
+            className="flex h-full w-[100cqw] shrink-0 flex-col justify-between gap-4 overflow-hidden border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-8 desktop:px-14 desktop:py-12"
+          >
+            <h2 className="shrink-0 text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+              {dictionary.about.sectionPrincipal}
             </h2>
-          </div>
 
-          {/* Single Side-by-Side Horizontal Row with Dynamic Height-Constrained Portraits (Zero Clipping) */}
-          <ul className="flex min-h-0 flex-1 flex-row items-center gap-5 pe-4 desktop:gap-8 desktop:pe-8">
-            {CORE_TEAM_MEMBERS.map((member) => {
-              const memberName = getAboutLocalizedText(member.name, locale);
-              const memberRole = getAboutLocalizedText(member.role, locale);
-              const memberAlt = getAboutLocalizedText(
-                member.portraitAlt,
-                locale
-              );
+            <div className="flex min-h-0 flex-1 flex-col items-start justify-center gap-4 desktop:flex-row desktop:items-center desktop:gap-[56px]">
+              {/* Dynamically Height-Constrained Founder Portrait */}
+              <div className="group relative aspect-[3/4] h-[clamp(150px,calc(100cqh-280px),280px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(220px,calc(100cqh-188px),420px)]">
+                <Image
+                  src={STUDIO_FOUNDER.portrait}
+                  alt={founderPortraitAlt}
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 220px, 320px"
+                  referrerPolicy="no-referrer"
+                  className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
+                />
+              </div>
 
-              return (
-                <li
-                  key={member.id}
-                  className="group flex h-full shrink-0 flex-col justify-center gap-2.5"
+              {/* Founder Name, Role, Bio & Social Links */}
+              <div className="flex min-w-0 max-w-2xl flex-1 flex-col gap-3 text-start desktop:gap-4">
+                <div className="flex flex-col gap-0.5">
+                  <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
+                    {founderName}
+                  </h3>
+                  <p className="text-[13px] font-normal text-[var(--ink-secondary)] desktop:text-[15px]">
+                    {founderRole}
+                  </p>
+                </div>
+
+                <p className="text-[13px] leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[16px] desktop:leading-[1.85] rtl:leading-[1.9] desktop:rtl:leading-[2]">
+                  {founderBio}
+                </p>
+
+                <nav
+                  aria-label={`${founderName} — ${dictionary.about.memberSocialsAriaLabel}`}
+                  className="flex flex-wrap items-center gap-2 pt-0.5"
                 >
-                  {/* Dynamic 3:4 Portrait Container Sized From Exact Ribbon Height */}
-                  <div className="relative aspect-[3/4] h-[clamp(150px,calc(100cqh-216px),400px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(180px,calc(100cqh-272px),440px)]">
-                    <Image
-                      src={member.portrait}
-                      alt={memberAlt}
-                      fill
-                      loading="lazy"
-                      sizes="(max-width: 768px) 240px, 340px"
-                      referrerPolicy="no-referrer"
-                      className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
-                    />
-                  </div>
+                  {STUDIO_FOUNDER.socials.map((social) => (
+                    <a
+                      key={social.platform}
+                      href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${founderName} — ${dictionary.socials[social.platform]}`}
+                      className={cn(
+                        'inline-flex h-9 w-9 items-center justify-center rounded-full desktop:h-10 desktop:w-10',
+                        'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)]',
+                        'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                      )}
+                    >
+                      {renderSocialIcon(social.platform)}
+                    </a>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </article>
 
-                  <div className="flex shrink-0 flex-col gap-0.5 text-start">
-                    <h3 className="text-[15px] font-medium leading-[1.35] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[17px]">
-                      {memberName}
-                    </h3>
-                    <p className="text-[12px] leading-[1.45] text-[var(--ink-secondary)] desktop:text-[13px]">
-                      {memberRole}
-                    </p>
-                  </div>
+          {/* SECTION 3: CURRENT MEMBERS (Sticky Title + Side-by-Side Row, ~24px Smaller Portraits & Founder-Matched Name/Role Typography) */}
+          <article
+            ref={(el) => {
+              sectionRefs.current[2] = el;
+            }}
+            className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
+          >
+            <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
+              <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+                {dictionary.about.sectionCoreTeam}
+              </h2>
+            </div>
 
-                  <nav
-                    aria-label={`${memberName} — ${dictionary.about.memberSocialsAriaLabel}`}
-                    className="flex shrink-0 items-center gap-2"
+            {/* Single Side-by-Side Horizontal Row with Proportionally Reduced Portraits & Founder-Scale Metadata */}
+            <ul className="flex min-h-0 flex-1 flex-row items-center gap-6 pe-4 desktop:gap-9 desktop:pe-8">
+              {CORE_TEAM_MEMBERS.map((member) => {
+                const memberName = getAboutLocalizedText(member.name, locale);
+                const memberRole = getAboutLocalizedText(member.role, locale);
+                const memberAlt = getAboutLocalizedText(
+                  member.portraitAlt,
+                  locale
+                );
+
+                return (
+                  <li
+                    key={member.id}
+                    className="group flex h-full shrink-0 flex-col justify-center gap-3"
                   >
-                    {member.socials.map((social) => (
-                      <a
-                        key={social.platform}
-                        href={social.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${memberName} — ${dictionary.socials[social.platform]}`}
-                        className={cn(
-                          'inline-flex h-8 w-8 items-center justify-center rounded-full',
-                          'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-secondary)]',
-                          'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
-                        )}
-                      >
-                        {renderSocialIcon(social.platform)}
-                      </a>
-                    ))}
-                  </nav>
-                </li>
-              );
-            })}
-          </ul>
-        </article>
+                    {/* Dynamic 3:4 Portrait Container (~24px smaller width & proportionally ~32px shorter height) */}
+                    <div className="relative aspect-[3/4] h-[clamp(124px,calc(100cqh-264px),368px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(156px,calc(100cqh-328px),408px)]">
+                      <Image
+                        src={member.portrait}
+                        alt={memberAlt}
+                        fill
+                        loading="lazy"
+                        sizes="(max-width: 768px) 220px, 310px"
+                        referrerPolicy="no-referrer"
+                        className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
+                      />
+                    </div>
 
-        {/* SECTION 4: PREVIOUS MEMBERS (Sticky 32px Title + ONLY 2 Stacked Horizontal Rows, Dynamic Square Size, RTL-Right-Aligned Tenure) */}
-        <article
-          ref={(el) => {
-            sectionRefs.current[3] = el;
-          }}
-          className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
-        >
-          <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
-            <h2 className="text-[32px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal">
-              {dictionary.about.sectionPreviousTeam}
-            </h2>
-          </div>
+                    {/* Member Name & Role Matching Founder Font Sizes */}
+                    <div className="flex shrink-0 flex-col gap-0.5 text-start">
+                      <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
+                        {memberName}
+                      </h3>
+                      <p className="text-[13px] font-normal leading-[1.45] text-[var(--ink-secondary)] desktop:text-[15px]">
+                        {memberRole}
+                      </p>
+                    </div>
 
-          {/* 2 Stacked Rows Flowing Sequentially Horizontally (Left in EN, Right in FA/AR), Zero Vertical Overflow */}
-          <ul className="grid min-h-0 flex-1 grid-flow-col grid-rows-2 items-center gap-x-5 gap-y-4 pe-4 desktop:gap-x-8 desktop:gap-y-5 desktop:pe-8">
-            {PREVIOUS_TEAM_MEMBERS.map((member) => {
-              const memberName = getAboutLocalizedText(member.name, locale);
-              const memberRole = getAboutLocalizedText(member.role, locale);
-              const memberAlt = getAboutLocalizedText(
-                member.portraitAlt,
-                locale
-              );
+                    <nav
+                      aria-label={`${memberName} — ${dictionary.about.memberSocialsAriaLabel}`}
+                      className="flex shrink-0 items-center gap-2"
+                    >
+                      {member.socials.map((social) => (
+                        <a
+                          key={social.platform}
+                          href={social.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`${memberName} — ${dictionary.socials[social.platform]}`}
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-full',
+                            'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-secondary)]',
+                            'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                          )}
+                        >
+                          {renderSocialIcon(social.platform)}
+                        </a>
+                      ))}
+                    </nav>
+                  </li>
+                );
+              })}
+            </ul>
+          </article>
 
-              return (
-                <li
-                  key={member.id}
-                  className="group flex shrink-0 flex-col gap-2"
-                >
-                  {/* Dynamic Compact Square Portrait Fitted Cleanly for 2 Rows Inside Ribbon Height */}
-                  <div className="relative aspect-square h-[clamp(76px,calc((100cqh-264px)/2),172px)] w-[clamp(76px,calc((100cqh-264px)/2),172px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(96px,calc((100cqh-320px)/2),192px)] desktop:w-[clamp(96px,calc((100cqh-320px)/2),192px)]">
-                    <Image
-                      src={member.portrait}
-                      alt={memberAlt}
-                      fill
-                      loading="lazy"
-                      sizes="(max-width: 768px) 160px, 200px"
-                      referrerPolicy="no-referrer"
-                      className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
-                    />
-                  </div>
+          {/* SECTION 4: PREVIOUS MEMBERS (Sticky Title + 2 Stacked Horizontal Rows, Dynamic Square Size, RTL-Right-Aligned Tenure) */}
+          <article
+            ref={(el) => {
+              sectionRefs.current[3] = el;
+            }}
+            className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
+          >
+            <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
+              <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+                {dictionary.about.sectionPreviousTeam}
+              </h2>
+            </div>
 
-                  {/* Name, Role & Tenure Date Below Image (Right-Aligned in Persian & Arabic / Left-Aligned in English) */}
-                  <div className="flex w-[clamp(124px,calc((100cqh-232px)/2),192px)] flex-col gap-0.5 text-start">
-                    <h3 className="truncate text-[13px] font-medium leading-[1.3] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[14px]">
-                      {memberName}
-                    </h3>
-                    <p className="truncate text-[11px] leading-[1.4] text-[var(--ink-secondary)] desktop:text-[12px]">
-                      {memberRole}
-                    </p>
-                    <p className="text-start text-[11px] font-normal leading-[1.35] text-[var(--ink-muted)] desktop:text-[12px]">
-                      <span
-                        dir="ltr"
-                        className="bidi-isolate inline-block tabular-nums"
-                      >
-                        {member.tenure}
-                      </span>
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </article>
+            {/* 2 Stacked Rows Flowing Sequentially Horizontally (Left in EN, Right in FA/AR), Zero Vertical Overflow */}
+            <ul className="grid min-h-0 flex-1 grid-flow-col grid-rows-2 items-center gap-x-5 gap-y-4 pe-4 desktop:gap-x-8 desktop:gap-y-5 desktop:pe-8">
+              {PREVIOUS_TEAM_MEMBERS.map((member) => {
+                const memberName = getAboutLocalizedText(member.name, locale);
+                const memberRole = getAboutLocalizedText(member.role, locale);
+                const memberAlt = getAboutLocalizedText(
+                  member.portraitAlt,
+                  locale
+                );
+
+                return (
+                  <li
+                    key={member.id}
+                    className="group flex shrink-0 flex-col gap-2"
+                  >
+                    {/* Dynamic Compact Square Portrait Fitted Cleanly for 2 Rows Inside Ribbon Height */}
+                    <div className="relative aspect-square h-[clamp(76px,calc((100cqh-264px)/2),172px)] w-[clamp(76px,calc((100cqh-264px)/2),172px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(96px,calc((100cqh-320px)/2),192px)] desktop:w-[clamp(96px,calc((100cqh-320px)/2),192px)]">
+                      <Image
+                        src={member.portrait}
+                        alt={memberAlt}
+                        fill
+                        loading="lazy"
+                        sizes="(max-width: 768px) 160px, 200px"
+                        referrerPolicy="no-referrer"
+                        className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
+                      />
+                    </div>
+
+                    {/* Name, Role & Tenure Date Below Image (Right-Aligned in Persian & Arabic / Left-Aligned in English) */}
+                    <div className="flex w-[clamp(124px,calc((100cqh-232px)/2),192px)] flex-col gap-0.5 text-start">
+                      <h3 className="truncate text-[13px] font-medium leading-[1.3] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[14px]">
+                        {memberName}
+                      </h3>
+                      <p className="truncate text-[11px] leading-[1.4] text-[var(--ink-secondary)] desktop:text-[12px]">
+                        {memberRole}
+                      </p>
+                      <p className="text-start text-[11px] font-normal leading-[1.35] text-[var(--ink-muted)] desktop:text-[12px]">
+                        <span
+                          dir="ltr"
+                          className="bidi-isolate inline-block tabular-nums"
+                        >
+                          {member.tenure}
+                        </span>
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </article>
         </div>
       </div>
     </section>

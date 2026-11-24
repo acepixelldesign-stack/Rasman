@@ -23,6 +23,11 @@ import {
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
 import { SmoothScrollProvider } from '@/components/providers/smooth-scroll-provider';
 import { PersistentShell } from '@/components/frame/persistent-shell';
+import {
+  getScrollLockClientSnapshot,
+  getScrollLockServerSnapshot,
+  subscribeScrollLock,
+} from '@/hooks/use-body-scroll-lock';
 
 const StartProjectModal = dynamic(() =>
   import('@/components/auth/start-project-modal').then(
@@ -247,6 +252,11 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     getMountedClientSnapshot,
     getMountedServerSnapshot
   );
+  const isScrollLocked = useSyncExternalStore(
+    subscribeScrollLock,
+    getScrollLockClientSnapshot,
+    getScrollLockServerSnapshot
+  );
   const { theme: resolvedNextTheme, setTheme: setNextTheme } = useTheme();
 
   const [announcement, setAnnouncement] = useState<string>('');
@@ -448,7 +458,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
   return (
     <AppContext.Provider value={contextValue}>
       <MotionConfig reducedMotion="user">
-        <SmoothScrollProvider isPaused={isStartProjectOpen}>
+        <SmoothScrollProvider isPaused={isStartProjectOpen || isScrollLocked}>
           <PersistentShell>{children}</PersistentShell>
         </SmoothScrollProvider>
         {isHydrated || isStartProjectOpen ? <StartProjectModal /> : null}

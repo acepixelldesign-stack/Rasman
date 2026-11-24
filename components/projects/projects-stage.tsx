@@ -43,6 +43,7 @@ import {
   CARD_STAGGER_ITEM_VARIANTS,
   useArchitecturalEntrance,
 } from '@/components/motion/architectural-motion';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { ProjectCard } from '@/components/projects/project-card';
 import {
   ProjectFilterDropdown,
@@ -99,6 +100,7 @@ export function ProjectsStage({
   const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileFilterId = useId();
   useArchitecturalEntrance(stageRef, { isRtl });
+  useBodyScrollLock(isMobileFiltersOpen);
 
   useEffect(() => {
     markRouteContentHydrated();
@@ -622,6 +624,7 @@ export function ProjectsStage({
               <motion.div
                 id={mobileFilterId}
                 role="dialog"
+                data-scroll-lock-allow=""
                 aria-label={dictionary.projects.filtersPanelTitle}
                 initial={{ opacity: 0, y: -8, scale: 0.985 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
 import { MdKeyboardArrowDown } from 'react-icons/md';
@@ -14,6 +15,7 @@ import {
   createMenuItemVariants,
   createSubmenuItemVariants,
 } from '@/components/motion/architectural-motion';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
 
 interface NavigationDrawerProps {
@@ -23,11 +25,16 @@ interface NavigationDrawerProps {
   readonly onNavigate: () => void;
 }
 
+const MENU_EMBLEM_SRC = '/assets/rasman-menu-emblem.png';
+
 /**
  * Minimalist architectural navigation overlay framed cleanly inside the 4-sided grid:
- * - Calm, perceptible Expo-Out reveal with staggered one-by-one item cascade (LTR/RTL mirrored)
- * - Mobile: 16px (ps-4) gap from start column + full-width 48px Start Project / Client Panel CTA
- * - Desktop: 32px (desktop:ps-8) gap from start column, zero divider lines
+ * - Freezes background page scroll while open via global reference-counted scroll lock
+ * - Hairline dividers strictly between top-level navigation items (none above Home, none below Contact)
+ * - Projects submenu renders without dividers and flush-aligned with its parent label
+ * - True-alpha transparent Rasman architectural emblem (light #000 / dark inverted #fff, zero background):
+ *     - Desktop: positioned at logical end (right in EN, left in FA & AR) stretched to the full height of all menu items
+ *     - Mobile: positioned first above menu items with compact height to leave room for links
  */
 export function NavigationDrawer({
   id,
@@ -39,6 +46,8 @@ export function NavigationDrawer({
     useAppContext();
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const projectsPanelId = useId();
+
+  useBodyScrollLock(isOpen);
 
   const itemVariants = useMemo(() => createMenuItemVariants(isRtl), [isRtl]);
   const subItemVariants = useMemo(
@@ -79,110 +88,149 @@ export function NavigationDrawer({
             'bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
           )}
         >
-          {/* Scrollable Navigation Links — Staggered Calm Cascade */}
-          <div className="flex flex-1 flex-col justify-center overflow-y-auto ps-4 pe-4 py-6 desktop:ps-8 desktop:pe-8 desktop:py-8">
-            <motion.ul
-              variants={MENU_LIST_VARIANTS}
-              className="flex w-full flex-col items-start gap-3.5 desktop:gap-4"
-            >
-              {SITE_CONFIG.navigation.map((item) => {
-                const hasChildren = Boolean(
-                  item.children && item.children.length > 0
-                );
-                const label = dictionary.navigation.items[item.id];
+          {/* Scrollable Split Body: Mobile (Compact Emblem Top -> Divided Menu Items) | Desktop (Divided Menu Start -> Full-Height Emblem End) */}
+          <div
+            data-scroll-lock-allow=""
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 desktop:px-10 desktop:py-8"
+          >
+            <div className="my-auto flex w-full flex-col desktop:flex-row desktop:items-stretch desktop:justify-between desktop:gap-12">
+              {/* Rasman Architectural Line-Art Emblem (True Transparent Alpha — Pure Black in Light, Inverted White in Dark) */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  transition: {
+                    duration: 0.62,
+                    delay: 0.14,
+                    ease: ARCHITECTURAL_EASE,
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.98,
+                  transition: { duration: 0.2 },
+                }}
+                className="order-1 flex shrink-0 items-center justify-center pb-4 desktop:order-2 desktop:relative desktop:flex-1 desktop:pb-0"
+              >
+                <div className="relative h-[104px] aspect-[534/647] sm:h-[124px] desktop:absolute desktop:inset-0 desktop:aspect-auto desktop:h-full desktop:w-full">
+                  <Image
+                    src={MENU_EMBLEM_SRC}
+                    alt={dictionary.brand.logotype}
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 124px, 560px"
+                    referrerPolicy="no-referrer"
+                    className="object-contain object-center select-none dark:invert"
+                  />
+                </div>
+              </motion.div>
 
-                return (
-                  <motion.li
-                    key={item.id}
-                    variants={itemVariants}
-                    className="w-full"
-                  >
-                    {hasChildren && item.children ? (
-                      <div className="flex flex-col items-start">
-                        <button
-                          type="button"
-                          aria-expanded={isProjectsOpen}
-                          aria-controls={projectsPanelId}
-                          onClick={() => setIsProjectsOpen((prev) => !prev)}
-                          className={cn(
-                            'group inline-flex cursor-pointer items-center gap-2.5 text-start',
-                            'text-[clamp(1.75rem,3.4vw,3rem)] font-light leading-[1.22] tracking-[-0.02em]',
-                            'rtl:leading-[1.4] rtl:tracking-normal',
-                            'text-[var(--ink-primary)] transition-colors duration-300',
-                            'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
-                            isProjectsOpen && 'text-[var(--brand-text-hover)]'
-                          )}
-                        >
-                          <span>{label}</span>
-                          <span
-                            aria-hidden="true"
+              {/* Divided Navigation Links — Hairline dividers strictly between top-level items */}
+              <motion.ul
+                variants={MENU_LIST_VARIANTS}
+                className="order-2 flex w-full flex-col divide-y divide-[var(--grid-line)] desktop:order-1 desktop:max-w-[560px] desktop:flex-1"
+              >
+                {SITE_CONFIG.navigation.map((item) => {
+                  const hasChildren = Boolean(
+                    item.children && item.children.length > 0
+                  );
+                  const label = dictionary.navigation.items[item.id];
+
+                  return (
+                    <motion.li
+                      key={item.id}
+                      variants={itemVariants}
+                      className="w-full py-2.5 first:pt-0 last:pb-0 desktop:py-3.5 desktop:first:pt-0 desktop:last:pb-0"
+                    >
+                      {hasChildren && item.children ? (
+                        <div className="flex flex-col items-start">
+                          <button
+                            type="button"
+                            aria-expanded={isProjectsOpen}
+                            aria-controls={projectsPanelId}
+                            onClick={() => setIsProjectsOpen((prev) => !prev)}
                             className={cn(
-                              'inline-flex h-8 w-8 items-center justify-center rounded-full',
-                              'text-[var(--ink-muted)] transition-transform duration-400',
-                              isProjectsOpen && 'rotate-180'
+                              'group inline-flex w-full cursor-pointer items-center justify-between gap-2.5 text-start',
+                              'text-[clamp(1.4rem,2.7vw,2.35rem)] font-light leading-[1.22] tracking-[-0.02em]',
+                              'rtl:leading-[1.4] rtl:tracking-normal',
+                              'text-[var(--ink-primary)] transition-colors duration-300',
+                              'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
+                              isProjectsOpen && 'text-[var(--brand-text-hover)]'
                             )}
                           >
-                            <MdKeyboardArrowDown size={28} />
-                          </span>
-                        </button>
-
-                        <AnimatePresence initial={false}>
-                          {isProjectsOpen && (
-                            <motion.div
-                              id={projectsPanelId}
-                              variants={SUBMENU_LIST_VARIANTS}
-                              initial="hidden"
-                              animate="visible"
-                              exit="exit"
-                              className="overflow-hidden"
+                            <span>{label}</span>
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                                'text-[var(--ink-muted)] transition-transform duration-400',
+                                isProjectsOpen && 'rotate-180'
+                              )}
                             >
-                              <ul className="flex flex-col items-start gap-2.5 pt-3 pb-2 desktop:gap-3">
-                                {item.children.map((subItem) => (
-                                  <motion.li
-                                    key={subItem.id}
-                                    variants={subItemVariants}
-                                  >
-                                    <Link
-                                      href={subItem.href}
-                                      prefetch={true}
-                                      onClick={onNavigate}
-                                      className={cn(
-                                        'inline-block text-start',
-                                        'text-[clamp(1.4rem,2.4vw,2.15rem)] font-light leading-[1.25] tracking-[-0.015em]',
-                                        'rtl:leading-[1.45] rtl:tracking-normal',
-                                        'text-[var(--ink-secondary)] transition-colors duration-300',
-                                        'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
-                                      )}
+                              <MdKeyboardArrowDown size={24} />
+                            </span>
+                          </button>
+
+                          <AnimatePresence initial={false}>
+                            {isProjectsOpen && (
+                              <motion.div
+                                id={projectsPanelId}
+                                variants={SUBMENU_LIST_VARIANTS}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                                className="w-full overflow-hidden"
+                              >
+                                <ul className="mt-2 flex flex-col">
+                                  {item.children.map((subItem) => (
+                                    <motion.li
+                                      key={subItem.id}
+                                      variants={subItemVariants}
+                                      className="py-1.5 desktop:py-2"
                                     >
-                                      {dictionary.navigation.subItems[subItem.id]}
-                                    </Link>
-                                  </motion.li>
-                                ))}
-                              </ul>
-                            </motion.div>
+                                      <Link
+                                        href={subItem.href}
+                                        prefetch={true}
+                                        onClick={onNavigate}
+                                        className={cn(
+                                          'block w-full text-start',
+                                          'text-[clamp(1.1rem,1.9vw,1.65rem)] font-light leading-[1.25] tracking-[-0.015em]',
+                                          'rtl:leading-[1.45] rtl:tracking-normal',
+                                          'text-[var(--ink-secondary)] transition-colors duration-300',
+                                          'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
+                                        )}
+                                      >
+                                        {dictionary.navigation.subItems[subItem.id]}
+                                      </Link>
+                                    </motion.li>
+                                  ))}
+                                </ul>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ) : (
+                        <Link
+                          href={item.href ?? '#'}
+                          prefetch={true}
+                          onClick={onNavigate}
+                          className={cn(
+                            'block w-full text-start',
+                            'text-[clamp(1.4rem,2.7vw,2.35rem)] font-light leading-[1.22] tracking-[-0.02em]',
+                            'rtl:leading-[1.4] rtl:tracking-normal',
+                            'text-[var(--ink-primary)] transition-colors duration-300',
+                            'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
                           )}
-                        </AnimatePresence>
-                      </div>
-                    ) : (
-                      <Link
-                        href={item.href ?? '#'}
-                        prefetch={true}
-                        onClick={onNavigate}
-                        className={cn(
-                          'inline-block text-start',
-                          'text-[clamp(1.75rem,3.4vw,3rem)] font-light leading-[1.22] tracking-[-0.02em]',
-                          'rtl:leading-[1.4] rtl:tracking-normal',
-                          'text-[var(--ink-primary)] transition-colors duration-300',
-                          'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
-                        )}
-                      >
-                        {label}
-                      </Link>
-                    )}
-                  </motion.li>
-                );
-              })}
-            </motion.ul>
+                        >
+                          {label}
+                        </Link>
+                      )}
+                    </motion.li>
+                  );
+                })}
+              </motion.ul>
+            </div>
           </div>
 
           {/* Mobile-Only Fixed Bottom Stretched 48px CTA */}
@@ -193,7 +241,7 @@ export function NavigationDrawer({
               y: 0,
               transition: {
                 duration: 0.48,
-                delay: 0.42,
+                delay: 0.36,
                 ease: ARCHITECTURAL_EASE,
               },
             }}
@@ -202,7 +250,7 @@ export function NavigationDrawer({
               y: 8,
               transition: { duration: 0.2 },
             }}
-            className="shrink-0 px-4 pt-3 pb-4 desktop:hidden"
+            className="shrink-0 border-t border-[var(--grid-line)] px-4 pt-3 pb-4 desktop:hidden"
           >
             {userProfile ? (
               <Link

@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { MdKeyboardArrowDown } from 'react-icons/md';
 import { SITE_CONFIG, type Locale } from '@/lib/config/site';
 import { useAppContext } from '@/components/providers/app-provider';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
 
 /**
@@ -23,6 +24,8 @@ export function LanguageSwitcher() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+
+  useBodyScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -69,6 +72,7 @@ export function LanguageSwitcher() {
           ref={drawerRef}
           id={menuId}
           role="listbox"
+          data-scroll-lock-allow=""
           aria-label={dictionary.header.languageMenuAriaLabel}
           initial={{ height: 0, opacity: 0 }}
           animate={{

@@ -26,6 +26,7 @@ import { BlogSidebar } from '@/components/blog/blog-sidebar';
 import { BlogCard } from '@/components/blog/blog-card';
 import { BlogCategoryIcon } from '@/components/blog/blog-category-icon';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
 
 const POSTS_PER_PAGE = 3;
@@ -46,6 +47,7 @@ export function BlogStage() {
   const feedTopRef = useRef<HTMLDivElement>(null);
 
   useArchitecturalEntrance(stageRef, { isRtl });
+  useBodyScrollLock(isMobileCategoriesOpen);
 
   const mobileCategoryItemVariants = useMemo(
     () => createMenuItemVariants(isRtl),
@@ -213,7 +215,8 @@ export function BlogStage() {
               }}
               className="flex flex-col overflow-hidden"
             >
-              <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 pt-2 pb-6">
+              <div data-scroll-lock-allow="" className="flex min-h-0 flex-1 flex-col">
+                <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 pt-2 pb-6">
                 <motion.ul
                   variants={MENU_LIST_VARIANTS}
                   initial="hidden"
@@ -262,6 +265,7 @@ export function BlogStage() {
                   })}
                 </motion.ul>
               </SmoothVerticalPane>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

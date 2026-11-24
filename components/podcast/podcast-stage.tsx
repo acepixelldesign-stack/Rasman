@@ -35,6 +35,7 @@ import { useAppContext } from '@/components/providers/app-provider';
 import { PodcastSidebar } from '@/components/podcast/podcast-sidebar';
 import { PodcastPlayer } from '@/components/podcast/podcast-player';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
 
 if (typeof window !== 'undefined') {
@@ -159,6 +160,7 @@ export function PodcastStage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const mobilePanelId = useId();
   const mobileDetailsId = useId();
+  useBodyScrollLock(isMobileFilterOpen);
   const currentTimeRef = useRef<number>(currentTime);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscRef = useRef<OscillatorNode | null>(null);
@@ -789,6 +791,7 @@ export function PodcastStage() {
           {isMobileFilterOpen && (
             <motion.div
               id={mobilePanelId}
+              data-scroll-lock-allow=""
               initial={{ height: 0, opacity: 0 }}
               animate={{
                 height:
