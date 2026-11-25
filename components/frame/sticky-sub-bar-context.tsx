@@ -243,7 +243,7 @@ export function StickySubBarHost() {
           ref={hostRef}
           aria-label={bar.ariaLabel}
           initial={
-            prefersReducedMotion ? { opacity: 0 } : { y: -56, opacity: 0 }
+            prefersReducedMotion ? { opacity: 0 } : { y: -48, opacity: 0 }
           }
           animate={{
             y: 0,
@@ -256,7 +256,7 @@ export function StickySubBarHost() {
             prefersReducedMotion
               ? { opacity: 0, transition: { duration: 0.01 } }
               : {
-                  y: -56,
+                  y: -48,
                   opacity: 0,
                   transition: { duration: 0.36, ease: MOTION_EASE.calm },
                 }

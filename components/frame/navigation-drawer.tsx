@@ -476,7 +476,7 @@ export function NavigationDrawer({
           <div
             data-swipe-handle=""
             aria-hidden="true"
-            className="flex h-6 w-full shrink-0 items-center justify-center pb-1 desktop:hidden"
+            className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center pb-1 active:cursor-grabbing desktop:hidden"
           >
             <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
           </div>

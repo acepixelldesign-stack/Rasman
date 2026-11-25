@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'motion/react';
 import { SITE_CONFIG } from '@/lib/config/site';
-import { MOTION_TRANSITIONS } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import { RasmanWordmark } from '@/components/brand/rasman-wordmark';
 import { LanguageSwitcher } from '@/components/frame/language-switcher';
@@ -17,9 +15,10 @@ interface ArchitecturalHeaderProps {
 }
 
 /**
- * 64px (desktop) / 56px (mobile) glassmorphic architectural top header.
- * - Desktop inner horizontal padding reduced by 8px (16px inset from side rails)
- * - Optically equal gaps between Language Switcher, Dark/Light Toggle, and Start Project CTA
+ * 48px (desktop) / 40px (mobile) glassmorphic architectural top header.
+ * - Borderless 2-line hamburger icon matched optically to RASMAN wordmark height (12px mobile / 14px desktop)
+ * - Short vertical hairline divider separating hamburger from wordmark
+ * - Square Language & Theme cells and flush Start Project CTA at logical end
  */
 export function ArchitecturalHeader({
   isMenuOpen,
@@ -58,7 +57,7 @@ export function ArchitecturalHeader({
           'ps-[var(--grid-rail)] pe-[var(--grid-rail)]'
         )}
       >
-        {/* Logical Start Zone: Clean Hamburger Button + Short Hairline Divider (Matching Projects Bar) + RASMAN Wordmark */}
+        {/* Logical Start Zone: Clean Hamburger Button + Short Hairline Divider + RASMAN Wordmark */}
         <div className="flex h-full items-center">
           <button
             type="button"
@@ -68,40 +67,38 @@ export function ArchitecturalHeader({
             aria-label={menuAriaLabel}
             className={cn(
               'group inline-flex h-full shrink-0 cursor-pointer items-center justify-center',
-              'ps-4 pe-3 desktop:ps-5 desktop:pe-4'
+              'ps-3.5 pe-3 desktop:ps-4 desktop:pe-3.5'
             )}
           >
-            <span className="flex w-[20px] flex-col items-start justify-center gap-[5px]">
-              {/* Short top bar aligned to logical start */}
-              <motion.span
+            <span className="relative block h-[12px] w-[20px] desktop:h-[14px]">
+              {/* Short top bar aligned to logical start, outer edge flush with logo top */}
+              <span
                 aria-hidden="true"
-                initial={false}
-                animate={{
-                  width: isMenuOpen ? 18 : 11,
-                  y: isMenuOpen ? 3.5 : 0,
-                  rotate: isMenuOpen ? 45 : 0,
-                }}
-                transition={MOTION_TRANSITIONS.base}
-                className="block h-[2px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
+                className={cn(
+                  'absolute start-0 block h-[2px] origin-center rounded-full bg-[var(--ink-primary)]',
+                  'transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:bg-[var(--brand-text-hover)]',
+                  isMenuOpen
+                    ? 'top-1/2 w-[18px] -translate-y-1/2 rotate-45'
+                    : 'top-0 w-[11px] translate-y-0 rotate-0'
+                )}
               />
-              {/* Long bottom bar */}
-              <motion.span
+              {/* Long bottom bar, outer edge flush with logo bottom */}
+              <span
                 aria-hidden="true"
-                initial={false}
-                animate={{
-                  width: isMenuOpen ? 18 : 20,
-                  y: isMenuOpen ? -3.5 : 0,
-                  rotate: isMenuOpen ? -45 : 0,
-                }}
-                transition={MOTION_TRANSITIONS.base}
-                className="block h-[2px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
+                className={cn(
+                  'absolute start-0 block h-[2px] origin-center rounded-full bg-[var(--ink-primary)]',
+                  'transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:bg-[var(--brand-text-hover)]',
+                  isMenuOpen
+                    ? 'top-1/2 w-[18px] -translate-y-1/2 -rotate-45'
+                    : 'top-full w-[20px] -translate-y-full rotate-0'
+                )}
               />
             </span>
           </button>
 
           <span
             aria-hidden="true"
-            className="h-4 w-px shrink-0 bg-[var(--grid-line)]"
+            className="h-3.5 w-px shrink-0 bg-[var(--grid-line)] desktop:h-4"
           />
 
           <a

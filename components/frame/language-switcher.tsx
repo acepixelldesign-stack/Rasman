@@ -154,7 +154,7 @@ export function LanguageSwitcher() {
           <div
             data-swipe-handle=""
             aria-hidden="true"
-            className="flex h-5 w-full shrink-0 items-center justify-center desktop:hidden"
+            className="flex h-5 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center active:cursor-grabbing desktop:hidden"
           >
             <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
           </div>

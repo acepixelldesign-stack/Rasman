@@ -2,37 +2,31 @@
 
 import { useEffect, type RefObject } from 'react';
 
-const DISMISS_DISTANCE_PX = 64;
-const DISMISS_VELOCITY_DISTANCE_PX = 26;
-const DISMISS_VELOCITY_THRESHOLD = 0.42;
+/** Active drag capture zone measured upward from the lowest edge of the menu */
+const BOTTOM_DRAG_ZONE_PX = 64;
+/** Slight outer lip below the bottom border for comfortable thumb capture */
+const BOTTOM_OUTER_TOLERANCE_PX = 16;
+const ENGAGE_THRESHOLD_PX = 5;
+const MIN_DISMISS_DISTANCE_PX = 68;
+const MAX_DISMISS_DISTANCE_PX = 140;
+const DISMISS_HEIGHT_RATIO = 0.24;
+const FLICK_MIN_DISTANCE_PX = 28;
+const FLICK_VELOCITY_THRESHOLD = 0.34;
 const DESKTOP_MEDIA_QUERY =
   '(min-width: 768px) and (min-height: 520px) and (orientation: landscape)';
 
-function findScrollableAncestor(
-  target: EventTarget | null,
-  boundary: HTMLElement
-): HTMLElement | null {
-  let node = target instanceof HTMLElement ? target : null;
-  while (node && node !== boundary) {
-    const style = window.getComputedStyle(node);
-    const overflowY = style.overflowY;
-    const isScrollable =
-      (overflowY === 'auto' || overflowY === 'scroll') &&
-      node.scrollHeight > node.clientHeight + 2;
-    if (isScrollable) {
-      return node;
-    }
-    node = node.parentElement;
-  }
-  return null;
-}
-
 /**
- * Mobile touch gesture hook enabling any slide-down menu or sheet to be dragged
- * smoothly upward to close, without interfering with internal vertical scrolling:
- * - Touching a `[data-swipe-handle]` bottom bar ALWAYS drags the sheet upward immediately.
- * - Touching inside scrollable content drags the sheet upward once scrolled to the bottom.
- * - Touching non-scrollable content (e.g., short drawers, footers) drags upward immediately.
+ * Bulletproof mobile menu drag-to-dismiss hook:
+ * - Captures drag gestures starting anywhere in the bottom 64px zone of the menu
+ *   (from the lowest edge up to 64px height) or on `[data-swipe-handle]`.
+ * - Resolves `containerRef.current` dynamically on touch/pointer start so portals and
+ *   StickySubBarHost sheets never miss listener attachment.
+ * - Moves the menu smoothly up AND down in real time with the user's finger:
+ *     - Fixed drawers (`NavigationDrawer`, `LanguageSwitcher`) translate via GPU `translate3d`.
+ *     - In-flow sticky-bar sheets (`BlogStage`, `PodcastStage`, `ProjectMegaFilter`) smoothly
+ *       resize their height in lockstep with the sticky host container.
+ * - Preserves normal taps on buttons inside the bottom 64px zone and suppresses synthetic
+ *   clicks whenever an actual vertical drag occurred.
  */
 export function useSwipeUpDismiss(
   containerRef: RefObject<HTMLElement | null>,
@@ -41,136 +35,359 @@ export function useSwipeUpDismiss(
 ): void {
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined') return;
-    const el = containerRef.current;
-    if (!el) return;
 
+    let activeEl: HTMLElement | null = null;
+    let lastAnimatedEl: HTMLElement | null = null;
+    let mode: 'transform' | 'height' = 'transform';
     let active = false;
-    let draggingUp = false;
+    let dragging = false;
     let startX = 0;
     let startY = 0;
-    let lastDeltaY = 0;
-    let startTime = 0;
-    let isHandleStart = false;
-    let scrollableNode: HTMLElement | null = null;
+    let startHeight = 0;
+    let lastY = 0;
+    let lastTime = 0;
+    let velocityY = 0;
+    let currentOffset = 0;
+    let savedOverflow = '';
+    let savedHeight = '';
+    let isSettlingDismiss = false;
+    let settleTimer: number | null = null;
+    let clickBlockTimer: number | null = null;
 
-    const resetTransform = (animateBack: boolean) => {
-      if (animateBack) {
-        el.style.transition = 'transform 240ms cubic-bezier(0.22, 1, 0.36, 1)';
-        el.style.transform = 'translate3d(0, 0, 0)';
-        window.setTimeout(() => {
-          el.style.transition = '';
-          el.style.transform = '';
-        }, 250);
-      } else {
-        el.style.transition = '';
+    const clearSwipeFlag = () => {
+      delete document.documentElement.dataset.swipeDragging;
+    };
+
+    const suppressNextClick = () => {
+      const blockClick = (ev: MouseEvent) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+      };
+      window.addEventListener('click', blockClick, {
+        capture: true,
+        once: true,
+      });
+      if (clickBlockTimer !== null) {
+        window.clearTimeout(clickBlockTimer);
+      }
+      clickBlockTimer = window.setTimeout(() => {
+        window.removeEventListener('click', blockClick, { capture: true });
+        clickBlockTimer = null;
+      }, 320);
+    };
+
+    const clearInlineStyles = (el: HTMLElement) => {
+      el.style.transition = '';
+      el.style.willChange = '';
+      if (mode === 'transform') {
         el.style.transform = '';
+      } else {
+        el.style.height = savedHeight;
+        el.style.overflow = savedOverflow;
       }
     };
 
-    const handleTouchStart = (event: TouchEvent) => {
-      if (window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return;
-      if (event.touches.length !== 1) return;
+    const isInsideBottomDragZone = (
+      el: HTMLElement,
+      clientX: number,
+      clientY: number,
+      target: EventTarget | null
+    ): boolean => {
+      const rect = el.getBoundingClientRect();
+      if (rect.height <= 0 || rect.width <= 0) return false;
 
+      const targetEl = target instanceof Element ? target : null;
+      if (targetEl?.closest('[data-swipe-handle]')) {
+        return el.contains(targetEl);
+      }
+
+      const withinX = clientX >= rect.left - 8 && clientX <= rect.right + 8;
+      const withinBottom64 =
+        clientY >= rect.bottom - BOTTOM_DRAG_ZONE_PX &&
+        clientY <= rect.bottom + BOTTOM_OUTER_TOLERANCE_PX;
+
+      return withinX && withinBottom64;
+    };
+
+    const beginGesture = (
+      clientX: number,
+      clientY: number,
+      target: EventTarget | null
+    ): boolean => {
+      if (isSettlingDismiss) return false;
+      if (window.matchMedia(DESKTOP_MEDIA_QUERY).matches) return false;
+
+      const el = containerRef.current;
+      if (!el) return false;
+      if (!isInsideBottomDragZone(el, clientX, clientY, target)) return false;
+
+      if (settleTimer !== null) {
+        window.clearTimeout(settleTimer);
+        settleTimer = null;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const computed = window.getComputedStyle(el);
+      mode = computed.position === 'fixed' ? 'transform' : 'height';
+      activeEl = el;
+      lastAnimatedEl = el;
+      startX = clientX;
+      startY = clientY;
+      startHeight = rect.height;
+      lastY = clientY;
+      lastTime = performance.now();
+      velocityY = 0;
+      currentOffset = 0;
+      savedOverflow = el.style.overflow;
+      savedHeight = el.style.height;
+      active = true;
+      dragging = false;
+      return true;
+    };
+
+    const moveGesture = (
+      clientX: number,
+      clientY: number,
+      cancelEvent: () => void
+    ) => {
+      if (!active || !activeEl) return;
+
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+
+      if (!dragging) {
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+          active = false;
+          activeEl = null;
+          return;
+        }
+        if (Math.abs(deltaY) < ENGAGE_THRESHOLD_PX) {
+          return;
+        }
+        dragging = true;
+        document.documentElement.dataset.swipeDragging = 'true';
+        activeEl.style.transition = 'none';
+        if (mode === 'transform') {
+          activeEl.style.willChange = 'transform';
+        } else {
+          activeEl.style.willChange = 'height';
+          activeEl.style.overflow = 'hidden';
+        }
+      }
+
+      cancelEvent();
+
+      const now = performance.now();
+      const dt = Math.max(4, now - lastTime);
+      const instantVelocity = (clientY - lastY) / dt;
+      velocityY = velocityY * 0.45 + instantVelocity * 0.55;
+      lastY = clientY;
+      lastTime = now;
+
+      if (mode === 'transform') {
+        // Track finger 1:1 upward & back down without detaching top edge from header
+        const clampedY =
+          deltaY <= 0
+            ? Math.max(-startHeight, deltaY)
+            : Math.min(14, deltaY * 0.22);
+        currentOffset = clampedY;
+        activeEl.style.transform = `translate3d(0, ${Math.round(clampedY)}px, 0)`;
+      } else {
+        // Track finger 1:1 upward & back down by collapsing/expanding sheet height cleanly
+        const elasticDown = deltaY > 0 ? Math.min(20, deltaY * 0.25) : deltaY;
+        const nextHeight = Math.max(
+          0,
+          Math.min(startHeight + 20, startHeight + elasticDown)
+        );
+        currentOffset = nextHeight - startHeight;
+        activeEl.style.height = `${Math.round(nextHeight)}px`;
+      }
+    };
+
+    const endGesture = (cancelled: boolean) => {
+      if (!active || !activeEl) return;
+      const el = activeEl;
+      const wasDragging = dragging;
+      const offset = currentOffset;
+      const releaseVelocity = velocityY;
+
+      active = false;
+      dragging = false;
+      activeEl = null;
+      clearSwipeFlag();
+
+      if (!wasDragging) return;
+
+      suppressNextClick();
+
+      const dismissThreshold = Math.min(
+        MAX_DISMISS_DISTANCE_PX,
+        Math.max(MIN_DISMISS_DISTANCE_PX, startHeight * DISMISS_HEIGHT_RATIO)
+      );
+      const isFlickingDown = releaseVelocity > 0.22;
+      const shouldDismiss =
+        !cancelled &&
+        !isFlickingDown &&
+        (offset <= -dismissThreshold ||
+          (offset <= -FLICK_MIN_DISTANCE_PX &&
+            releaseVelocity <= -FLICK_VELOCITY_THRESHOLD));
+
+      if (shouldDismiss) {
+        isSettlingDismiss = true;
+        if (mode === 'transform') {
+          el.style.transition =
+            'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
+          el.style.transform = `translate3d(0, ${-Math.ceil(startHeight + 24)}px, 0)`;
+        } else {
+          el.style.transition = 'height 200ms cubic-bezier(0.22, 1, 0.36, 1)';
+          el.style.height = '0px';
+        }
+        settleTimer = window.setTimeout(() => {
+          settleTimer = null;
+          isSettlingDismiss = false;
+          onDismiss();
+        }, 190);
+      } else {
+        if (mode === 'transform') {
+          el.style.transition =
+            'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)';
+          el.style.transform = 'translate3d(0, 0, 0)';
+        } else {
+          el.style.transition = 'height 260ms cubic-bezier(0.22, 1, 0.36, 1)';
+          el.style.height = `${Math.round(startHeight)}px`;
+        }
+        settleTimer = window.setTimeout(() => {
+          settleTimer = null;
+          clearInlineStyles(el);
+        }, 270);
+      }
+    };
+
+    // Native Touch Events (iOS Safari, Android Chrome, PWA, DevTools mobile emulation)
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
       const touch = event.touches[0];
       if (!touch) return;
-
-      const targetEl = event.target instanceof HTMLElement ? event.target : null;
-      isHandleStart = Boolean(targetEl?.closest('[data-swipe-handle]'));
-      scrollableNode = isHandleStart
-        ? null
-        : findScrollableAncestor(event.target, el);
-
-      active = true;
-      draggingUp = false;
-      startX = touch.clientX;
-      startY = touch.clientY;
-      lastDeltaY = 0;
-      startTime = performance.now();
-      el.style.transition = '';
+      beginGesture(touch.clientX, touch.clientY, event.target);
     };
 
     const handleTouchMove = (event: TouchEvent) => {
       if (!active || event.touches.length !== 1) return;
       const touch = event.touches[0];
       if (!touch) return;
-
-      const deltaX = touch.clientX - startX;
-      const deltaY = touch.clientY - startY;
-
-      if (!draggingUp) {
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-          active = false;
-          return;
+      moveGesture(touch.clientX, touch.clientY, () => {
+        if (event.cancelable) {
+          event.preventDefault();
         }
-        if (deltaY > 8) {
-          active = false;
-          return;
-        }
-        if (deltaY < -8) {
-          const canDismissFromScroll =
-            isHandleStart ||
-            !scrollableNode ||
-            scrollableNode.scrollTop + scrollableNode.clientHeight >=
-              scrollableNode.scrollHeight - 4;
+      });
+    };
 
-          if (!canDismissFromScroll) {
-            return;
-          }
-          draggingUp = true;
-        } else {
-          return;
-        }
+    const handleTouchEnd = () => endGesture(false);
+    const handleTouchCancel = () => endGesture(true);
+
+    // Mouse Pointer Fallback (narrow mobile-width desktop preview testing)
+    let activePointerId: number | null = null;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || event.button !== 0) return;
+      if (beginGesture(event.clientX, event.clientY, event.target)) {
+        activePointerId = event.pointerId;
       }
+    };
 
-      if (draggingUp) {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || activePointerId !== event.pointerId) {
+        return;
+      }
+      moveGesture(event.clientX, event.clientY, () => {
         event.preventDefault();
-        const clampedUp = Math.min(0, deltaY);
-        lastDeltaY = clampedUp;
-        el.style.transform = `translate3d(0, ${Math.round(clampedUp * 0.72)}px, 0)`;
+      });
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || activePointerId !== event.pointerId) {
+        return;
       }
+      activePointerId = null;
+      endGesture(false);
     };
 
-    const handleTouchEnd = () => {
-      if (!active) return;
-      active = false;
-
-      if (!draggingUp) return;
-      draggingUp = false;
-
-      const elapsed = Math.max(1, performance.now() - startTime);
-      const velocity = Math.abs(lastDeltaY) / elapsed;
-      const shouldDismiss =
-        lastDeltaY <= -DISMISS_DISTANCE_PX ||
-        (lastDeltaY <= -DISMISS_VELOCITY_DISTANCE_PX &&
-          velocity >= DISMISS_VELOCITY_THRESHOLD);
-
-      if (shouldDismiss) {
-        resetTransform(false);
-        onDismiss();
-      } else {
-        resetTransform(true);
+    const handlePointerCancel = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || activePointerId !== event.pointerId) {
+        return;
       }
+      activePointerId = null;
+      endGesture(true);
     };
 
-    const handleTouchCancel = () => {
-      if (!active && !draggingUp) return;
-      active = false;
-      draggingUp = false;
-      resetTransform(true);
-    };
-
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchmove', handleTouchMove, { passive: false });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
-    el.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener('touchmove', handleTouchMove, {
+      passive: false,
+      capture: true,
+    });
+    window.addEventListener('touchend', handleTouchEnd, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener('touchcancel', handleTouchCancel, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener('pointerdown', handlePointerDown, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener('pointermove', handlePointerMove, {
+      passive: false,
+      capture: true,
+    });
+    window.addEventListener('pointerup', handlePointerUp, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener('pointercancel', handlePointerCancel, {
+      passive: true,
+      capture: true,
+    });
 
     return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchmove', handleTouchMove);
-      el.removeEventListener('touchend', handleTouchEnd);
-      el.removeEventListener('touchcancel', handleTouchCancel);
-      el.style.transition = '';
-      el.style.transform = '';
+      window.removeEventListener('touchstart', handleTouchStart, {
+        capture: true,
+      });
+      window.removeEventListener('touchmove', handleTouchMove, {
+        capture: true,
+      });
+      window.removeEventListener('touchend', handleTouchEnd, { capture: true });
+      window.removeEventListener('touchcancel', handleTouchCancel, {
+        capture: true,
+      });
+      window.removeEventListener('pointerdown', handlePointerDown, {
+        capture: true,
+      });
+      window.removeEventListener('pointermove', handlePointerMove, {
+        capture: true,
+      });
+      window.removeEventListener('pointerup', handlePointerUp, {
+        capture: true,
+      });
+      window.removeEventListener('pointercancel', handlePointerCancel, {
+        capture: true,
+      });
+      if (settleTimer !== null) {
+        window.clearTimeout(settleTimer);
+      }
+      if (clickBlockTimer !== null) {
+        window.clearTimeout(clickBlockTimer);
+      }
+      clearSwipeFlag();
+      if (lastAnimatedEl) {
+        lastAnimatedEl.style.transition = '';
+        lastAnimatedEl.style.willChange = '';
+        lastAnimatedEl.style.transform = '';
+      }
     };
   }, [containerRef, isOpen, onDismiss]);
 }

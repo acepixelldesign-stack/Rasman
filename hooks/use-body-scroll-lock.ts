@@ -66,11 +66,17 @@ function handleLockedWheel(event: WheelEvent): void {
 
 function handleLockedTouchMove(event: TouchEvent): void {
   if (activeLockCount <= 0) return;
+  if (document.documentElement.dataset.swipeDragging === 'true') return;
+  if (
+    event.target instanceof Element &&
+    event.target.closest('[data-swipe-handle]')
+  ) {
+    return;
+  }
   if (canScrollInsideAllowedContainer(event.target)) return;
   if (event.cancelable) {
     event.preventDefault();
   }
-  event.stopPropagation();
 }
 
 function acquireGlobalScrollLock(): void {

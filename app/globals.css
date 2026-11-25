@@ -68,9 +68,9 @@
   --glass-popover-bg: rgba(238, 238, 238, 0.82);
   --glass-sheet-bg: rgba(255, 255, 255, 0.58);
 
-  /* Responsive Perimeter Grid Dimensions (Mobile: 48px Header & Sub-bar, 16px Rails/Bottom | Desktop: 56px All) */
-  --grid-header: 48px;
-  --grid-subbar: 48px;
+  /* Responsive Perimeter Grid Dimensions (Mobile: 40px Header & Sub-bar, 16px Rails/Bottom | Desktop: 48px All) */
+  --grid-header: 40px;
+  --grid-subbar: 40px;
   --grid-rail: 16px;
   --grid-bottom: 16px;
   --crosshair-size: 13px;
@@ -79,10 +79,10 @@
 
 @media (min-width: 768px) and (min-height: 520px) and (orientation: landscape) {
   :root {
-    --grid-header: 56px;
-    --grid-subbar: 56px;
-    --grid-rail: 56px;
-    --grid-bottom: 56px;
+    --grid-header: 48px;
+    --grid-subbar: 48px;
+    --grid-rail: 48px;
+    --grid-bottom: 48px;
   }
 }
 

@@ -11,9 +11,10 @@ export interface RasmanLogoProps {
 const VIEWBOX_BY_VARIANT: Record<RasmanLogoVariant, string> = {
   full: '0 0 300 390',
   mark: '0 0 300 300',
-  /** Tight optical trim around RASMAN (x:18..282, y:14..44) + ARCHITECTURE & DESIGN (y:58..67) */
+  /** Tight optical trim around RASMAN + ARCHITECTURE & DESIGN */
   logotype: '16 12 268 58',
-  wordmark: '16 12 268 34',
+  /** Exact cap-height trim (30u) around tightly kerned RASMAN wordmark */
+  wordmark: '31 14 238 30',
 };
 
 function RasmanMarkPaths() {
@@ -28,34 +29,34 @@ function RasmanMarkPaths() {
 function RasmanWordmarkPaths() {
   return (
     <>
-      <g transform="translate(18, 0)" fill="currentColor">
+      <g transform="translate(32.2, 0)" fill="currentColor">
         <path d="M0 0H3.6V30H0Z" />
         <path d="M3.6 0H14.2A9.2 9.2 0 0 1 14.2 18.4H13.8L24 30H19.3L9.1 18.4H8.2V14.8H14.2A5.6 5.6 0 0 0 14.2 3.6H3.6Z" />
       </g>
       <path
-        transform="translate(64.8, 0)"
+        transform="translate(73.4, 0)"
         fill="currentColor"
         d="M11.1 0H14.9L26 30H22L13 5.7L4 30H0Z"
       />
       <path
-        transform="translate(113.6, 0)"
+        transform="translate(116.6, 0)"
         fill="none"
         stroke="currentColor"
         strokeWidth="3.6"
         d="M19.8 5.2C17.6 2.6 14.4 1.8 11 1.8C5.8 1.8 2.8 4.4 2.8 8C2.8 11.6 5.6 13.4 11.4 14.8C17.2 16.2 19.8 18.2 19.8 22C19.8 25.8 16.4 28.2 11 28.2C7 28.2 3.8 27 1.8 24.4"
       />
       <path
-        transform="translate(158.4, 0)"
+        transform="translate(155.4, 0)"
         fill="currentColor"
         d="M0 30V0H3.7L14.5 19.2L25.3 0H29V30H25.4V7.2L14.5 26.6L3.6 7.2V30Z"
       />
       <path
-        transform="translate(210.2, 0)"
+        transform="translate(201.6, 0)"
         fill="currentColor"
         d="M11.1 0H14.9L26 30H22L13 5.7L4 30H0Z"
       />
       <path
-        transform="translate(259, 0)"
+        transform="translate(244.8, 0)"
         fill="currentColor"
         d="M0 30V0H3.8L19.4 23.6V0H23V30H19.2L3.6 6.4V30Z"
       />

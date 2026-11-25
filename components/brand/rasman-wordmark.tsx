@@ -18,7 +18,7 @@ export function RasmanWordmark({
     <RasmanLogo
       variant="wordmark"
       label={label}
-      className={cn('h-[18px] w-auto desktop:h-[20px]', className)}
+      className={cn('h-[12px] w-auto desktop:h-[14px]', className)}
     />
   );
 }
