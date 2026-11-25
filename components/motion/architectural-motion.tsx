@@ -15,8 +15,7 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Shared Framer Motion Architectural Variants unified with `/lib/motion/system.ts`:
- * - Re-exported for clean backward compatibility across drawer, feed, and card stages.
+ * Shared Framer Motion Architectural Variants unified with `/lib/motion/system.ts`
  */
 export const ARCHITECTURAL_EASE = MOTION_EASE.calm;
 
@@ -43,17 +42,13 @@ interface UseArchitecturalEntranceOptions {
 }
 
 /**
- * GSAP Hierarchical Stage Choreography:
- * - Animates tagged architectural layers inside `containerRef` sequentially by hierarchy:
- *   1) `[data-gsap="kicker"]`   -> quiet directional eyebrow
- *   2) `[data-gsap="heading"]`  -> display titles (y + subtle opacity sweep)
- *   3) `[data-gsap="divider"]`  -> hairline rule drawing from logical start -> end
- *   4) `[data-gsap="body"]`     -> editorial copy & spec rows
- *   5) `[data-gsap="control"]`  -> filters, switches, interactive actions
- *   6) `[data-gsap="media"]`    -> primary hero photography & stage frames
- *   7) `[data-gsap="card"]`     -> card stacks / tracklist items
- * - Automatically attaches IntersectionObserver + GSAP reveals to `[data-gsap-scroll]` elements
- *   so below-the-fold sections animate calmly as the user scrolls inside custom panes or window.
+ * Unified 3.00-Second Rasman Architectural Stage Choreography:
+ * - Perimeter frame, header, and docked sticky sidebars remain strictly stationary
+ * - Horizontal dividers (`[data-gsap="divider"]`) draw smoothly from left-to-right in LTR
+ *   (and right-to-left in RTL)
+ * - Content blocks (`kicker`, `heading`, `body`, `control`, `media`, `card`) glide calmly
+ *   top-to-bottom (`y: -18 -> 0`) across a serene 3.00s total timeline
+ * - Scroll-triggered lazy reveals (`[data-gsap-scroll]`) unveil below-the-fold sections smoothly
  */
 export function useArchitecturalEntrance(
   containerRef: RefObject<HTMLElement | null>,
@@ -72,21 +67,50 @@ export function useArchitecturalEntrance(
         '(prefers-reduced-motion: reduce)'
       ).matches;
 
-      const kickers = container.querySelectorAll<HTMLElement>('[data-gsap="kicker"]');
-      const headings = container.querySelectorAll<HTMLElement>('[data-gsap="heading"]');
-      const dividers = container.querySelectorAll<HTMLElement>('[data-gsap="divider"]');
-      const bodies = container.querySelectorAll<HTMLElement>('[data-gsap="body"]');
-      const controls = container.querySelectorAll<HTMLElement>('[data-gsap="control"]');
-      const media = container.querySelectorAll<HTMLElement>('[data-gsap="media"]');
-      const cards = container.querySelectorAll<HTMLElement>('[data-gsap="card"]');
+      const kickers = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-gsap="kicker"]')
+      );
+      const headings = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-gsap="heading"]')
+      );
+      const dividers = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-gsap="divider"]')
+      );
+      const bodies = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-gsap="body"]')
+      );
+      const controls = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-gsap="control"]')
+      );
+      const media = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-gsap="media"]')
+      );
+      const cards = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-gsap="card"]')
+      );
+
+      const allTargets = [
+        ...kickers,
+        ...headings,
+        ...dividers,
+        ...bodies,
+        ...controls,
+        ...media,
+        ...cards,
+      ];
+
+      if (allTargets.length === 0) return;
 
       if (prefersReducedMotion) {
-        gsap.set(
-          [kickers, headings, dividers, bodies, controls, media, cards],
-          { clearProps: 'all' }
-        );
+        gsap.set(allTargets, { clearProps: 'all' });
         return;
       }
+
+      const calcStagger = (
+        count: number,
+        windowSec: number,
+        itemDur: number
+      ) => (count > 1 ? Math.max(0.03, (windowSec - itemDur) / (count - 1)) : 0);
 
       const tl = gsap.timeline({
         defaults: {
@@ -95,76 +119,122 @@ export function useArchitecturalEntrance(
         },
       });
 
-      if (kickers.length) {
-        tl.fromTo(
-          kickers,
-          { autoAlpha: 0, x: isRtl ? 14 : -14 },
-          { autoAlpha: 1, x: 0, duration: 0.38, stagger: 0.045 },
-          0
-        );
-      }
-
-      if (headings.length) {
-        tl.fromTo(
-          headings,
-          { autoAlpha: 0, y: 18 },
-          { autoAlpha: 1, y: 0, duration: 0.48, stagger: 0.06 },
-          0.02
-        );
-      }
-
-      if (dividers.length) {
+      // Phase 1 (0.00s -> 1.15s): Horizontal dividers draw smoothly start -> end (left -> right in EN)
+      if (dividers.length > 0) {
+        const dur = 0.85;
         tl.fromTo(
           dividers,
           {
             scaleX: 0,
             transformOrigin: isRtl ? 'right center' : 'left center',
           },
-          { scaleX: 1, duration: 0.48, stagger: 0.05 },
-          0.06
+          {
+            scaleX: 1,
+            duration: dur,
+            stagger: calcStagger(dividers.length, 1.15, dur),
+          },
+          0
         );
       }
 
-      if (bodies.length) {
+      // Phase 2 (0.12s -> 1.35s): Kickers & primary headings descend top -> bottom
+      if (kickers.length > 0) {
+        const dur = 0.62;
+        tl.fromTo(
+          kickers,
+          { autoAlpha: 0, y: -14 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: dur,
+            stagger: calcStagger(kickers.length, 0.85, dur),
+          },
+          0.12
+        );
+      }
+
+      if (headings.length > 0) {
+        const dur = 0.78;
+        tl.fromTo(
+          headings,
+          { autoAlpha: 0, y: -18 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: dur,
+            stagger: calcStagger(headings.length, 1.05, dur),
+          },
+          0.24
+        );
+      }
+
+      // Phase 3 (0.58s -> 2.10s): Editorial copy, spec rows & interactive controls descend top -> bottom
+      if (bodies.length > 0) {
+        const dur = 0.72;
         tl.fromTo(
           bodies,
-          { autoAlpha: 0, y: 14 },
-          { autoAlpha: 1, y: 0, duration: 0.46, stagger: 0.05 },
-          0.06
+          { autoAlpha: 0, y: -14 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: dur,
+            stagger: calcStagger(bodies.length, 1.35, dur),
+          },
+          0.58
         );
       }
 
-      if (controls.length) {
+      if (controls.length > 0) {
+        const dur = 0.68;
         tl.fromTo(
           controls,
-          { autoAlpha: 0, y: 10, scale: 0.98 },
-          { autoAlpha: 1, y: 0, scale: 1, duration: 0.42, stagger: 0.045 },
-          0.08
+          { autoAlpha: 0, y: -12 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: dur,
+            stagger: calcStagger(controls.length, 1.0, dur),
+          },
+          0.95
         );
       }
 
-      if (media.length) {
+      // Phase 4 (1.15s -> 3.00s): Primary architectural photography & cards settle calmly top -> bottom
+      if (media.length > 0) {
+        const dur = 0.95;
         tl.fromTo(
           media,
-          { autoAlpha: 0, y: 16, scale: 0.985 },
-          { autoAlpha: 1, y: 0, scale: 1, duration: 0.52, stagger: 0.07 },
-          0.1
+          { autoAlpha: 0, y: -18, scale: 0.985 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            duration: dur,
+            stagger: calcStagger(media.length, 1.55, dur),
+          },
+          1.15
         );
       }
 
-      if (cards.length) {
+      if (cards.length > 0) {
+        const dur = 0.82;
         tl.fromTo(
           cards,
-          { autoAlpha: 0, y: 16, scale: 0.985 },
-          { autoAlpha: 1, y: 0, scale: 1, duration: 0.48, stagger: 0.055 },
-          0.12
+          { autoAlpha: 0, y: -16 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: dur,
+            stagger: calcStagger(cards.length, 1.45, dur),
+          },
+          1.55
         );
       }
     },
     { scope: containerRef, dependencies: [isRtl, depKey] }
   );
 
-  // Lazy Scroll-Triggered GSAP Reveals (Works inside both custom scroll panes and window)
+  // Lazy Scroll-Triggered GSAP Reveals (Top-to-bottom calm reveal inside window or custom panes)
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof window === 'undefined') return;
@@ -183,7 +253,7 @@ export function useArchitecturalEntrance(
       return;
     }
 
-    gsap.set(scrollTargets, { autoAlpha: 0, y: 26 });
+    gsap.set(scrollTargets, { autoAlpha: 0, y: -18 });
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -199,8 +269,8 @@ export function useArchitecturalEntrance(
           gsap.to(revealed, {
             autoAlpha: 1,
             y: 0,
-            duration: 0.68,
-            stagger: 0.075,
+            duration: 0.78,
+            stagger: 0.085,
             ease: MOTION_EASE.gsapCalm,
             clearProps: 'transform',
           });
@@ -208,7 +278,7 @@ export function useArchitecturalEntrance(
       },
       {
         threshold: 0.04,
-        rootMargin: '0px 0px -16px 0px',
+        rootMargin: '0px 0px -12px 0px',
       }
     );
 

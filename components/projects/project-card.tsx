@@ -48,7 +48,7 @@ export function ProjectCard({
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]'
       )}
     >
-      {/* Full-bleed Architectural Photography */}
+      {/* Full-bleed Architectural Photography (Grayscale by Default; Colorizes on Desktop Hover/Focus & Mobile Active Reveal) */}
       <Image
         src={project.heroImage}
         alt={heroAlt}
@@ -58,8 +58,10 @@ export function ProjectCard({
         sizes="(max-width: 767px) 72vw, 372px"
         referrerPolicy="no-referrer"
         className={cn(
-          'object-cover transition-transform duration-500 ease-out group-hover:scale-[1.035] group-focus-visible:scale-[1.035]',
-          isMobileActive && 'scale-[1.025] desktop:scale-100'
+          'object-cover transition-all duration-500 ease-out group-hover:scale-[1.035] group-focus-visible:scale-[1.035]',
+          isMobileActive
+            ? 'scale-[1.025] grayscale-0 desktop:scale-100 desktop:grayscale desktop:group-hover:grayscale-0 desktop:group-focus-visible:grayscale-0'
+            : 'grayscale group-hover:grayscale-0 group-focus-visible:grayscale-0'
         )}
       />
 

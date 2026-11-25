@@ -3,16 +3,13 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { MdKeyboardArrowDown } from 'react-icons/md';
 import { SITE_CONFIG } from '@/lib/config/site';
-import { MOTION_EASE, MOTION_VARIANTS } from '@/lib/motion/system';
+import { MOTION_EASE } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import {
-  MENU_LIST_VARIANTS,
-  MENU_OVERLAY_VARIANTS,
   SUBMENU_LIST_VARIANTS,
-  createMenuItemVariants,
   createSubmenuItemVariants,
 } from '@/components/motion/architectural-motion';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
@@ -29,12 +26,10 @@ const MENU_EMBLEM_SRC = '/assets/rasman-sketch-emblem.png';
 
 /**
  * Minimalist architectural navigation overlay framed cleanly inside the 4-sided grid:
- * - Freezes background page scroll while open via global reference-counted scroll lock
- * - Hairline dividers strictly between top-level navigation items (none above Home, none below Contact)
- * - Projects submenu renders without dividers and flush-aligned with its parent label
- * - True-alpha transparent Rasman architectural emblem (light #000 / dark inverted #fff, zero background):
- *     - Desktop: positioned at logical end (right in EN, left in FA & AR) stretched to the full height of all menu items
- *     - Mobile: positioned first above menu items with compact height to leave room for links
+ * - Opening choreography: 2.00s total (backdrop fade -> sequential line-drawing dividers -> text reveal -> slow emblem blur-to-clear dissolve)
+ * - Closing choreography: 1.00s total (emblem & text dissolve + dividers retract + backdrop exits cleanly)
+ * - Mobile: 24px top/bottom padding, top hairline divider above Home
+ * - Desktop: dividers strictly between items, full-height transparent emblem at logical end
  */
 export function NavigationDrawer({
   id,
@@ -44,12 +39,12 @@ export function NavigationDrawer({
 }: NavigationDrawerProps) {
   const { dictionary, isRtl, openStartProjectModal, userProfile } =
     useAppContext();
+  const prefersReducedMotion = useReducedMotion();
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const projectsPanelId = useId();
 
   useBodyScrollLock(isOpen);
 
-  const itemVariants = useMemo(() => createMenuItemVariants(isRtl), [isRtl]);
   const subItemVariants = useMemo(
     () => createSubmenuItemVariants(isRtl),
     [isRtl]
@@ -70,6 +65,10 @@ export function NavigationDrawer({
     };
   }, [isOpen, onClose]);
 
+  const navItems = SITE_CONFIG.navigation;
+  const itemCount = navItems.length;
+  const lineOrigin = isRtl ? 'right center' : 'left center';
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -77,10 +76,19 @@ export function NavigationDrawer({
           id={id}
           aria-label={dictionary.navigation.navAriaLabel}
           data-smooth-prevent=""
-          variants={MENU_OVERLAY_VARIANTS}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: 1,
+            transition: prefersReducedMotion
+              ? { duration: 0.01 }
+              : { duration: 0.48, ease: MOTION_EASE.silk },
+          }}
+          exit={{
+            opacity: 0,
+            transition: prefersReducedMotion
+              ? { duration: 0.01 }
+              : { delay: 0.46, duration: 0.54, ease: MOTION_EASE.calm },
+          }}
           className={cn(
             'fixed z-[39] flex flex-col',
             'top-[var(--grid-header)] bottom-[var(--grid-bottom)]',
@@ -88,18 +96,41 @@ export function NavigationDrawer({
             'bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
           )}
         >
-          {/* Scrollable Split Body: Mobile (24px Top/Bottom Padding + Sketch Emblem -> Divided Menu with Top Divider Above Home) | Desktop (Divided Menu Start -> Full-Height Emblem End) */}
+          {/* Scrollable Split Body */}
           <div
             data-scroll-lock-allow=""
             className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 desktop:px-10 desktop:py-8"
           >
             <div className="flex w-full flex-col desktop:my-auto desktop:flex-row desktop:items-stretch desktop:justify-between desktop:gap-12">
-              {/* Rasman Architectural Hand-Sketch Emblem (True Transparent Alpha — Pure Black in Light, Inverted White in Dark/Ambient) */}
+              {/* Rasman Hand-Sketch Emblem: Starts Blurred/Hidden and Materializes Slowly Across 2.00s Open / 0.55s Close */}
               <motion.div
-                variants={MOTION_VARIANTS.mediaReveal}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
+                initial={
+                  prefersReducedMotion
+                    ? { opacity: 1 }
+                    : { opacity: 0, scale: 0.96, filter: 'blur(10px)' }
+                }
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  filter: 'blur(0px)',
+                  transition: prefersReducedMotion
+                    ? { duration: 0.01 }
+                    : {
+                        delay: 0.35,
+                        duration: 1.65,
+                        ease: MOTION_EASE.silk,
+                      },
+                }}
+                exit={
+                  prefersReducedMotion
+                    ? { opacity: 0, transition: { duration: 0.01 } }
+                    : {
+                        opacity: 0,
+                        scale: 0.98,
+                        filter: 'blur(8px)',
+                        transition: { duration: 0.55, ease: MOTION_EASE.calm },
+                      }
+                }
                 className="order-1 flex shrink-0 items-center justify-center pb-6 desktop:order-2 desktop:relative desktop:flex-1 desktop:pb-0"
               >
                 <div className="relative h-[144px] aspect-[949/1024] sm:h-[164px] desktop:absolute desktop:inset-0 desktop:aspect-auto desktop:h-full desktop:w-full">
@@ -115,130 +146,247 @@ export function NavigationDrawer({
                 </div>
               </motion.div>
 
-              {/* Divided Navigation Links — Top divider above Home on mobile, strictly between items on desktop */}
-              <motion.ul
-                variants={MENU_LIST_VARIANTS}
-                className="order-2 flex w-full flex-col divide-y divide-[var(--grid-line)] border-t border-[var(--grid-line)] desktop:order-1 desktop:max-w-[560px] desktop:flex-1 desktop:border-t-0"
-              >
-                {SITE_CONFIG.navigation.map((item) => {
+              {/* Divided Navigation Links With Animated Line-Drawing Hairlines & Sequential Text Reveal (2.00s Open / 1.00s Close) */}
+              <ul className="order-2 flex w-full flex-col desktop:order-1 desktop:max-w-[560px] desktop:flex-1">
+                {navItems.map((item, idx) => {
                   const hasChildren = Boolean(
                     item.children && item.children.length > 0
                   );
                   const label = dictionary.navigation.items[item.id];
+                  const isFirst = idx === 0;
+                  const isLast = idx === itemCount - 1;
+
+                  // Spread line draws across 0.16s -> 1.55s and text reveals across 0.30s -> 2.00s
+                  const ratio = itemCount > 1 ? idx / (itemCount - 1) : 0;
+                  const reverseRatio = 1 - ratio;
+                  const lineOpenDelay = 0.16 + ratio * 0.78;
+                  const textOpenDelay = 0.32 + ratio * 0.88;
+                  const exitDelay = reverseRatio * 0.24;
 
                   return (
-                    <motion.li
+                    <li
                       key={item.id}
-                      variants={itemVariants}
-                      className="w-full py-2.5 last:pb-0 desktop:py-3.5 desktop:first:pt-0 desktop:last:pb-0"
+                      className="relative w-full py-2.5 last:pb-0 desktop:py-3.5 desktop:first:pt-0 desktop:last:pb-0"
                     >
-                      {hasChildren && item.children ? (
-                        <div className="flex flex-col items-start">
-                          <button
-                            type="button"
-                            aria-expanded={isProjectsOpen}
-                            aria-controls={projectsPanelId}
-                            onClick={() => setIsProjectsOpen((prev) => !prev)}
+                      {/* Mobile-only top hairline above Home */}
+                      {isFirst && (
+                        <motion.span
+                          aria-hidden="true"
+                          style={{ transformOrigin: lineOrigin }}
+                          initial={
+                            prefersReducedMotion
+                              ? { scaleX: 1 }
+                              : { scaleX: 0 }
+                          }
+                          animate={{
+                            scaleX: 1,
+                            transition: prefersReducedMotion
+                              ? { duration: 0.01 }
+                              : {
+                                  delay: 0.12,
+                                  duration: 0.68,
+                                  ease: MOTION_EASE.silk,
+                                },
+                          }}
+                          exit={{
+                            scaleX: 0,
+                            transition: prefersReducedMotion
+                              ? { duration: 0.01 }
+                              : {
+                                  delay: 0.24,
+                                  duration: 0.42,
+                                  ease: MOTION_EASE.calm,
+                                },
+                          }}
+                          className="pointer-events-none absolute inset-x-0 top-0 block h-px bg-[var(--grid-line)] desktop:hidden"
+                        />
+                      )}
+
+                      <motion.div
+                        initial={
+                          prefersReducedMotion
+                            ? { opacity: 1 }
+                            : { opacity: 0, y: -12 }
+                        }
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: prefersReducedMotion
+                            ? { duration: 0.01 }
+                            : {
+                                delay: textOpenDelay,
+                                duration: 0.8,
+                                ease: MOTION_EASE.silk,
+                              },
+                        }}
+                        exit={
+                          prefersReducedMotion
+                            ? { opacity: 0, transition: { duration: 0.01 } }
+                            : {
+                                opacity: 0,
+                                y: -8,
+                                transition: {
+                                  delay: exitDelay,
+                                  duration: 0.42,
+                                  ease: MOTION_EASE.calm,
+                                },
+                              }
+                        }
+                      >
+                        {hasChildren && item.children ? (
+                          <div className="flex flex-col items-start">
+                            <button
+                              type="button"
+                              aria-expanded={isProjectsOpen}
+                              aria-controls={projectsPanelId}
+                              onClick={() => setIsProjectsOpen((prev) => !prev)}
+                              className={cn(
+                                'group inline-flex w-full cursor-pointer items-center justify-between gap-2.5 text-start',
+                                'text-[clamp(1.4rem,2.7vw,2.35rem)] font-light leading-[1.22] tracking-[-0.02em]',
+                                'rtl:leading-[1.4] rtl:tracking-normal',
+                                'text-[var(--ink-primary)] transition-colors duration-300',
+                                'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
+                                isProjectsOpen && 'text-[var(--brand-text-hover)]'
+                              )}
+                            >
+                              <span>{label}</span>
+                              <span
+                                aria-hidden="true"
+                                className={cn(
+                                  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                                  'text-[var(--ink-muted)] transition-transform duration-400',
+                                  isProjectsOpen && 'rotate-180'
+                                )}
+                              >
+                                <MdKeyboardArrowDown size={24} />
+                              </span>
+                            </button>
+
+                            <AnimatePresence initial={false}>
+                              {isProjectsOpen && (
+                                <motion.div
+                                  id={projectsPanelId}
+                                  variants={SUBMENU_LIST_VARIANTS}
+                                  initial="hidden"
+                                  animate="visible"
+                                  exit="exit"
+                                  className="w-full overflow-hidden"
+                                >
+                                  <ul className="mt-2 flex flex-col">
+                                    {item.children.map((subItem) => (
+                                      <motion.li
+                                        key={subItem.id}
+                                        variants={subItemVariants}
+                                        className="py-1.5 desktop:py-2"
+                                      >
+                                        <Link
+                                          href={subItem.href}
+                                          prefetch={true}
+                                          onClick={onNavigate}
+                                          className={cn(
+                                            'block w-full text-start',
+                                            'text-[clamp(1.1rem,1.9vw,1.65rem)] font-light leading-[1.25] tracking-[-0.015em]',
+                                            'rtl:leading-[1.45] rtl:tracking-normal',
+                                            'text-[var(--ink-secondary)] transition-colors duration-300',
+                                            'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
+                                          )}
+                                        >
+                                          {
+                                            dictionary.navigation.subItems[
+                                              subItem.id
+                                            ]
+                                          }
+                                        </Link>
+                                      </motion.li>
+                                    ))}
+                                  </ul>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        ) : (
+                          <Link
+                            href={item.href ?? '#'}
+                            prefetch={true}
+                            onClick={onNavigate}
                             className={cn(
-                              'group inline-flex w-full cursor-pointer items-center justify-between gap-2.5 text-start',
+                              'block w-full text-start',
                               'text-[clamp(1.4rem,2.7vw,2.35rem)] font-light leading-[1.22] tracking-[-0.02em]',
                               'rtl:leading-[1.4] rtl:tracking-normal',
                               'text-[var(--ink-primary)] transition-colors duration-300',
-                              'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
-                              isProjectsOpen && 'text-[var(--brand-text-hover)]'
+                              'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
                             )}
                           >
-                            <span>{label}</span>
-                            <span
-                              aria-hidden="true"
-                              className={cn(
-                                'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                                'text-[var(--ink-muted)] transition-transform duration-400',
-                                isProjectsOpen && 'rotate-180'
-                              )}
-                            >
-                              <MdKeyboardArrowDown size={24} />
-                            </span>
-                          </button>
+                            {label}
+                          </Link>
+                        )}
+                      </motion.div>
 
-                          <AnimatePresence initial={false}>
-                            {isProjectsOpen && (
-                              <motion.div
-                                id={projectsPanelId}
-                                variants={SUBMENU_LIST_VARIANTS}
-                                initial="hidden"
-                                animate="visible"
-                                exit="exit"
-                                className="w-full overflow-hidden"
-                              >
-                                <ul className="mt-2 flex flex-col">
-                                  {item.children.map((subItem) => (
-                                    <motion.li
-                                      key={subItem.id}
-                                      variants={subItemVariants}
-                                      className="py-1.5 desktop:py-2"
-                                    >
-                                      <Link
-                                        href={subItem.href}
-                                        prefetch={true}
-                                        onClick={onNavigate}
-                                        className={cn(
-                                          'block w-full text-start',
-                                          'text-[clamp(1.1rem,1.9vw,1.65rem)] font-light leading-[1.25] tracking-[-0.015em]',
-                                          'rtl:leading-[1.45] rtl:tracking-normal',
-                                          'text-[var(--ink-secondary)] transition-colors duration-300',
-                                          'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
-                                        )}
-                                      >
-                                        {dictionary.navigation.subItems[subItem.id]}
-                                      </Link>
-                                    </motion.li>
-                                  ))}
-                                </ul>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      ) : (
-                        <Link
-                          href={item.href ?? '#'}
-                          prefetch={true}
-                          onClick={onNavigate}
-                          className={cn(
-                            'block w-full text-start',
-                            'text-[clamp(1.4rem,2.7vw,2.35rem)] font-light leading-[1.22] tracking-[-0.02em]',
-                            'rtl:leading-[1.4] rtl:tracking-normal',
-                            'text-[var(--ink-primary)] transition-colors duration-300',
-                            'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]'
-                          )}
-                        >
-                          {label}
-                        </Link>
+                      {/* Animated Hairline Divider Between Menu Items (Drawing Start -> End) */}
+                      {!isLast && (
+                        <motion.span
+                          aria-hidden="true"
+                          style={{ transformOrigin: lineOrigin }}
+                          initial={
+                            prefersReducedMotion
+                              ? { scaleX: 1 }
+                              : { scaleX: 0 }
+                          }
+                          animate={{
+                            scaleX: 1,
+                            transition: prefersReducedMotion
+                              ? { duration: 0.01 }
+                              : {
+                                  delay: lineOpenDelay,
+                                  duration: 0.72,
+                                  ease: MOTION_EASE.silk,
+                                },
+                          }}
+                          exit={{
+                            scaleX: 0,
+                            transition: prefersReducedMotion
+                              ? { duration: 0.01 }
+                              : {
+                                  delay: exitDelay,
+                                  duration: 0.44,
+                                  ease: MOTION_EASE.calm,
+                                },
+                          }}
+                          className="pointer-events-none absolute inset-x-0 bottom-0 block h-px bg-[var(--grid-line)]"
+                        />
                       )}
-                    </motion.li>
+                    </li>
                   );
                 })}
-              </motion.ul>
+              </ul>
             </div>
           </div>
 
           {/* Mobile-Only Fixed Bottom Stretched 48px CTA (No Top Border) */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={
+              prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }
+            }
             animate={{
               opacity: 1,
               y: 0,
-              transition: {
-                duration: 0.42,
-                delay: 0.24,
-                ease: MOTION_EASE.calm,
-              },
+              transition: prefersReducedMotion
+                ? { duration: 0.01 }
+                : {
+                    delay: 1.28,
+                    duration: 0.72,
+                    ease: MOTION_EASE.silk,
+                  },
             }}
-            exit={{
-              opacity: 0,
-              y: 6,
-              transition: { duration: 0.18, ease: MOTION_EASE.exit },
-            }}
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0, transition: { duration: 0.01 } }
+                : {
+                    opacity: 0,
+                    y: 8,
+                    transition: { duration: 0.42, ease: MOTION_EASE.calm },
+                  }
+            }
             className="shrink-0 px-4 pt-3 pb-6 desktop:hidden"
           >
             {userProfile ? (

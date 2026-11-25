@@ -13,6 +13,7 @@ import { useAppContext } from '@/components/providers/app-provider';
 import { ArchitecturalHeader } from '@/components/frame/architectural-header';
 import { CrosshairMark } from '@/components/frame/crosshair-mark';
 import { NavigationDrawer } from '@/components/frame/navigation-drawer';
+import { StickySubBarHost } from '@/components/frame/sticky-sub-bar-context';
 import { cn } from '@/lib/utils';
 
 interface PersistentShellProps {
@@ -88,6 +89,9 @@ export function PersistentShell({ children }: PersistentShellProps) {
         onToggleMenu={handleToggleMenu}
         menuId={menuId}
       />
+
+      {/* Persistent Animated Sticky Sub-Bar Directly Beneath Header */}
+      <StickySubBarHost />
 
       {/* Logical Start Side Column — Strictly Opaque (Non-Glass) */}
       <aside

@@ -42,7 +42,11 @@ export const metadata: Metadata = {
     title: SITE_CONFIG.metadata.title,
   },
   other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-touch-fullscreen': 'yes',
     'color-scheme': 'only light',
+    'supported-color-schemes': 'only light',
     'darkreader-lock': 'true',
   },
   openGraph: {

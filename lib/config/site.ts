@@ -69,12 +69,12 @@ export const SITE_CONFIG = {
       dark: '#000000',
     },
     sustainable: {
-      light: '#1b2213',
-      dark: '#1b2213',
+      light: '#2a361d',
+      dark: '#2a361d',
     },
     urban: {
-      light: '#241c16',
-      dark: '#241c16',
+      light: '#382b22',
+      dark: '#382b22',
     },
   },
   motion: {

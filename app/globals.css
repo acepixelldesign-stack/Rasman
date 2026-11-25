@@ -143,69 +143,69 @@
 html[data-ambient-mode="sustainable"],
 html.dark[data-ambient-mode="sustainable"] {
   color-scheme: only dark;
-  --bg-canvas: #1b2213;
-  --bg-rail: #1b2213;
-  --bg-surface-elevated: #222a19;
-  --bg-header-glass: rgba(27, 34, 19, 0.72);
-  --bg-overlay: rgba(27, 34, 19, 0.96);
-  --glass-sheet-bg: rgba(27, 34, 19, 0.58);
+  --bg-canvas: #2a361d;
+  --bg-rail: #2a361d;
+  --bg-surface-elevated: #324024;
+  --bg-header-glass: rgba(42, 54, 29, 0.76);
+  --bg-overlay: rgba(42, 54, 29, 0.96);
+  --glass-sheet-bg: rgba(42, 54, 29, 0.62);
   --ink-primary: #ffffff;
-  --ink-secondary: #a3a3a3;
-  --ink-muted: #737373;
+  --ink-secondary: #b6bfad;
+  --ink-muted: #8a9680;
   --grid-line: rgba(255, 255, 255, 0.16);
   --grid-line-strong: rgba(255, 255, 255, 0.28);
   --grid-crosshair: rgba(255, 255, 255, 0.38);
-  --brand-primary: #74984a;
-  --brand-primary-hover: #597838;
-  --brand-primary-active: #465d2e;
-  --brand-text-hover: #9bba74;
-  --accent-khaki: #b58d6f;
+  --brand-primary: #86a95d;
+  --brand-primary-hover: #74984a;
+  --brand-primary-active: #597838;
+  --brand-text-hover: #a9c785;
+  --accent-khaki: #c8a082;
   --btn-contrast-bg: #ffffff;
   --btn-contrast-hover: #e5e5e5;
   --btn-contrast-ink: #0a0a0a;
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-active: rgba(255, 255, 255, 0.16);
-  --focus-ring: #9bba74;
-  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.26);
-  --glass-control-bg: rgba(163, 163, 163, 0.13);
-  --glass-control-hover: rgba(163, 163, 163, 0.22);
-  --glass-control-thumb: rgba(255, 255, 255, 0.16);
-  --glass-popover-bg: rgba(27, 34, 19, 0.86);
+  --focus-ring: #a9c785;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+  --glass-control-bg: rgba(185, 198, 174, 0.14);
+  --glass-control-hover: rgba(185, 198, 174, 0.24);
+  --glass-control-thumb: rgba(255, 255, 255, 0.18);
+  --glass-popover-bg: rgba(42, 54, 29, 0.88);
 }
 
 html[data-ambient-mode="urban"],
 html.dark[data-ambient-mode="urban"] {
   color-scheme: only dark;
-  --bg-canvas: #241c16;
-  --bg-rail: #241c16;
-  --bg-surface-elevated: #2c221b;
-  --bg-header-glass: rgba(36, 28, 22, 0.72);
-  --bg-overlay: rgba(36, 28, 22, 0.96);
-  --glass-sheet-bg: rgba(36, 28, 22, 0.58);
+  --bg-canvas: #382b22;
+  --bg-rail: #382b22;
+  --bg-surface-elevated: #423429;
+  --bg-header-glass: rgba(56, 43, 34, 0.76);
+  --bg-overlay: rgba(56, 43, 34, 0.96);
+  --glass-sheet-bg: rgba(56, 43, 34, 0.62);
   --ink-primary: #ffffff;
-  --ink-secondary: #a3a3a3;
-  --ink-muted: #737373;
+  --ink-secondary: #bfb5ac;
+  --ink-muted: #94877d;
   --grid-line: rgba(255, 255, 255, 0.16);
   --grid-line-strong: rgba(255, 255, 255, 0.28);
   --grid-crosshair: rgba(255, 255, 255, 0.38);
-  --brand-primary: #74984a;
-  --brand-primary-hover: #597838;
-  --brand-primary-active: #465d2e;
-  --brand-text-hover: #9bba74;
-  --accent-khaki: #b58d6f;
+  --brand-primary: #86a95d;
+  --brand-primary-hover: #74984a;
+  --brand-primary-active: #597838;
+  --brand-text-hover: #a9c785;
+  --accent-khaki: #c8a082;
   --btn-contrast-bg: #ffffff;
   --btn-contrast-hover: #e5e5e5;
   --btn-contrast-ink: #0a0a0a;
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-active: rgba(255, 255, 255, 0.16);
-  --focus-ring: #b58d6f;
-  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.26);
-  --glass-control-bg: rgba(163, 163, 163, 0.13);
-  --glass-control-hover: rgba(163, 163, 163, 0.22);
-  --glass-control-thumb: rgba(255, 255, 255, 0.16);
-  --glass-popover-bg: rgba(36, 28, 22, 0.86);
+  --focus-ring: #c8a082;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+  --glass-control-bg: rgba(196, 184, 174, 0.14);
+  --glass-control-hover: rgba(196, 184, 174, 0.24);
+  --glass-control-thumb: rgba(255, 255, 255, 0.18);
+  --glass-popover-bg: rgba(56, 43, 34, 0.88);
 }
 
 html[data-ambient-mode] .rasman-emblem-invert {
@@ -249,6 +249,7 @@ html[data-ambient-mode] .rasman-emblem-invert {
     background-color: var(--bg-canvas);
     color: var(--ink-primary);
     color-scheme: only light;
+    forced-color-adjust: none;
     transition: background-color 520ms cubic-bezier(0.22, 1, 0.36, 1);
     touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;
@@ -267,6 +268,7 @@ html[data-ambient-mode] .rasman-emblem-invert {
   body {
     background-color: var(--bg-canvas);
     color: var(--ink-primary);
+    forced-color-adjust: none;
     transition: background-color 520ms cubic-bezier(0.22, 1, 0.36, 1);
     font-family: var(--font-latin), system-ui, -apple-system, sans-serif;
     line-height: 1.6;

@@ -476,7 +476,7 @@ export function RasmanEntryLoader() {
         >
           <div
             dir="ltr"
-            className="flex w-[min(84vw,400px)] flex-col items-center justify-center select-none"
+            className="flex w-[min(58vw,232px)] flex-col items-center justify-center select-none desktop:w-[min(28vw,272px)]"
           >
             <svg
               ref={svgRef}

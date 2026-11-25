@@ -19,16 +19,17 @@ import {
   MdTune,
 } from 'react-icons/md';
 import { ARCHITECTURAL_PROJECTS, type ProjectMode } from '@/lib/data/projects';
-import { MOTION_TRANSITIONS, MOTION_VARIANTS } from '@/lib/motion/system';
+import {
+  MOTION_EASE,
+  MOTION_TRANSITIONS,
+  MOTION_VARIANTS,
+} from '@/lib/motion/system';
 import {
   markRouteContentHydrated,
   useAppContext,
 } from '@/components/providers/app-provider';
-import {
-  CARD_STAGGER_CONTAINER_VARIANTS,
-  CARD_STAGGER_ITEM_VARIANTS,
-  useArchitecturalEntrance,
-} from '@/components/motion/architectural-motion';
+import { useStickySubBar } from '@/components/frame/sticky-sub-bar-context';
+import { useArchitecturalEntrance } from '@/components/motion/architectural-motion';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { ProjectCard } from '@/components/projects/project-card';
 import {
@@ -93,7 +94,6 @@ export function ProjectsStage({
 
   const stageRef = useRef<HTMLElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const floatingBarRef = useRef<HTMLDivElement>(null);
   const filterTriggerRef = useRef<HTMLButtonElement>(null);
   const cardItemRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const hasMobileScrolledRef = useRef(false);
@@ -131,16 +131,11 @@ export function ProjectsStage({
     markRouteContentHydrated();
   }, []);
 
-  // Drive full-viewport 20% Brand-400 / Secondary-400 backdrop behind grids & cross-browser toolbar color
+  // Drive full-viewport ambient palette behind grids & cross-browser toolbar color
+  // (AppProvider automatically clears ambient mode when leaving /projects* routes)
   useEffect(() => {
     setAmbientMode(activeMode);
   }, [activeMode, setAmbientMode]);
-
-  useEffect(() => {
-    return () => {
-      setAmbientMode(null);
-    };
-  }, [setAmbientMode]);
 
   const targetOffsetRef = useRef(0);
   const currentOffsetRef = useRef(0);
@@ -156,15 +151,6 @@ export function ProjectsStage({
   useEffect(() => {
     if (!isMegaFilterOpen) return;
 
-    const handlePointerDown = (event: MouseEvent) => {
-      if (
-        floatingBarRef.current &&
-        !floatingBarRef.current.contains(event.target as Node)
-      ) {
-        setIsMegaFilterOpen(false);
-      }
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsMegaFilterOpen(false);
@@ -172,11 +158,8 @@ export function ProjectsStage({
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
-
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMegaFilterOpen]);
@@ -491,169 +474,204 @@ export function ProjectsStage({
   const ActiveModeIcon =
     activeMode === 'sustainable' ? MdEnergySavingsLeaf : MdLocationCity;
 
+  const projectTrackListVariants = useMemo(
+    () => ({
+      hidden: { opacity: 1 },
+      visible: {
+        opacity: 1,
+        transition: {
+          staggerChildren: 0.085,
+          delayChildren: 0.08,
+        },
+      },
+      exit: {
+        opacity: 0,
+        transition: {
+          duration: 0.2,
+          ease: MOTION_EASE.exit,
+        },
+      },
+    }),
+    []
+  );
+
+  // Horizontal card entrance: Right-to-Left in English (LTR), mirrored Left-to-Right in RTL,
+  // settling Project #1 cleanly at the logical start edge
+  const projectTrackItemVariants = useMemo(
+    () => ({
+      hidden: { opacity: 0, x: isRtl ? -88 : 88 },
+      visible: {
+        opacity: 1,
+        x: 0,
+        transition: {
+          duration: 0.72,
+          ease: MOTION_EASE.silk,
+        },
+      },
+      exit: {
+        opacity: 0,
+        x: isRtl ? 28 : -28,
+        transition: {
+          duration: 0.24,
+          ease: MOTION_EASE.exit,
+        },
+      },
+    }),
+    [isRtl]
+  );
+
+  useStickySubBar({
+    id: 'projects-list',
+    depth: 1,
+    mobileOnly: false,
+    ariaLabel: dictionary.projects.filterBarAriaLabel,
+    onOutsideClick: isMegaFilterOpen
+      ? () => setIsMegaFilterOpen(false)
+      : undefined,
+    content: (
+      <div
+        role="region"
+        aria-label={dictionary.projects.filterBarAriaLabel}
+        className="flex h-12 w-full items-stretch"
+      >
+        {/* Block 1 (Start): Projects Title + Short Hairline Divider Matching Project Detail */}
+        <div className="flex shrink-0 items-center ps-4 pe-3 desktop:ps-6 desktop:pe-4">
+          <h1 className="text-[15px] font-medium leading-none text-[var(--ink-primary)] desktop:text-[16px]">
+            {dictionary.projects.title}
+          </h1>
+        </div>
+
+        <span
+          aria-hidden="true"
+          className="h-4 w-px shrink-0 self-center bg-[var(--grid-line)]"
+        />
+
+        {/* Block 2 (Center Stretched): Mode Icon + Direct Click-to-Switch Mode Text (Green / Brown) */}
+        <button
+          type="button"
+          onClick={() => handleModeChange(nextToggleMode)}
+          aria-label={`${dictionary.projects.modeToggleAriaLabel}: ${dictionary.projects.modes[activeMode]}`}
+          className={cn(
+            'flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2.5 px-3.5 text-start transition-colors duration-250 hover:bg-[var(--surface-hover)] desktop:px-5',
+            activeMode === 'sustainable'
+              ? 'text-[var(--brand-text-hover)]'
+              : 'text-[var(--accent-khaki)]'
+          )}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={activeMode}
+              variants={MOTION_VARIANTS.textSwap}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="flex min-w-0 items-center gap-2"
+            >
+              <ActiveModeIcon
+                size={17}
+                aria-hidden="true"
+                className="shrink-0"
+              />
+              <span className="truncate text-[14px] font-medium leading-none desktop:text-[15px]">
+                {dictionary.projects.modes[activeMode]}
+              </span>
+            </motion.span>
+          </AnimatePresence>
+
+          <ChevronsUpDown
+            size={17}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className="shrink-0 opacity-85"
+          />
+        </button>
+
+        {/* Block 3 (End Square 48x48): ArchDaily-Style Accordion Mega Filter Trigger */}
+        <button
+          ref={filterTriggerRef}
+          type="button"
+          aria-expanded={isMegaFilterOpen}
+          aria-controls={megaFilterId}
+          aria-label={
+            isMegaFilterOpen
+              ? dictionary.projects.closeFiltersAriaLabel
+              : dictionary.projects.filtersTriggerAriaLabel
+          }
+          onClick={() => setIsMegaFilterOpen((prev) => !prev)}
+          className={cn(
+            'relative inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
+            isMegaFilterOpen || activeFilterCount > 0
+              ? activeMode === 'sustainable'
+                ? 'text-[var(--brand-text-hover)]'
+                : 'text-[var(--accent-khaki)]'
+              : 'text-[var(--ink-primary)]'
+          )}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {isMegaFilterOpen ? (
+              <motion.span
+                key="filter-close"
+                variants={MOTION_VARIANTS.iconSwap}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="inline-flex items-center justify-center"
+              >
+                <MdClose size={20} aria-hidden="true" />
+              </motion.span>
+            ) : (
+              <motion.span
+                key="filter-tune"
+                variants={MOTION_VARIANTS.iconSwap}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="inline-flex items-center justify-center"
+              >
+                <MdTune size={19} aria-hidden="true" />
+              </motion.span>
+            )}
+          </AnimatePresence>
+          {activeFilterCount > 0 && !isMegaFilterOpen && (
+            <span
+              dir="ltr"
+              aria-hidden="true"
+              className={cn(
+                'bidi-isolate absolute top-1.5 end-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-medium tabular-nums text-[var(--brand-ink-on-primary)]',
+                activeMode === 'sustainable'
+                  ? 'bg-[var(--brand-primary)]'
+                  : 'bg-[var(--accent-khaki)]'
+              )}
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+      </div>
+    ),
+    sheet: (
+      <AnimatePresence initial={false}>
+        {isMegaFilterOpen && (
+          <ProjectMegaFilter
+            key={`mega-filter-${filterKey}`}
+            id={megaFilterId}
+            activeMode={activeMode}
+            appliedFilters={appliedFilters}
+            onApply={handleApplyFilters}
+            onClear={handleClearFilters}
+          />
+        )}
+      </AnimatePresence>
+    ),
+  });
+
   return (
     <section
       ref={stageRef}
       aria-label={dictionary.projects.regionAriaLabel}
       className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-transparent pt-12"
     >
-      {/* Unified Fixed Architectural Floating Top Bar (Mobile & Desktop, 48px):
-          [Projects Title] | [Mode Icon + Direct Click-to-Switch Mode Text (Green/Brown)] | [48x48 Mega Filter Trigger] */}
-      <div
-        ref={floatingBarRef}
-        className={cn(
-          'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
-          'flex flex-col bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-500',
-          'border-b border-[var(--grid-line)]'
-        )}
-      >
-        <div
-          role="region"
-          aria-label={dictionary.projects.filterBarAriaLabel}
-          className="flex h-12 w-full items-stretch"
-        >
-          {/* Block 1 (Start): Projects Title */}
-          <div className="flex shrink-0 items-center border-e border-[var(--grid-line)] px-4 desktop:px-6">
-            <h1 className="text-[15px] font-medium leading-none text-[var(--ink-primary)] desktop:text-[16px]">
-              {dictionary.projects.title}
-            </h1>
-          </div>
-
-          {/* Block 2 (Center Stretched): Mode Icon + Direct Click-to-Switch Mode Text (Green / Brown, No Dropdown Menu) */}
-          <button
-            type="button"
-            onClick={() => handleModeChange(nextToggleMode)}
-            aria-label={`${dictionary.projects.modeToggleAriaLabel}: ${dictionary.projects.modes[activeMode]}`}
-            className={cn(
-              'flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2.5 px-3.5 text-start transition-colors duration-250 hover:bg-[var(--surface-hover)] desktop:px-5',
-              activeMode === 'sustainable'
-                ? 'text-[var(--brand-text-hover)]'
-                : 'text-[var(--accent-khaki)]'
-            )}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={activeMode}
-                variants={MOTION_VARIANTS.textSwap}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="flex min-w-0 items-center gap-2"
-              >
-                <ActiveModeIcon
-                  size={17}
-                  aria-hidden="true"
-                  className="shrink-0"
-                />
-                <span className="truncate text-[14px] font-medium leading-none desktop:text-[15px]">
-                  {dictionary.projects.modes[activeMode]}
-                </span>
-              </motion.span>
-            </AnimatePresence>
-
-            <ChevronsUpDown
-              size={17}
-              strokeWidth={1.75}
-              aria-hidden="true"
-              className="shrink-0 opacity-85"
-            />
-          </button>
-
-          {/* Block 3 (End Square 48x48): ArchDaily-Style Accordion Mega Filter Trigger (Toggles to X When Open) */}
-          <button
-            ref={filterTriggerRef}
-            type="button"
-            aria-expanded={isMegaFilterOpen}
-            aria-controls={megaFilterId}
-            aria-label={
-              isMegaFilterOpen
-                ? dictionary.projects.closeFiltersAriaLabel
-                : dictionary.projects.filtersTriggerAriaLabel
-            }
-            onClick={() => setIsMegaFilterOpen((prev) => !prev)}
-            className={cn(
-              'relative inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
-              isMegaFilterOpen || activeFilterCount > 0
-                ? activeMode === 'sustainable'
-                  ? 'text-[var(--brand-text-hover)]'
-                  : 'text-[var(--accent-khaki)]'
-                : 'text-[var(--ink-primary)]'
-            )}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              {isMegaFilterOpen ? (
-                <motion.span
-                  key="filter-close"
-                  variants={MOTION_VARIANTS.iconSwap}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="inline-flex items-center justify-center"
-                >
-                  <MdClose size={20} aria-hidden="true" />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="filter-tune"
-                  variants={MOTION_VARIANTS.iconSwap}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="inline-flex items-center justify-center"
-                >
-                  <MdTune size={19} aria-hidden="true" />
-                </motion.span>
-              )}
-            </AnimatePresence>
-            {activeFilterCount > 0 && !isMegaFilterOpen && (
-              <span
-                dir="ltr"
-                aria-hidden="true"
-                className={cn(
-                  'bidi-isolate absolute top-1.5 end-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-medium tabular-nums text-[var(--brand-ink-on-primary)]',
-                  activeMode === 'sustainable'
-                    ? 'bg-[var(--brand-primary)]'
-                    : 'bg-[var(--accent-khaki)]'
-                )}
-              >
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Bottom Start & End Frame Rail Intersection '+' Crosshairs */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-
-        {/* Full-Screen Frosted-Glass ArchDaily-Inspired Accordion Mega Filter */}
-        <AnimatePresence initial={false}>
-          {isMegaFilterOpen && (
-            <ProjectMegaFilter
-              key={`mega-filter-${filterKey}`}
-              id={megaFilterId}
-              activeMode={activeMode}
-              appliedFilters={appliedFilters}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Unified Horizontal Scrolling Architectural Cards Stage (Tall Stretched Mobile & Desktop Cards, 16px Gap) */}
+      {/* Unified Horizontal Scrolling Architectural Cards Stage (24px Desktop Padding, Right-to-Left Initial Entrance) */}
       <div
         ref={scrollerRef}
         data-smooth-prevent=""
@@ -661,15 +679,15 @@ export function ProjectsStage({
         onClickCapture={handleClickCapture}
         className={cn(
           'no-scrollbar relative z-10 flex min-h-0 w-full flex-1 flex-row items-center overflow-x-auto overflow-y-hidden touch-pan-x',
-          'px-4 py-4 desktop:px-8 desktop:py-6 desktop-wide:px-10',
+          'px-4 py-4 desktop:px-6 desktop:py-6',
           isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
         )}
       >
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait">
           {filteredProjects.length > 0 ? (
             <motion.ul
               key={filterKey}
-              variants={CARD_STAGGER_CONTAINER_VARIANTS}
+              variants={projectTrackListVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
@@ -685,12 +703,12 @@ export function ProjectsStage({
                       cardItemRefs.current.delete(project.slug);
                     }
                   }}
-                  variants={CARD_STAGGER_ITEM_VARIANTS}
+                  variants={projectTrackItemVariants}
                   className="flex h-full shrink-0 items-center"
                 >
                   <ProjectCard
                     project={project}
-                    priority={index < 3}
+                    priority={index < 2}
                     isMobileActive={activeMobileSlug === project.slug}
                   />
                 </motion.li>

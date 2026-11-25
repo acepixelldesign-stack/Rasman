@@ -22,10 +22,13 @@ import {
   getProjectBySlug,
   getProjectCategorizedMedia,
   getProjectLocalizedText,
-  PROJECT_MODE_ARTWORK,
   type ProjectMediaCategoryId,
 } from '@/lib/data/projects';
 import { useAppContext } from '@/components/providers/app-provider';
+import {
+  setNextStickyBarDirection,
+  useStickySubBar,
+} from '@/components/frame/sticky-sub-bar-context';
 import { useArchitecturalEntrance } from '@/components/motion/architectural-motion';
 import { cn } from '@/lib/utils';
 
@@ -50,7 +53,8 @@ interface ProjectDetailStageProps {
  * - Fixed bottom edge-to-edge Previous / Next bar matching Blog Detail, revealed cleanly at project end
  */
 export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
-  const { locale, isRtl, dictionary, announce } = useAppContext();
+  const { locale, isRtl, dictionary, announce, setAmbientMode } =
+    useAppContext();
   const [copied, setCopied] = useState(false);
   const [isAtProjectEnd, setIsAtProjectEnd] = useState(false);
   const [galleryCursor, setGalleryCursor] = useState<{
@@ -70,6 +74,13 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
   useArchitecturalEntrance(articleRef, { isRtl, dependencies: [slug] });
 
   const project = getProjectBySlug(slug);
+
+  // Sync full-viewport Projects ambient palette (sustainable / urban) matching Projects list
+  useEffect(() => {
+    if (project) {
+      setAmbientMode(project.mode);
+    }
+  }, [project, setAmbientMode]);
 
   const categorizedMedia = useMemo(
     () => (project ? getProjectCategorizedMedia(project) : []),
@@ -148,6 +159,77 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
       announce(dictionary.announcements.linkCopied);
     }
   };
+
+  const resolvedTitle = project
+    ? getProjectLocalizedText(project.title, locale)
+    : '';
+
+  useStickySubBar(
+    project
+      ? {
+          id: `project-detail-${project.slug}`,
+          depth: 2,
+          mobileOnly: false,
+          content: (
+            <div className="flex h-12 w-full items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center">
+                <Link
+                  href={`/projects?mode=${project.mode}`}
+                  onClick={() => setNextStickyBarDirection('back')}
+                  aria-label={dictionary.projects.detail.backToProjects}
+                  className="inline-flex h-12 shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+                >
+                  <MdArrowBack
+                    size={18}
+                    aria-hidden="true"
+                    className={cn('shrink-0', isRtl && '-scale-x-100')}
+                  />
+                  <span className="hidden whitespace-nowrap desktop:inline">
+                    {dictionary.projects.detail.backToProjects}
+                  </span>
+                </Link>
+
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-px shrink-0 bg-[var(--grid-line)]"
+                />
+
+                <span className="min-w-0 flex-1 truncate px-3 text-start text-[14px] font-medium text-[var(--ink-primary)] desktop:px-4 desktop:text-[15px]">
+                  {resolvedTitle}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label={
+                  copied
+                    ? dictionary.projects.detail.shareCopiedLabel
+                    : dictionary.projects.detail.shareProjectLabel
+                }
+                title={
+                  copied
+                    ? dictionary.projects.detail.shareCopiedLabel
+                    : dictionary.projects.detail.shareProjectLabel
+                }
+                className={cn(
+                  'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
+                  copied
+                    ? 'text-[var(--brand-text-hover)]'
+                    : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
+                )}
+              >
+                {copied ? (
+                  <MdCheck size={19} aria-hidden="true" />
+                ) : (
+                  <MdOutlineShare size={19} aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          ),
+        }
+      : null
+  );
 
   if (!project) {
     return (
@@ -256,104 +338,10 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
     <article
       ref={articleRef}
       aria-label={title}
-      className="relative grid min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full grid-cols-1 bg-[var(--bg-canvas)] pt-12 desktop:grid-cols-[336px_minmax(0,1fr)] desktop:grid-rows-[auto_1fr] desktop-wide:grid-cols-[400px_minmax(0,1fr)]"
+      className="relative grid min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full grid-cols-1 bg-transparent pt-12 desktop:grid-cols-[264px_minmax(0,1fr)] desktop:grid-rows-[auto_1fr] desktop-wide:grid-cols-[304px_minmax(0,1fr)]"
     >
-      {/* Fixed Top Sticky Bar Matching Blog Detail: Back + Title (Start) | Share Button (End) + Frame Rail '+' Crosshairs */}
-      <div
-        className={cn(
-          'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
-          'flex h-12 items-center justify-between gap-2 border-b border-[var(--grid-line)]',
-          'bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-200'
-        )}
-      >
-        <div className="flex min-w-0 flex-1 items-center">
-          <Link
-            href={`/projects?mode=${project.mode}`}
-            aria-label={dictionary.projects.detail.backToProjects}
-            className="inline-flex h-12 shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
-          >
-            <MdArrowBack
-              size={18}
-              aria-hidden="true"
-              className={cn('shrink-0', isRtl && '-scale-x-100')}
-            />
-            <span className="hidden whitespace-nowrap desktop:inline">
-              {dictionary.projects.detail.backToProjects}
-            </span>
-          </Link>
-
-          <span
-            aria-hidden="true"
-            className="h-4 w-px shrink-0 bg-[var(--grid-line)]"
-          />
-
-          <span className="min-w-0 flex-1 truncate px-3 text-start text-[14px] font-medium text-[var(--ink-primary)] desktop:px-4 desktop:text-[15px]">
-            {title}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleShare}
-          aria-label={
-            copied
-              ? dictionary.projects.detail.shareCopiedLabel
-              : dictionary.projects.detail.shareProjectLabel
-          }
-          title={
-            copied
-              ? dictionary.projects.detail.shareCopiedLabel
-              : dictionary.projects.detail.shareProjectLabel
-          }
-          className={cn(
-            'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
-            copied
-              ? 'text-[var(--brand-text-hover)]'
-              : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
-          )}
-        >
-          {copied ? (
-            <MdCheck size={19} aria-hidden="true" />
-          ) : (
-            <MdOutlineShare size={19} aria-hidden="true" />
-          )}
-        </button>
-
-        {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-      </div>
-
-      {/* Mode-Specific Sketch Artwork Backdrop (20% Opacity, Faded at Bottom, Light/Dark/RTL Adaptive) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed top-[calc(var(--grid-header)+48px)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-0 h-[min(78dvh,640px)] overflow-hidden select-none opacity-20 mix-blend-multiply dark:mix-blend-screen [mask-image:linear-gradient(to_bottom,black_52%,transparent_100%)]"
-      >
-        <Image
-          src={PROJECT_MODE_ARTWORK[project.mode]}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          referrerPolicy="no-referrer"
-          className="object-cover object-[78%_bottom] desktop:object-bottom contrast-[1.04] dark:invert dark:hue-rotate-180 dark:contrast-[1.06] rtl:-scale-x-100"
-        />
-      </div>
-
       {/* 1. Project Header (Full Container Width Divider, Symmetric Top/Bottom/Start/End Padding) */}
-      <header className="relative z-10 order-1 flex w-full flex-col px-6 pt-6 pb-0 desktop:col-start-2 desktop:row-start-1 desktop:px-10 desktop:pt-10 desktop:pb-0">
+      <header className="relative z-10 order-1 flex w-full flex-col px-4 pt-6 pb-0 desktop:col-start-2 desktop:row-start-1 desktop:px-10 desktop:pt-10 desktop:pb-0">
         <div className="relative flex w-full flex-col gap-4 pb-6 desktop:pb-10">
           <div
             data-gsap="kicker"
@@ -370,7 +358,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
 
           <h1
             data-gsap="heading"
-            className="text-[clamp(1.75rem,3vw,2.75rem)] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.4] rtl:tracking-normal"
+            className="text-[24px] font-medium leading-[1.3] tracking-[-0.015em] text-[var(--ink-primary)] rtl:leading-[1.45] rtl:tracking-normal"
           >
             {title}
           </h1>
@@ -391,24 +379,20 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
         </div>
       </header>
 
-      {/* 2. Sticky Project Dossier Spec Sheet (Edge-to-Edge Full-Bleed Dividers, No Share Row) */}
+      {/* 2. Stationary Sticky Project Dossier Spec Sheet (Matches Blog/Podcast Sidebar Width, 24px Desktop / 16px Mobile Padding, No Divider Under Title or Last Item) */}
       <aside
         data-smooth-prevent-desktop=""
-        className="relative z-10 order-2 flex w-full flex-col gap-6 border-y border-[var(--grid-line)] py-6 desktop:sticky desktop:top-[calc(var(--grid-header)+48px)] desktop:col-start-1 desktop:row-span-2 desktop:row-start-1 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom)-48px)] desktop:overflow-y-auto desktop:border-y-0 desktop:border-e desktop:py-10"
+        className="relative z-10 order-2 flex w-full flex-col border-y border-[var(--grid-line)] px-4 py-6 desktop:sticky desktop:top-[calc(var(--grid-header)+48px)] desktop:col-start-1 desktop:row-span-2 desktop:row-start-1 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom)-48px)] desktop:overflow-y-auto desktop:border-y-0 desktop:border-e desktop:p-6"
       >
-        <div className="flex flex-col gap-3">
-          <h2
-            data-gsap="kicker"
-            className="px-6 text-[13px] font-medium uppercase tracking-[0.06em] text-[var(--ink-muted)] desktop:px-8 rtl:normal-case rtl:tracking-normal"
-          >
+        <div className="flex flex-col gap-5">
+          <h2 className="text-[22px] font-medium leading-[1.3] tracking-[-0.015em] text-[var(--ink-primary)] rtl:leading-[1.45] rtl:tracking-normal">
             {dictionary.projects.detail.specsHeading}
           </h2>
-          <dl className="w-full divide-y divide-[var(--grid-line)] border-t border-b border-[var(--grid-line)]">
+          <dl className="w-full divide-y divide-[var(--grid-line)]">
             {specRows.map((row) => (
               <div
                 key={row.label}
-                data-gsap="body"
-                className="flex items-baseline justify-between gap-4 px-6 py-3 text-[13px] desktop:px-8"
+                className="flex items-baseline justify-between gap-4 py-3 text-[13px] first:pt-0 last:pb-0"
               >
                 <dt className="text-[var(--ink-muted)]">{row.label}</dt>
                 <dd
@@ -428,7 +412,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
 
       {/* 3. Full-Container Content Grid + Single-Image Gallery + End Sentinel */}
       <div className="relative z-10 order-3 flex min-w-0 flex-col desktop:col-start-2 desktop:row-start-2">
-        <div className="flex w-full flex-col gap-8 px-6 pt-6 pb-28 desktop:gap-10 desktop:px-10 desktop:pt-10 desktop:pb-32">
+        <div className="flex w-full flex-col gap-8 px-4 pt-6 pb-28 desktop:gap-10 desktop:px-10 desktop:pt-10 desktop:pb-32">
           {/* Hero Frame (Full Container Width, Clickable to Open Categorized Lightbox) */}
           <figure
             data-gsap="media"
@@ -509,42 +493,18 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
             ))}
           </div>
 
-          {/* Single-Image Gallery Section: Content-Matched Primary Title + Opposite "View All" Button */}
+          {/* Single-Image Gallery Section: Primary Heading Above Photo; Secondary Outlined "View All" + Prev/Next Buttons Below Photo */}
           {activeGalleryFrame && (
             <section
               data-gsap-scroll=""
               aria-label={dictionary.projects.detail.galleryHeading}
               className="flex w-full flex-col gap-4"
             >
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="text-[20px] font-medium leading-[1.3] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[22px] rtl:leading-[1.5] rtl:tracking-normal">
-                  {dictionary.projects.detail.galleryHeading}
-                </h2>
+              <h2 className="text-[20px] font-medium leading-[1.3] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[22px] rtl:leading-[1.5] rtl:tracking-normal">
+                {dictionary.projects.detail.galleryHeading}
+              </h2>
 
-                <button
-                  type="button"
-                  onClick={() => openLightbox('all')}
-                  className="group inline-flex cursor-pointer items-center gap-2 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)] desktop:text-[14px]"
-                >
-                  <span>{dictionary.projects.detail.viewAllGalleryLabel}</span>
-                  <span
-                    dir="ltr"
-                    className="bidi-isolate text-[12px] text-[var(--ink-muted)] tabular-nums transition-colors duration-200 group-hover:text-[var(--brand-text-hover)]"
-                  >
-                    ({categorizedMedia.length})
-                  </span>
-                  <MdArrowForward
-                    size={16}
-                    aria-hidden="true"
-                    className={cn(
-                      'shrink-0 transition-transform duration-200 group-hover:translate-x-0.5',
-                      isRtl && '-scale-x-100 group-hover:-translate-x-0.5'
-                    )}
-                  />
-                </button>
-              </div>
-
-              {/* Single Full-Width Architectural Photo Stage */}
+              {/* Clean Single Full-Width Architectural Photo Stage (Zero Overlaid Prev/Next Buttons) */}
               <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[4px] bg-[var(--surface-hover)]">
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.button
@@ -579,19 +539,69 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                   </motion.button>
                 </AnimatePresence>
 
-                {/* Prev / Next Single-Slide Overlay Controls */}
                 {photoCount > 1 && (
-                  <>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex items-center justify-center gap-1.5">
+                    {galleryPhotos.map((frame, index) => {
+                      const isCurrent = index === safeGalleryIndex;
+                      return (
+                        <button
+                          key={frame.id}
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setGalleryCursor({ slug, index });
+                          }}
+                          aria-label={`${index + 1}`}
+                          className={cn(
+                            'pointer-events-auto h-1.5 cursor-pointer rounded-full transition-all duration-200',
+                            isCurrent
+                              ? 'w-6 bg-white'
+                              : 'w-1.5 bg-white/45 hover:bg-white/75'
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Below-Photo Control Bar: Secondary Outlined "View All" Stretched Full Width on Mobile Beside Adjacent Prev / Next Buttons */}
+              <div className="flex w-full items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => openLightbox('all')}
+                  className={cn(
+                    'group inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[4px] px-5 desktop:flex-none',
+                    'border border-[var(--grid-line-strong)] bg-transparent text-[13px] font-medium text-[var(--ink-primary)] desktop:text-[14px]',
+                    'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                  )}
+                >
+                  <span>{dictionary.projects.detail.viewAllGalleryLabel}</span>
+                  <span
+                    dir="ltr"
+                    className="bidi-isolate text-[12px] text-[var(--ink-muted)] tabular-nums transition-colors duration-200 group-hover:text-[var(--brand-text-hover)]"
+                  >
+                    ({categorizedMedia.length})
+                  </span>
+                  <MdArrowForward
+                    size={16}
+                    aria-hidden="true"
+                    className={cn(
+                      'shrink-0 transition-transform duration-200 group-hover:translate-x-0.5',
+                      isRtl && '-scale-x-100 group-hover:-translate-x-0.5'
+                    )}
+                  />
+                </button>
+
+                {photoCount > 1 && (
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleGalleryStep(-1);
-                      }}
+                      onClick={() => handleGalleryStep(-1)}
                       aria-label={
                         dictionary.projects.detail.galleryPrevAriaLabel
                       }
-                      className="absolute start-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition-colors duration-200 hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink-on-primary)] desktop:start-4"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-[4px] border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
                     >
                       {isRtl ? (
                         <MdChevronRight size={22} aria-hidden="true" />
@@ -602,14 +612,11 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
 
                     <button
                       type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleGalleryStep(1);
-                      }}
+                      onClick={() => handleGalleryStep(1)}
                       aria-label={
                         dictionary.projects.detail.galleryNextAriaLabel
                       }
-                      className="absolute end-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition-colors duration-200 hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink-on-primary)] desktop:end-4"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-[4px] border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
                     >
                       {isRtl ? (
                         <MdChevronLeft size={22} aria-hidden="true" />
@@ -617,31 +624,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                         <MdChevronRight size={22} aria-hidden="true" />
                       )}
                     </button>
-
-                    {/* Minimal Bottom Slide Dots */}
-                    <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex items-center justify-center gap-1.5">
-                      {galleryPhotos.map((frame, index) => {
-                        const isCurrent = index === safeGalleryIndex;
-                        return (
-                          <button
-                            key={frame.id}
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setGalleryCursor({ slug, index });
-                            }}
-                            aria-label={`${index + 1}`}
-                            className={cn(
-                              'pointer-events-auto h-1.5 cursor-pointer rounded-full transition-all duration-200',
-                              isCurrent
-                                ? 'w-6 bg-white'
-                                : 'w-1.5 bg-white/45 hover:bg-white/75'
-                            )}
-                          />
-                        );
-                      })}
-                    </div>
-                  </>
+                  </div>
                 )}
               </div>
             </section>
@@ -701,6 +684,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
             <Link
               href={`/projects/${previousProject.slug}`}
               prefetch={true}
+              onClick={() => setNextStickyBarDirection('back')}
               className="group flex min-w-0 items-center gap-3 border-e border-[var(--grid-line)] p-4 text-start transition-colors duration-250 hover:bg-[var(--surface-hover)] desktop:gap-4"
             >
               <MdArrowBack
@@ -726,6 +710,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
             <Link
               href={`/projects/${nextProject.slug}`}
               prefetch={true}
+              onClick={() => setNextStickyBarDirection('forward')}
               className="group flex min-w-0 items-center justify-end gap-3 p-4 text-end transition-colors duration-250 hover:bg-[var(--surface-hover)] desktop:gap-4"
             >
               <span className="flex min-w-0 flex-1 flex-col items-end gap-0.5">

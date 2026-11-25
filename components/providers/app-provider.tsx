@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
 import { ThemeProvider as NextThemesProvider, useTheme } from 'next-themes';
 import { MotionConfig } from 'motion/react';
 import {
@@ -263,6 +264,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     getScrollLockServerSnapshot
   );
   const { theme: resolvedNextTheme, setTheme: setNextTheme } = useTheme();
+  const pathname = usePathname();
 
   const [announcement, setAnnouncement] = useState<string>('');
   const [isStartProjectOpen, setIsStartProjectOpen] = useState<boolean>(false);
@@ -270,6 +272,12 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     null
   );
   const [ambientMode, setAmbientMode] = useState<ProjectMode | null>(null);
+
+  const isProjectsRoute =
+    pathname === '/projects' || pathname.startsWith('/projects/');
+  const effectiveAmbientMode: ProjectMode | null = isProjectsRoute
+    ? ambientMode
+    : null;
 
   useEffect(() => {
     if (clientInitialized && isClientMounted) return;
@@ -339,38 +347,47 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
   // Sync full-viewport Projects ambient mode, OS-immune color-scheme, & cross-browser toolbar/status bar color
   useEffect(() => {
     const root = document.documentElement;
-    const isDarkSurface = Boolean(ambientMode) || theme === 'dark';
+    const isDarkSurface = Boolean(effectiveAmbientMode) || theme === 'dark';
     const lockedColorScheme = isDarkSurface ? 'only dark' : 'only light';
 
-    if (ambientMode) {
-      root.dataset.ambientMode = ambientMode;
+    if (effectiveAmbientMode) {
+      root.dataset.ambientMode = effectiveAmbientMode;
     } else {
       delete root.dataset.ambientMode;
     }
 
-    // Explicitly lock color-scheme so no OS dark mode or browser force-dark alters site colors
-    root.style.colorScheme = lockedColorScheme;
-
-    const paletteKey = ambientMode ?? 'default';
+    const paletteKey = effectiveAmbientMode ?? 'default';
     const targetColor = SITE_CONFIG.themeColors[paletteKey][theme];
+
+    // Explicitly lock color-scheme & canvas background so no OS dark/light mode or force-dark alters colors
+    root.style.colorScheme = lockedColorScheme;
+    root.style.backgroundColor = targetColor;
+    if (document.body) {
+      document.body.style.backgroundColor = targetColor;
+    }
+
     const head = document.head;
     if (!head) return;
 
-    // Keep meta[name="color-scheme"] synchronized in-place (never detach React-owned head tags)
-    const existingColorSchemeMetas = head.querySelectorAll<HTMLMetaElement>(
-      'meta[name="color-scheme"]'
-    );
-    if (existingColorSchemeMetas.length > 0) {
-      existingColorSchemeMetas.forEach((tag) => {
-        tag.setAttribute('content', lockedColorScheme);
-      });
-    } else {
-      const colorSchemeMeta = document.createElement('meta');
-      colorSchemeMeta.name = 'color-scheme';
-      colorSchemeMeta.content = lockedColorScheme;
-      colorSchemeMeta.dataset.rasmanManaged = 'true';
-      head.appendChild(colorSchemeMeta);
-    }
+    // Keep meta[name="color-scheme"] and meta[name="supported-color-schemes"] synchronized in-place
+    const syncColorSchemeMeta = (metaName: string) => {
+      const existingTags = head.querySelectorAll<HTMLMetaElement>(
+        `meta[name="${metaName}"]`
+      );
+      if (existingTags.length > 0) {
+        existingTags.forEach((tag) => {
+          tag.setAttribute('content', lockedColorScheme);
+        });
+      } else {
+        const tag = document.createElement('meta');
+        tag.name = metaName;
+        tag.content = lockedColorScheme;
+        tag.dataset.rasmanManaged = 'true';
+        head.appendChild(tag);
+      }
+    };
+    syncColorSchemeMeta('color-scheme');
+    syncColorSchemeMeta('supported-color-schemes');
 
     // Update any non-managed theme-color tags in-place (never call remove on React-managed nodes)
     head
@@ -382,7 +399,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
       });
 
     // Replace only our own managed theme-color tags (covering BOTH OS light & OS dark media queries + unscoped)
-    // so Safari, Chrome, Edge, Firefox, and Samsung Internet ALWAYS apply the exact Projects color in every OS theme.
+    // so Safari, Chrome, Edge, Firefox, and Samsung Internet ALWAYS apply the exact color in every OS theme.
     head
       .querySelectorAll<HTMLMetaElement>(
         'meta[name="theme-color"][data-rasman-managed="true"]'
@@ -432,7 +449,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
           isDarkSurface ? 'black-translucent' : 'default'
         );
       });
-  }, [ambientMode, theme]);
+  }, [effectiveAmbientMode, theme]);
 
   // Content copy & image drag protection (while preserving copy/paste inside form inputs)
   useEffect(() => {
@@ -537,7 +554,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
       userProfile,
       setUserProfile,
       signOut,
-      ambientMode,
+      ambientMode: effectiveAmbientMode,
       setAmbientMode,
     }),
     [
@@ -558,7 +575,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
       userProfile,
       setUserProfile,
       signOut,
-      ambientMode,
+      effectiveAmbientMode,
     ]
   );
 

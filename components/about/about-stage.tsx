@@ -25,6 +25,7 @@ import {
 } from '@/lib/data/about';
 import { MOTION_TRANSITIONS } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
+import { useStickySubBar } from '@/components/frame/sticky-sub-bar-context';
 import { cn } from '@/lib/utils';
 
 type ChapterId = 'studio' | 'founder' | 'current' | 'previous';
@@ -512,38 +513,16 @@ export function AboutStage() {
     locale
   );
 
-  return (
-    <section
-      ref={stageRef}
-      data-smooth-prevent=""
-      aria-label={dictionary.about.regionAriaLabel}
-      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)] pt-12 touch-none overscroll-none"
-    >
-      {/* Top Fixed Segmented Architectural Progress Bar (48px, Unbroken Bottom Hairline, Zero Green Loading Bar) */}
+  useStickySubBar({
+    id: 'about-team',
+    depth: 1,
+    mobileOnly: false,
+    ariaLabel: dictionary.about.chapterNavAriaLabel,
+    content: (
       <nav
         aria-label={dictionary.about.chapterNavAriaLabel}
-        className={cn(
-          'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
-          'flex h-12 items-stretch border-b border-[var(--grid-line)]',
-          'bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-200'
-        )}
+        className="flex h-12 w-full items-stretch"
       >
-        {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-
         {/* 4 Segmented Step Cells: Square 48px Inactive Cells | Stretched Active Step Container */}
         <div className="flex h-full min-w-0 flex-1 items-stretch">
           {chapters.map((chapter, index) => {
@@ -613,6 +592,16 @@ export function AboutStage() {
           </span>
         </div>
       </nav>
+    ),
+  });
+
+  return (
+    <section
+      ref={stageRef}
+      data-smooth-prevent=""
+      aria-label={dictionary.about.regionAriaLabel}
+      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)] pt-12 touch-none overscroll-none"
+    >
 
       {/* Container-Queried Stage Viewport Below the 48px Progress Bar (Exact 100cqw / 100cqh) */}
       <div className="relative min-h-0 flex-1 w-full [container-type:size]">

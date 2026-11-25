@@ -28,6 +28,10 @@ import {
   type AuthorSocialPlatform,
 } from '@/lib/data/blog';
 import { useAppContext } from '@/components/providers/app-provider';
+import {
+  setNextStickyBarDirection,
+  useStickySubBar,
+} from '@/components/frame/sticky-sub-bar-context';
 import { cn } from '@/lib/utils';
 
 if (typeof window !== 'undefined') {
@@ -117,6 +121,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
   }, [slug]);
 
   // 3.00s staged entrance choreography whenever the article loads or switches
+  // (Desktop sticky sidebar remains strictly stationary; dividers draw start->end & content descends smoothly)
   useGSAP(
     () => {
       const container = articleRef.current;
@@ -126,30 +131,32 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
         '(prefers-reduced-motion: reduce)'
       ).matches;
 
-      const barTitle = container.querySelector<HTMLElement>(
-        '[data-blog-anim="bar-title"]'
-      );
+      const isDesktop = window.matchMedia(
+        '(min-width: 768px) and (min-height: 520px) and (orientation: landscape)'
+      ).matches;
+
       const heading = container.querySelector<HTMLElement>(
         '[data-blog-anim="heading"]'
       );
       const metas = Array.from(
         container.querySelectorAll<HTMLElement>('[data-blog-anim="meta"]')
       );
-      const cover = container.querySelector<HTMLElement>(
-        '[data-blog-anim="cover"]'
-      );
+      const cover = !isDesktop
+        ? container.querySelector<HTMLElement>('[data-blog-anim="cover"]')
+        : null;
       const divider = container.querySelector<HTMLElement>(
         '[data-blog-anim="divider"]'
       );
-      const authorItems = Array.from(
-        container.querySelectorAll<HTMLElement>('[data-blog-anim="author"]')
-      );
+      const authorItems = !isDesktop
+        ? Array.from(
+            container.querySelectorAll<HTMLElement>('[data-blog-anim="author"]')
+          )
+        : [];
       const bodySections = Array.from(
         container.querySelectorAll<HTMLElement>('[data-blog-anim="section"]')
       );
 
       const allTargets = [
-        ...(barTitle ? [barTitle] : []),
         ...(heading ? [heading] : []),
         ...metas,
         ...(cover ? [cover] : []),
@@ -170,56 +177,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
         },
       });
 
-      // Phase 1 (0.00s -> 0.85s): Sticky bar title, headline, excerpt & metadata
-      if (barTitle) {
-        tl.fromTo(
-          barTitle,
-          { autoAlpha: 0, x: isRtl ? 10 : -10 },
-          { autoAlpha: 1, x: 0, duration: 0.45 },
-          0
-        );
-      }
-
-      if (heading) {
-        tl.fromTo(
-          heading,
-          { autoAlpha: 0, y: 18, filter: 'blur(6px)' },
-          { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.62 },
-          0.08
-        );
-      }
-
-      if (metas.length > 0) {
-        tl.fromTo(
-          metas,
-          { autoAlpha: 0, y: 12, filter: 'blur(4px)' },
-          {
-            autoAlpha: 1,
-            y: 0,
-            filter: 'blur(0px)',
-            duration: 0.52,
-            stagger: 0.14,
-          },
-          0.32
-        );
-      }
-
-      // Phase 2 (0.48s -> 1.48s): Cover photography & divider hairline
-      if (cover) {
-        tl.fromTo(
-          cover,
-          { autoAlpha: 0, y: 22, scale: 0.97, filter: 'blur(8px)' },
-          {
-            autoAlpha: 1,
-            y: 0,
-            scale: 1,
-            filter: 'blur(0px)',
-            duration: 0.95,
-          },
-          0.48
-        );
-      }
-
+      // Phase 1: Divider draws Left->Right (LTR) / Right->Left (RTL) while headline & metadata descend smoothly
       if (divider) {
         tl.fromTo(
           divider,
@@ -227,15 +185,54 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
             scaleX: 0,
             transformOrigin: isRtl ? 'right center' : 'left center',
           },
-          { scaleX: 1, duration: 0.65 },
-          0.85
+          { scaleX: 1, duration: 1.05, ease: 'power2.out' },
+          0
         );
       }
 
-      // Phase 3 (1.08s -> 2.04s): Author avatar, bio & social icons staggered
+      if (heading) {
+        tl.fromTo(
+          heading,
+          { autoAlpha: 0, y: -16, filter: 'blur(5px)' },
+          { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.72 },
+          0.12
+        );
+      }
+
+      if (metas.length > 0) {
+        tl.fromTo(
+          metas,
+          { autoAlpha: 0, y: -12, filter: 'blur(4px)' },
+          {
+            autoAlpha: 1,
+            y: 0,
+            filter: 'blur(0px)',
+            duration: 0.62,
+            stagger: 0.14,
+          },
+          0.34
+        );
+      }
+
+      // Mobile inline cover & author bio (stationary on desktop)
+      if (cover) {
+        tl.fromTo(
+          cover,
+          { autoAlpha: 0, y: -16, scale: 0.98, filter: 'blur(6px)' },
+          {
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            filter: 'blur(0px)',
+            duration: 0.85,
+          },
+          0.56
+        );
+      }
+
       if (authorItems.length > 0) {
-        const authorDur = 0.5;
-        const authorWindow = 0.96; // 1.08 + 0.96 = 2.04s
+        const authorDur = 0.56;
+        const authorWindow = 0.92;
         const authorStagger =
           authorItems.length > 1
             ? (authorWindow - authorDur) / (authorItems.length - 1)
@@ -243,7 +240,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
 
         tl.fromTo(
           authorItems,
-          { autoAlpha: 0, y: 14, filter: 'blur(4px)' },
+          { autoAlpha: 0, y: -12, filter: 'blur(4px)' },
           {
             autoAlpha: 1,
             y: 0,
@@ -251,14 +248,15 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
             duration: authorDur,
             stagger: authorStagger,
           },
-          1.08
+          0.96
         );
       }
 
-      // Phase 4 (1.62s -> 3.00s): Essay sections rise smoothly one by one
+      // Essay sections descend cleanly over the remaining timeline up to 3.00s
       if (bodySections.length > 0) {
-        const sectionDur = 0.68;
-        const sectionWindow = 1.38; // 1.62 + 1.38 = 3.00s exact total
+        const startAt = isDesktop ? 0.72 : 1.54;
+        const sectionDur = 0.74;
+        const sectionWindow = Math.max(sectionDur, 3.0 - startAt);
         const sectionStagger =
           bodySections.length > 1
             ? (sectionWindow - sectionDur) / (bodySections.length - 1)
@@ -266,7 +264,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
 
         tl.fromTo(
           bodySections,
-          { autoAlpha: 0, y: 24, filter: 'blur(4px)' },
+          { autoAlpha: 0, y: -16, filter: 'blur(3px)' },
           {
             autoAlpha: 1,
             y: 0,
@@ -274,7 +272,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
             duration: sectionDur,
             stagger: sectionStagger,
           },
-          1.62
+          startAt
         );
       }
     },
@@ -299,6 +297,75 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
       announce(dictionary.announcements.linkCopied);
     }
   };
+
+  const resolvedTitle = post ? getBlogLocalizedText(post.title, locale) : '';
+
+  useStickySubBar(
+    post
+      ? {
+          id: `blog-detail-${post.slug}`,
+          depth: 2,
+          mobileOnly: false,
+          content: (
+            <div className="flex h-12 w-full items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center">
+                <Link
+                  href="/magazine"
+                  onClick={() => setNextStickyBarDirection('back')}
+                  aria-label={dictionary.blog.backToMagazine}
+                  className="inline-flex h-12 shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+                >
+                  <MdArrowBack
+                    size={18}
+                    aria-hidden="true"
+                    className={cn('shrink-0', isRtl && '-scale-x-100')}
+                  />
+                  <span className="hidden whitespace-nowrap desktop:inline">
+                    {dictionary.blog.backToMagazine}
+                  </span>
+                </Link>
+
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-px shrink-0 bg-[var(--grid-line)]"
+                />
+
+                <span className="min-w-0 flex-1 truncate px-3 text-start text-[14px] font-medium text-[var(--ink-primary)] desktop:px-4 desktop:text-[15px]">
+                  {resolvedTitle}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label={
+                  copied
+                    ? dictionary.blog.shareCopiedLabel
+                    : dictionary.blog.shareStoryLabel
+                }
+                title={
+                  copied
+                    ? dictionary.blog.shareCopiedLabel
+                    : dictionary.blog.shareStoryLabel
+                }
+                className={cn(
+                  'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
+                  copied
+                    ? 'text-[var(--brand-text-hover)]'
+                    : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
+                )}
+              >
+                {copied ? (
+                  <MdCheck size={19} aria-hidden="true" />
+                ) : (
+                  <MdOutlineShare size={19} aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          ),
+        }
+      : null
+  );
 
   if (!post) {
     return (
@@ -350,93 +417,12 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
       aria-label={title}
       className="relative grid min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full grid-cols-1 bg-[var(--bg-canvas)] pt-12 desktop:grid-cols-[320px_minmax(0,1fr)] desktop:grid-rows-[auto_1fr] desktop-wide:grid-cols-[384px_minmax(0,1fr)]"
     >
-      {/* Fixed Top Sticky Bar (Mobile & Desktop): Back + Title (Start) | Share Icon (End) + Frame Rail '+' Crosshairs */}
-      <div
-        className={cn(
-          'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
-          'flex h-12 items-center justify-between gap-2 border-b border-[var(--grid-line)]',
-          'bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-200'
-        )}
-      >
-        <div className="flex min-w-0 flex-1 items-center">
-          <Link
-            href="/magazine"
-            aria-label={dictionary.blog.backToMagazine}
-            className="inline-flex h-12 shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
-          >
-            <MdArrowBack
-              size={18}
-              aria-hidden="true"
-              className={cn('shrink-0', isRtl && '-scale-x-100')}
-            />
-            <span className="hidden whitespace-nowrap desktop:inline">
-              {dictionary.blog.backToMagazine}
-            </span>
-          </Link>
-
-          <span
-            aria-hidden="true"
-            className="h-4 w-px shrink-0 bg-[var(--grid-line)]"
-          />
-
-          <span
-            data-blog-anim="bar-title"
-            className="min-w-0 flex-1 truncate px-3 text-start text-[14px] font-medium text-[var(--ink-primary)] desktop:px-4 desktop:text-[15px]"
-          >
-            {title}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleShare}
-          aria-label={
-            copied
-              ? dictionary.blog.shareCopiedLabel
-              : dictionary.blog.shareStoryLabel
-          }
-          title={
-            copied
-              ? dictionary.blog.shareCopiedLabel
-              : dictionary.blog.shareStoryLabel
-          }
-          className={cn(
-            'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
-            copied
-              ? 'text-[var(--brand-text-hover)]'
-              : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
-          )}
-        >
-          {copied ? (
-            <MdCheck size={19} aria-hidden="true" />
-          ) : (
-            <MdOutlineShare size={19} aria-hidden="true" />
-          )}
-        </button>
-
-        {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
-        >
-          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-        </span>
-      </div>
-
       {/* 1. Article Header (Mobile: First | Desktop: End Column Row 1) */}
       <header className="order-1 flex w-full flex-col px-4 pt-6 pb-6 desktop:col-start-2 desktop:row-start-1 desktop:px-12 desktop:pt-10 desktop:pb-0">
         <div className="relative flex w-full max-w-3xl flex-col gap-4 desktop:pb-8">
           <h1
             data-blog-anim="heading"
-            className="text-[clamp(1.75rem,3vw,2.75rem)] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.4] rtl:tracking-normal"
+            className="text-[24px] font-medium leading-[1.3] tracking-[-0.015em] text-[var(--ink-primary)] rtl:leading-[1.45] rtl:tracking-normal"
           >
             {title}
           </h1>
@@ -633,6 +619,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
             <Link
               href={`/magazine/${previousPost.slug}`}
               prefetch={true}
+              onClick={() => setNextStickyBarDirection('back')}
               className="group flex min-w-0 items-center gap-3 border-e border-[var(--grid-line)] p-4 text-start transition-colors duration-250 hover:bg-[var(--surface-hover)] desktop:gap-4"
             >
               <MdArrowBack
@@ -658,6 +645,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
             <Link
               href={`/magazine/${nextPost.slug}`}
               prefetch={true}
+              onClick={() => setNextStickyBarDirection('forward')}
               className="group flex min-w-0 items-center justify-end gap-3 p-4 text-end transition-colors duration-250 hover:bg-[var(--surface-hover)] desktop:gap-4"
             >
               <span className="flex min-w-0 flex-1 flex-col items-end gap-0.5">

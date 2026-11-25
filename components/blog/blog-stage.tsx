@@ -25,6 +25,7 @@ import {
 import { BlogSidebar } from '@/components/blog/blog-sidebar';
 import { BlogCard } from '@/components/blog/blog-card';
 import { BlogCategoryIcon } from '@/components/blog/blog-category-icon';
+import { useStickySubBar } from '@/components/frame/sticky-sub-bar-context';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
@@ -165,86 +166,63 @@ export function BlogStage() {
     [safePage, totalPages]
   );
 
-  return (
-    <section
-      ref={stageRef}
-      aria-label={dictionary.blog.regionAriaLabel}
-      className="relative flex min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col pt-12 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] desktop:flex-row desktop:overflow-hidden desktop:pt-0"
-    >
-      {/* Mobile Fixed Category Bar + Full-Height Calm Vertical Sliding Sheet */}
-      <div
+  useStickySubBar({
+    id: 'blog-mobile',
+    depth: 1,
+    mobileOnly: true,
+    hideBottomChrome: isMobileCategoriesOpen,
+    ariaLabel: dictionary.blog.categoryTitle,
+    content: (
+      <button
+        type="button"
+        onClick={() => setIsMobileCategoriesOpen((prev) => !prev)}
+        aria-expanded={isMobileCategoriesOpen}
+        aria-controls={mobileCategoriesPanelId}
+        aria-label={
+          isMobileCategoriesOpen
+            ? dictionary.blog.closeCategoriesAriaLabel
+            : dictionary.blog.openCategoriesAriaLabel
+        }
         className={cn(
-          'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
-          'flex flex-col bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-200 desktop:hidden',
-          !isMobileCategoriesOpen && 'border-b border-[var(--grid-line)]'
+          'flex h-12 w-full shrink-0 cursor-pointer items-center justify-between gap-3 px-4 text-start',
+          'text-[15px] font-normal text-[var(--ink-primary)]'
         )}
       >
-        <button
-          type="button"
-          onClick={() => setIsMobileCategoriesOpen((prev) => !prev)}
-          aria-expanded={isMobileCategoriesOpen}
-          aria-controls={mobileCategoriesPanelId}
-          aria-label={
-            isMobileCategoriesOpen
-              ? dictionary.blog.closeCategoriesAriaLabel
-              : dictionary.blog.openCategoriesAriaLabel
-          }
+        <span className="flex items-center gap-2.5">
+          <BlogCategoryIcon
+            categoryId={activeCategory}
+            size={19}
+            className="shrink-0 text-[var(--ink-primary)]"
+          />
+          <span>{dictionary.blog.categoryTitle}</span>
+        </span>
+        <span
+          aria-hidden="true"
           className={cn(
-            'flex h-12 w-full shrink-0 cursor-pointer items-center justify-between gap-3 px-4 text-start',
-            'text-[15px] font-normal text-[var(--ink-primary)]'
+            'inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-muted)] transition-transform duration-350',
+            isMobileCategoriesOpen && 'rotate-180'
           )}
         >
-          <span className="flex items-center gap-2.5">
-            <BlogCategoryIcon
-              categoryId={activeCategory}
-              size={19}
-              className="shrink-0 text-[var(--ink-primary)]"
-            />
-            <span>{dictionary.blog.categoryTitle}</span>
-          </span>
-          <span
-            aria-hidden="true"
-            className={cn(
-              'inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-muted)] transition-transform duration-350',
-              isMobileCategoriesOpen && 'rotate-180'
-            )}
+          <MdKeyboardArrowDown size={20} />
+        </span>
+      </button>
+    ),
+    sheet: (
+      <AnimatePresence initial={false}>
+        {isMobileCategoriesOpen && (
+          <motion.div
+            id={mobileCategoriesPanelId}
+            variants={MOTION_VARIANTS.sheetFull}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="flex flex-col overflow-hidden"
           >
-            <MdKeyboardArrowDown size={20} />
-          </span>
-        </button>
-
-        {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs (Matching Header) */}
-        {!isMobileCategoriesOpen && (
-          <>
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
+            <div
+              data-scroll-lock-allow=""
+              className="flex min-h-0 flex-1 flex-col"
             >
-              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-            </span>
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
-            >
-              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
-            </span>
-          </>
-        )}
-
-        <AnimatePresence initial={false}>
-          {isMobileCategoriesOpen && (
-            <motion.div
-              id={mobileCategoriesPanelId}
-              variants={MOTION_VARIANTS.sheetFull}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="flex flex-col overflow-hidden"
-            >
-              <div data-scroll-lock-allow="" className="flex min-h-0 flex-1 flex-col">
-                <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 pt-2 pb-6">
+              <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 pt-2 pb-6">
                 <motion.ul
                   variants={MENU_LIST_VARIANTS}
                   initial="hidden"
@@ -293,17 +271,21 @@ export function BlogStage() {
                   })}
                 </motion.ul>
               </SmoothVerticalPane>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    ),
+  });
 
-      {/* Desktop Docked Start Category Sidebar */}
-      <div
-        data-gsap="kicker"
-        className="hidden w-[264px] shrink-0 border-e border-[var(--grid-line)] desktop:block desktop-wide:w-[304px]"
-      >
+  return (
+    <section
+      ref={stageRef}
+      aria-label={dictionary.blog.regionAriaLabel}
+      className="relative flex min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col pt-12 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] desktop:flex-row desktop:overflow-hidden desktop:pt-0"
+    >
+      {/* Desktop Docked Start Category Sidebar (Stationary Across Route Transitions) */}
+      <div className="hidden w-[264px] shrink-0 border-e border-[var(--grid-line)] desktop:block desktop-wide:w-[304px]">
         <BlogSidebar
           activeCategory={activeCategory}
           onSelectCategory={handleSelectCategory}
