@@ -631,7 +631,7 @@ export function AboutStage() {
             className="flex h-full w-[100cqw] shrink-0 flex-col justify-start gap-6 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
             <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
-              <h1 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+              <h1 className="text-[26px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
                 {dictionary.about.sectionStudio}
               </h1>
             </div>
@@ -665,7 +665,7 @@ export function AboutStage() {
             className="flex h-full w-[100cqw] shrink-0 flex-col justify-start gap-6 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
             <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
-              <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+              <h2 className="text-[26px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
                 {dictionary.about.sectionPrincipal}
               </h2>
             </div>
@@ -684,7 +684,7 @@ export function AboutStage() {
                 />
               </div>
 
-              {/* Founder Name, Role, Bio & Social Links (Start-Aligned) */}
+              {/* Founder Name, Role, 2-Line Bio & Social Links (Start-Aligned) */}
               <div className="flex min-w-0 max-w-2xl flex-1 flex-col items-start gap-2.5 text-start desktop:gap-4">
                 <div className="flex flex-col gap-0.5">
                   <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
@@ -695,7 +695,7 @@ export function AboutStage() {
                   </p>
                 </div>
 
-                <p className="text-[13px] leading-[1.65] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[16px] desktop:leading-[1.85] rtl:leading-[1.85] desktop:rtl:leading-[2]">
+                <p className="line-clamp-2 text-[13px] leading-[1.65] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[16px] desktop:leading-[1.85] rtl:leading-[1.85] desktop:rtl:leading-[2]">
                   {founderBio}
                 </p>
 
@@ -732,13 +732,13 @@ export function AboutStage() {
             className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-start gap-6 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
             <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
-              <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+              <h2 className="text-[26px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
                 {dictionary.about.sectionCoreTeam}
               </h2>
             </div>
 
-            {/* Single Side-by-Side Horizontal Row Aligned Directly Below Title Gap Without Vertical Overflow */}
-            <ul className="flex min-h-0 flex-1 flex-row items-start gap-6 pe-4 desktop:gap-9 desktop:pe-8">
+            {/* Single Side-by-Side Horizontal Row Stretching Cleanly From Title Gap to Bottom Padding */}
+            <ul className="flex min-h-0 flex-1 flex-row items-stretch gap-6 pe-4 desktop:gap-9 desktop:pe-8">
               {CORE_TEAM_MEMBERS.map((member) => {
                 const memberName = getAboutLocalizedText(member.name, locale);
                 const memberRole = getAboutLocalizedText(member.role, locale);
@@ -750,27 +750,27 @@ export function AboutStage() {
                 return (
                   <li
                     key={member.id}
-                    className="group flex h-full shrink-0 flex-col justify-start gap-3"
+                    className="group flex h-full min-h-0 w-[min(72cqw,clamp(184px,calc((100cqh-218px)*0.75),304px))] shrink-0 flex-col justify-start gap-3 desktop:w-[clamp(196px,calc((100cqh-312px)*0.75),340px)]"
                   >
-                    {/* Dynamic 3:4 Portrait Container Scaled to Maintain Top & Bottom Padding Parity */}
-                    <div className="relative aspect-[3/4] h-[clamp(112px,calc(100cqh-232px),340px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(156px,calc(100cqh-324px),408px)]">
+                    {/* Dynamic 3:4 Portrait Bounded Strictly by Explicit Card Width & Exact Remaining Stage Height */}
+                    <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-[4px] bg-[var(--surface-hover)]">
                       <Image
                         src={member.portrait}
                         alt={memberAlt}
                         fill
                         loading="lazy"
-                        sizes="(max-width: 768px) 220px, 310px"
+                        sizes="(max-width: 768px) 280px, 340px"
                         referrerPolicy="no-referrer"
                         className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
                       />
                     </div>
 
                     {/* Member Name & Role Matching Founder Font Sizes */}
-                    <div className="flex shrink-0 flex-col gap-0.5 text-start">
-                      <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
+                    <div className="flex w-full min-w-0 shrink-0 flex-col gap-0.5 text-start">
+                      <h3 className="truncate text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
                         {memberName}
                       </h3>
-                      <p className="text-[13px] font-normal leading-[1.45] text-[var(--ink-secondary)] desktop:text-[15px]">
+                      <p className="truncate text-[13px] font-normal leading-[1.45] text-[var(--ink-secondary)] desktop:text-[15px]">
                         {memberRole}
                       </p>
                     </div>
@@ -802,7 +802,7 @@ export function AboutStage() {
             </ul>
           </article>
 
-          {/* SECTION 4: PREVIOUS MEMBERS (Exact Padding-Matched Gap, Desktop Side-by-Side Metadata & Auto-Distributed Columns) */}
+          {/* SECTION 4: PREVIOUS MEMBERS (Exact Title-Gap-to-Bottom-Padding Dual Rows Matching Section 3 Total Height, 16px Row Gap) */}
           <article
             ref={(el) => {
               sectionRefs.current[3] = el;
@@ -810,13 +810,13 @@ export function AboutStage() {
             className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-start gap-6 px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
             <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
-              <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+              <h2 className="text-[26px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
                 {dictionary.about.sectionPreviousTeam}
               </h2>
             </div>
 
-            {/* 2 Stacked Rows: Mobile Stacked Card | Desktop Side-by-Side Card + Auto-Distributed Grid Column Spacing */}
-            <ul className="grid min-h-0 w-full flex-1 grid-flow-col grid-rows-2 items-start gap-x-5 gap-y-4 pe-4 desktop:items-center desktop:justify-between desktop:gap-x-8 desktop:gap-y-6 desktop:pe-0">
+            {/* 2 Stacked Equal Rows (16px Vertical Gap) Scaling From Title Gap to Bottom Padding — Exact Total Height Parity with Section 3 */}
+            <ul className="grid min-h-0 h-full w-full flex-1 grid-flow-col grid-rows-[repeat(2,minmax(0,1fr))] items-stretch gap-x-5 gap-y-4 pe-4 desktop:justify-between desktop:gap-x-8 desktop:gap-y-4 desktop:pe-0">
               {PREVIOUS_TEAM_MEMBERS.map((member) => {
                 const memberName = getAboutLocalizedText(member.name, locale);
                 const memberRole = getAboutLocalizedText(member.role, locale);
@@ -828,23 +828,23 @@ export function AboutStage() {
                 return (
                   <li
                     key={member.id}
-                    className="group flex shrink-0 flex-col gap-2 desktop:flex-row desktop:items-center desktop:gap-4"
+                    className="group flex h-full min-h-0 shrink-0 flex-col justify-between gap-1.5 desktop:flex-row desktop:items-center desktop:justify-start desktop:gap-4"
                   >
-                    {/* Dynamic Scaled Square Portrait Preventing Card Overlap Across Both Rows */}
-                    <div className="relative aspect-square h-[clamp(72px,calc((100cqh-248px)/2),152px)] w-[clamp(72px,calc((100cqh-248px)/2),152px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(84px,calc((100cqh-264px)/2),148px)] desktop:w-[clamp(84px,calc((100cqh-264px)/2),148px)]">
+                    {/* Dynamically Scaled Square Portrait Spanning Exact Row Height With Explicit Horizontal Floor */}
+                    <div className="relative aspect-square h-[clamp(96px,calc(50cqh-118px),210px)] w-[clamp(96px,calc(50cqh-118px),210px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-full desktop:w-auto desktop:min-w-[clamp(96px,calc(50cqh-104px),260px)] desktop:self-stretch">
                       <Image
                         src={member.portrait}
                         alt={memberAlt}
                         fill
                         loading="lazy"
-                        sizes="(max-width: 768px) 152px, 148px"
+                        sizes="(max-width: 768px) 180px, 240px"
                         referrerPolicy="no-referrer"
                         className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
                       />
                     </div>
 
-                    {/* Name, Role & Tenure Date (Below Image on Mobile | Beside Image on Desktop) */}
-                    <div className="flex w-[clamp(112px,calc((100cqh-232px)/2),160px)] min-w-0 flex-col gap-0.5 text-start desktop:w-[clamp(132px,13cqw,184px)] desktop:gap-1">
+                    {/* Name, Role & Tenure Date (Below Portrait on Mobile | Vertically Centered Beside Portrait on Desktop) */}
+                    <div className="flex w-[clamp(112px,34vw,160px)] shrink-0 min-w-0 flex-col gap-0.5 text-start desktop:w-[clamp(132px,13cqw,184px)] desktop:gap-1">
                       <h3 className="truncate text-[13px] font-medium leading-[1.3] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[15px]">
                         {memberName}
                       </h3>

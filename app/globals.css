@@ -142,7 +142,7 @@
    ========================================================================== */
 html[data-ambient-mode="sustainable"],
 html.dark[data-ambient-mode="sustainable"] {
-  color-scheme: dark;
+  color-scheme: only dark;
   --bg-canvas: #1b2213;
   --bg-rail: #1b2213;
   --bg-surface-elevated: #222a19;
@@ -176,7 +176,7 @@ html.dark[data-ambient-mode="sustainable"] {
 
 html[data-ambient-mode="urban"],
 html.dark[data-ambient-mode="urban"] {
-  color-scheme: dark;
+  color-scheme: only dark;
   --bg-canvas: #241c16;
   --bg-rail: #241c16;
   --bg-surface-elevated: #2c221b;
@@ -248,7 +248,7 @@ html[data-ambient-mode] .rasman-emblem-invert {
   html {
     background-color: var(--bg-canvas);
     color: var(--ink-primary);
-    color-scheme: light;
+    color-scheme: only light;
     transition: background-color 520ms cubic-bezier(0.22, 1, 0.36, 1);
     touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;
@@ -261,7 +261,7 @@ html[data-ambient-mode] .rasman-emblem-invert {
   }
 
   html.dark {
-    color-scheme: dark;
+    color-scheme: only dark;
   }
 
   body {

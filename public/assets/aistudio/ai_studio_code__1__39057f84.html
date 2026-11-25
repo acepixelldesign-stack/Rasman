@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RASMAN — SVG Sketch Motion Loader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .loader-wrapper {
+      width: min(88vw, 440px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      direction: ltr; /* جلوگیری از به‌هم‌ریختگی در سایت‌های فارسی */
+    }
+
+    #rasman-loader {
+      width: 100%;
+      height: auto;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    #rasman-loader.ready {
+      opacity: 1;
+    }
+
+    .guide-line {
+      fill: none;
+      stroke: #1a1a1a;
+      stroke-width: 0.9;
+      stroke-linecap: round;
+      opacity: 0.78;
+    }
+
+    .main-outline {
+      fill: none;
+      stroke: #111111;
+      stroke-width: 2.85;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .accent-outline {
+      fill: none;
+      stroke: #111111;
+      stroke-width: 1.15;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.75;
+    }
+
+    .letter-outline {
+      fill: none;
+      stroke: #111111;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .hatch-stroke {
+      fill: none;
+      stroke: #161616;
+      stroke-linecap: round;
+    }
+
+    .subtitle-text {
+      font-family: 'Montserrat', 'Century Gothic', 'Futura', sans-serif;
+      font-size: 20.5px;
+      font-weight: 500;
+      fill: #111111;
+    }
+
+    .percent-text {
+      font-family: 'Montserrat', 'Segoe UI', sans-serif;
+      font-size: 13.5px;
+      font-weight: 500;
+      fill: #111111;
+      letter-spacing: 1.4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* دکمه ظریف برای اجرای مجدد جهت پیش‌نمایش */
+    .replay-btn {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: transparent;
+      border: 1px solid #d4d4d4;
+      color: #444;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .replay-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .replay-btn:hover {
+      border-color: #111;
+      color: #111;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="loader-wrapper">
+    <!-- عرض اصلی لوگو از x=114 تا x=482 است (368 واحد)؛ اسلایدر دقیقاً هم‌عرض آن تنظیم شده -->
+    <svg id="rasman-loader" viewBox="70 32 456 625" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RASMAN Architecture & Design Loading">
+      <defs>
+        <!-- کلیپ‌پس برای محدود کردن هاشورها دقیقاً به داخل خطوط لوگو -->
+        <clipPath id="clip-outer">
+          <path d="M 427 181.1 L 427 220.8 L 310 119.2 C 294 105.5 272 105.5 256 119.2 L 160 202.6 C 148 213.5 144 226 144 244 L 144 390 C 144 412 158 424 180 424 L 292 424 C 322 424 337 404 337 372 C 337 325 358 292 406 270 C 438 255 464 244 481 232 C 486 275 478 326 446 360 C 422 385 394 395 367 394 C 386 354 412 320 445 292 C 406 312 376 344 363 386 C 350 428 332 453 296 453 L 176 453 C 138 453 114 429 114 391 L 114 234 C 114 208 126 190 148 171 L 248 86.4 C 269 68 297 68 318 86.4 Z" />
+        </clipPath>
+
+        <clipPath id="clip-inner">
+          <path d="M 193 388 L 193 272 C 193 256 198 247 210 237 L 283 174 L 366 246.1 L 347 268 L 283 212.4 L 233 255.8 C 224 264 222 271 222 284 L 222 388 Z" />
+        </clipPath>
+
+        <clipPath id="clip-letters">
+          <!-- R -->
+          <path d="M 114 502 L 120 502 L 120 545 L 114 545 Z" />
+          <path d="M 120 502 L 134 502 C 145 502 150 507.5 150 515 C 150 522 145 527 136 528 L 151 545 L 143.5 545 L 128 528 L 124 528 L 124 523 L 133.5 523 C 141 523 144 519.5 144 515 C 144 510.5 141 507.5 133.5 507.5 L 120 507.5 Z" />
+          <!-- Λ -->
+          <path d="M 175 545 L 196.5 502 L 218 545 L 211.5 545 L 196.5 514 L 181.5 545 Z" />
+          <!-- S -->
+          <path d="M 274 508 C 267 501 253 501 247 507 C 242 512 243 519 250 523 C 256 526 266 527 269 532 C 271 536 266 540 260 540 C 254 540 250 537 248 534 L 244 538 C 249 544 255 546 261 546 C 271 546 277 540 276 532 C 275 524 266 521 259 519 C 252 517 249 514 251 511 C 253 507 264 506 270 512 Z" />
+          <!-- M -->
+          <path d="M 306 545 L 306 502 L 311.5 502 L 327.5 527.5 L 343.5 502 L 349 502 L 349 545 L 343.5 545 L 343.5 512.5 L 327.5 538 L 311.5 512.5 L 311.5 545 Z" />
+          <!-- Λ -->
+          <path d="M 375 545 L 396.5 502 L 418 545 L 411.5 545 L 396.5 514 L 381.5 545 Z" />
+          <!-- N -->
+          <path d="M 446 545 L 446 502 L 451.5 502 L 476.5 535.5 L 476.5 502 L 482 502 L 482 545 L 476.5 545 L 451.5 511.5 L 451.5 545 Z" />
+        </clipPath>
+
+        <!-- کلیپ‌پس انیمیشن نمایش زیرعنوان -->
+        <clipPath id="clip-subtitle">
+          <rect id="subtitle-clip-rect" x="112" y="556" width="0" height="34" />
+        </clipPath>
+      </defs>
+
+      <!-- ۱. لایه خطوط راهنمای معماری (Construction Lines) -->
+      <g id="layer-guides">
+        <!-- X بالای سقف بیرونی -->
+        <line class="guide-line" data-start="0.00" data-end="0.14" x1="234" y1="98" x2="299" y2="42" />
+        <line class="guide-line" data-start="0.02" data-end="0.16" x1="332" y1="98" x2="270" y2="44" />
+
+        <!-- گوشه بالا-چپ بیرونی -->
+        <line class="guide-line" data-start="0.04" data-end="0.18" x1="114" y1="164" x2="114" y2="245" />
+        <line class="guide-line" data-start="0.05" data-end="0.19" x1="156" y1="165" x2="86" y2="227" />
+
+        <!-- برش عمودی راست سقف بیرونی -->
+        <line class="guide-line" data-start="0.07" data-end="0.20" x1="427" y1="153" x2="427" y2="243" />
+        <line class="guide-line" data-start="0.08" data-end="0.20" x1="418" y1="173" x2="454" y2="205" />
+        <line class="guide-line" data-start="0.09" data-end="0.21" x1="419" y1="214" x2="441" y2="233" />
+
+        <!-- X نوک سقف داخلی -->
+        <line class="guide-line" data-start="0.08" data-end="0.21" x1="261" y1="154" x2="305" y2="193" />
+        <line class="guide-line" data-start="0.09" data-end="0.22" x1="305" y1="154" x2="261" y2="193" />
+        <line class="guide-line" data-start="0.10" data-end="0.22" x1="260" y1="192" x2="306" y2="232" />
+        <line class="guide-line" data-start="0.11" data-end="0.23" x1="306" y1="192" x2="260" y2="232" />
+
+        <!-- گوشه چپ و کف ستون داخلی -->
+        <line class="guide-line" data-start="0.10" data-end="0.22" x1="193" y1="227" x2="193" y2="280" />
+        <line class="guide-line" data-start="0.11" data-end="0.23" x1="212" y1="235" x2="177" y2="266" />
+        <line class="guide-line" data-start="0.12" data-end="0.24" x1="176" y1="388" x2="240" y2="388" />
+        <line class="guide-line" data-start="0.13" data-end="0.24" x1="193" y1="380" x2="193" y2="401" />
+        <line class="guide-line" data-start="0.13" data-end="0.24" x1="222" y1="380" x2="222" y2="404" />
+
+        <!-- برش مورب راست سقف داخلی -->
+        <line class="guide-line" data-start="0.12" data-end="0.24" x1="378" y1="232" x2="329" y2="281" />
+        <line class="guide-line" data-start="0.13" data-end="0.24" x1="358" y1="239" x2="382" y2="260" />
+        <line class="guide-line" data-start="0.14" data-end="0.25" x1="340" y1="262" x2="360" y2="279" />
+
+        <!-- گوشه پایین-چپ بیرونی -->
+        <line class="guide-line" data-start="0.12" data-end="0.25" x1="88" y1="453" x2="185" y2="453" />
+        <line class="guide-line" data-start="0.13" data-end="0.25" x1="114" y1="395" x2="114" y2="468" />
+        <line class="guide-line" data-start="0.14" data-end="0.26" x1="101" y1="406" x2="163" y2="468" />
+
+        <!-- گوشه پایین-راست و پایه برگ -->
+        <line class="guide-line" data-start="0.15" data-end="0.27" x1="286" y1="453" x2="372" y2="453" />
+        <line class="guide-line" data-start="0.16" data-end="0.27" x1="335" y1="406" x2="335" y2="467" />
+        <line class="guide-line" data-start="0.16" data-end="0.28" x1="286" y1="470" x2="342" y2="424" />
+        <line class="guide-line" data-start="0.17" data-end="0.28" x1="474" y1="211" x2="482" y2="245" />
+        <line class="guide-line" data-start="0.18" data-end="0.29" x1="468" y1="242" x2="486" y2="225" />
+        <line class="guide-line" data-start="0.18" data-end="0.29" x1="355" y1="393" x2="386" y2="395" />
+        <line class="guide-line" data-start="0.19" data-end="0.30" x1="373" y1="377" x2="361" y2="415" />
+      </g>
+
+      <!-- ۲. لایه هاشورها (توسط اسکریپت با دقت و ظرافت تولید می‌شود) -->
+      <g id="layer-hatch-outer" clip-path="url(#clip-outer)"></g>
+      <g id="layer-hatch-inner" clip-path="url(#clip-inner)"></g>
+
+      <!-- ۳. لایه خطوط اصلی بدنه خانه و برگ -->
+      <g id="layer-main-outlines">
+        <!-- بدنه بیرونی سقف و دیوار تا نوک برگ -->
+        <path class="main-outline" data-start="0.14" data-end="0.50"
+          d="M 427 181.1 L 318 86.4 C 297 68 269 68 248 86.4 L 148 171 C 126 190 114 208 114 234 L 114 391 C 114 429 138 453 176 453 L 296 453 C 332 453 350 428 363 386 C 376 344 406 312 445 292" />
+
+        <!-- خط داخلی بدنه بیرونی تا نوک برگ -->
+        <path class="main-outline" data-start="0.19" data-end="0.55"
+          d="M 427 181.1 L 427 220.8 L 310 119.2 C 294 105.5 272 105.5 256 119.2 L 160 202.6 C 148 213.5 144 226 144 244 L 144 390 C 144 412 158 424 180 424 L 292 424 C 322 424 337 404 337 372 C 337 325 358 292 406 270 C 438 255 464 244 481 232" />
+
+        <!-- نیمه پایینی برگ و رگبرگ مرکزی -->
+        <path class="main-outline" data-start="0.38" data-end="0.58"
+          d="M 481 232 C 486 275 478 326 446 360 C 422 385 394 395 367 394 C 386 354 412 320 445 292" />
+
+        <!-- خط ظریف دوبل اسکیسی روی لبه‌های اصلی -->
+        <path class="accent-outline" data-start="0.30" data-end="0.56"
+          d="M 426 184 L 317 89 C 296 71 270 71 249 89 L 150 173 C 129 191 117 209 117 235 L 117 390 C 117 426 140 450 176 450 L 295 450" />
+
+        <!-- خانه / ستون داخلی -->
+        <path class="main-outline" data-start="0.25" data-end="0.54"
+          d="M 193 388 L 193 272 C 193 256 198 247 210 237 L 283 174 L 366 246.1 L 347 268 L 283 212.4 L 233 255.8 C 224 264 222 271 222 284 L 222 388 Z" />
+      </g>
+
+      <!-- ۴. لایه خطوط راهنمای تایپوگرافی RASMAN -->
+      <g id="layer-text-guides">
+        <!-- R guides -->
+        <line class="guide-line" data-start="0.56" data-end="0.68" x1="98" y1="502" x2="154" y2="502" />
+        <line class="guide-line" data-start="0.57" data-end="0.69" x1="102" y1="545" x2="164" y2="545" />
+        <line class="guide-line" data-start="0.57" data-end="0.69" x1="114" y1="494" x2="114" y2="556" />
+        <!-- Λ1 guides -->
+        <line class="guide-line" data-start="0.59" data-end="0.70" x1="191" y1="513" x2="201" y2="493" />
+        <line class="guide-line" data-start="0.59" data-end="0.70" x1="192" y1="493" x2="202" y2="513" />
+        <line class="guide-line" data-start="0.60" data-end="0.70" x1="170" y1="554" x2="180" y2="536" />
+        <line class="guide-line" data-start="0.60" data-end="0.70" x1="213" y1="536" x2="222" y2="554" />
+        <!-- M guides -->
+        <line class="guide-line" data-start="0.62" data-end="0.73" x1="296" y1="502" x2="358" y2="502" />
+        <line class="guide-line" data-start="0.63" data-end="0.74" x1="296" y1="545" x2="358" y2="545" />
+        <!-- Λ2 guides -->
+        <line class="guide-line" data-start="0.65" data-end="0.76" x1="391" y1="513" x2="401" y2="493" />
+        <line class="guide-line" data-start="0.65" data-end="0.76" x1="392" y1="493" x2="402" y2="513" />
+        <!-- N guides -->
+        <line class="guide-line" data-start="0.67" data-end="0.78" x1="437" y1="502" x2="496" y2="502" />
+        <line class="guide-line" data-start="0.68" data-end="0.79" x1="437" y1="545" x2="495" y2="545" />
+        <line class="guide-line" data-start="0.68" data-end="0.79" x1="482" y1="492" x2="482" y2="556" />
+      </g>
+
+      <!-- ۵. لایه هاشور داخل حروف RASMAN -->
+      <g id="layer-hatch-letters" clip-path="url(#clip-letters)"></g>
+
+      <!-- ۶. لایه خطوط اصلی حروف RASMAN -->
+      <g id="layer-letters">
+        <!-- R -->
+        <path class="letter-outline" data-start="0.60" data-end="0.74"
+          d="M 114 502 L 120 502 L 120 545 L 114 545 Z" />
+        <path class="letter-outline" data-start="0.62" data-end="0.77"
+          d="M 120 502 L 134 502 C 145 502 150 507.5 150 515 C 150 522 145 527 136 528 L 151 545 L 143.5 545 L 128 528 L 124 528 L 124 523 L 133.5 523 C 141 523 144 519.5 144 515 C 144 510.5 141 507.5 133.5 507.5 L 120 507.5 Z" />
+        <!-- Λ -->
+        <path class="letter-outline" data-start="0.65" data-end="0.80"
+          d="M 175 545 L 196.5 502 L 218 545 L 211.5 545 L 196.5 514 L 181.5 545 Z" />
+        <!-- S -->
+        <path class="letter-outline" data-start="0.69" data-end="0.84"
+          d="M 274 508 C 267 501 253 501 247 507 C 242 512 243 519 250 523 C 256 526 266 527 269 532 C 271 536 266 540 260 540 C 254 540 250 537 248 534 L 244 538 C 249 544 255 546 261 546 C 271 546 277 540 276 532 C 275 524 266 521 259 519 C 252 517 249 514 251 511 C 253 507 264 506 270 512 Z" />
+        <!-- M -->
+        <path class="letter-outline" data-start="0.72" data-end="0.87"
+          d="M 306 545 L 306 502 L 311.5 502 L 327.5 527.5 L 343.5 502 L 349 502 L 349 545 L 343.5 545 L 343.5 512.5 L 327.5 538 L 311.5 512.5 L 311.5 545 Z" />
+        <!-- Λ -->
+        <path class="letter-outline" data-start="0.76" data-end="0.90"
+          d="M 375 545 L 396.5 502 L 418 545 L 411.5 545 L 396.5 514 L 381.5 545 Z" />
+        <!-- N -->
+        <path class="letter-outline" data-start="0.79" data-end="0.93"
+          d="M 446 545 L 446 502 L 451.5 502 L 476.5 535.5 L 476.5 502 L 482 502 L 482 545 L 476.5 545 L 451.5 511.5 L 451.5 545 Z" />
+      </g>
+
+      <!-- ۷. زیرعنوان ARCHITECTURE & DESIGN دقیقاً هم‌عرض لوگو -->
+      <g clip-path="url(#clip-subtitle)">
+        <text class="subtitle-text" x="114" y="578" textLength="368" lengthAdjust="spacing">ΛRCHITECTURE &amp; DESIGN</text>
+      </g>
+
+      <!-- ۸. اسلایدر لودینگ مشکی دقیقاً موازی و برابر عرض لوگو (x=114 تا x=482، عرض=368) -->
+      <g id="layer-progress">
+        <rect x="114" y="608" width="368" height="3.2" fill="#e6e6e6" />
+        <rect id="progress-fill" x="114" y="608" width="0" height="3.2" fill="#111111" />
+        <text id="progress-percent" class="percent-text" x="298" y="634" text-anchor="middle">0%</text>
+      </g>
+    </svg>
+  </div>
+
+  <button id="replay-btn" class="replay-btn" type="button">اجرای مجدد</button>
+
+  <script>
+    (function () {
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const svg = document.getElementById('rasman-loader');
+      const outerHatchGroup = document.getElementById('layer-hatch-outer');
+      const innerHatchGroup = document.getElementById('layer-hatch-inner');
+      const letterHatchGroup = document.getElementById('layer-hatch-letters');
+      const progressFill = document.getElementById('progress-fill');
+      const progressPercent = document.getElementById('progress-percent');
+      const subtitleClipRect = document.getElementById('subtitle-clip-rect');
+      const replayBtn = document.getElementById('replay-btn');
+
+      const BAR_MAX_WIDTH = 368; // دقیقاً برابر عرض لوگو (482 - 114)
+
+      // مولد عدد تصادفی ثابت (Seeded) برای طبیعی بودن هاشورهای دست‌کشیده
+      let seed = 4219;
+      function rand() {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      }
+
+      function addHatchLine(parent, x1, y1, x2, y2, start, end, width = 0.85, opacity = 0.82) {
+        const line = document.createElementNS(SVG_NS, 'line');
+        const j = 1.4;
+        line.setAttribute('x1', (x1 + (rand() - 0.5) * j).toFixed(1));
+        line.setAttribute('y1', (y1 + (rand() - 0.5) * j).toFixed(1));
+        line.setAttribute('x2', (x2 + (rand() - 0.5) * j).toFixed(1));
+        line.setAttribute('y2', (y2 + (rand() - 0.5) * j).toFixed(1));
+        line.setAttribute('class', 'hatch-stroke');
+        line.setAttribute('stroke-width', width.toFixed(2));
+        line.setAttribute('stroke-opacity', opacity.toFixed(2));
+        line.dataset.start = start.toFixed(3);
+        line.dataset.end = end.toFixed(3);
+        parent.appendChild(line);
+      }
+
+      function buildAllHatching() {
+        // ۱) هاشور دیواره چپ و سقف چپ بیرونی (مورب /)
+        for (let t = 0; t < 44; t++) {
+          const p = t / 44;
+          const yBase = 165 + t * 7.2;
+          const s = 0.42 + p * 0.18;
+          addHatchLine(outerHatchGroup, 108, yBase + 22, 168, yBase - 32, s, s + 0.08, 0.85, 0.82);
+        }
+        // کراس‌هچ روی شانه بالا-چپ بیرونی (مطابق طرح اصلی)
+        for (let t = 0; t < 16; t++) {
+          const yBase = 158 + t * 6.5;
+          const s = 0.48 + (t / 16) * 0.12;
+          addHatchLine(outerHatchGroup, 110, yBase - 22, 166, yBase + 26, s, s + 0.08, 0.72, 0.65);
+        }
+
+        // ۲) هاشور تاج و سقف راست بیرونی (عمودی متمایل)
+        for (let x = 155; x <= 430; x += 6.2) {
+          const p = (x - 155) / 275;
+          const tilt = x < 283 ? -12 : 11;
+          const s = 0.46 + p * 0.22;
+          addHatchLine(outerHatchGroup, x, 66, x + tilt, 232, s, s + 0.09, 0.88, 0.84);
+        }
+
+        // ۳) هاشور نوار افقی پایین
+        for (let x = 128; x <= 346; x += 6.8) {
+          const p = (x - 128) / 218;
+          const s = 0.54 + p * 0.16;
+          addHatchLine(outerHatchGroup, x - 16, 458, x + 22, 418, s, s + 0.08, 0.85, 0.82);
+        }
+        // کراس‌هچ انحنای پایین-راست به سمت ساقه برگ
+        for (let x = 290; x <= 355; x += 6.2) {
+          const p = (x - 290) / 65;
+          const s = 0.62 + p * 0.12;
+          addHatchLine(outerHatchGroup, x - 18, 412, x + 24, 458, s, s + 0.08, 0.78, 0.75);
+        }
+
+        // ۴) هاشور برگ (قسمت بالا و ساقه: کراس‌هچ چپ + خطوط نرم سمت نوک)
+        for (let y = 295; y <= 415; y += 6.5) {
+          const p = (y - 295) / 120;
+          const s = 0.64 + p * 0.14;
+          addHatchLine(outerHatchGroup, 330, y + 18, 392, y - 28, s, s + 0.08, 0.8, 0.78);
+          addHatchLine(outerHatchGroup, 330, y - 16, 390, y + 20, s + 0.04, s + 0.12, 0.72, 0.68);
+        }
+        // هاشور ظریف رگبرگ‌های بالایی برگ
+        for (let x = 390; x <= 476; x += 11) {
+          const p = (x - 390) / 86;
+          const s = 0.68 + p * 0.12;
+          addHatchLine(outerHatchGroup, x, 240, x - 18, 305, s, s + 0.08, 0.75, 0.65);
+        }
+        // هاشور قسمت پایینی برگ (عمودی و کراس‌هچ در شکم برگ)
+        for (let x = 368; x <= 480; x += 6.2) {
+          const p = (x - 368) / 112;
+          const s = 0.70 + p * 0.14;
+          addHatchLine(outerHatchGroup, x + 4, 332, x - 5, 400, s, s + 0.08, 0.82, 0.80);
+        }
+        for (let y = 342; y <= 394; y += 6.2) {
+          const p = (y - 342) / 52;
+          const s = 0.73 + p * 0.12;
+          addHatchLine(outerHatchGroup, 362, y, 458, y - 6, s, s + 0.08, 0.72, 0.68);
+        }
+        // رگبرگ‌های افقی ملایم بخش میانی-راست برگ
+        for (let y = 278; y <= 338; y += 14) {
+          const p = (y - 278) / 60;
+          const s = 0.74 + p * 0.10;
+          addHatchLine(outerHatchGroup, 412, y, 480, y - 10, s, s + 0.08, 0.7, 0.58);
+        }
+
+        // ۵) هاشور خانه داخلی (ستون چپ: کراس‌هچ متراکم)
+        for (let y = 248; y <= 392; y += 6.2) {
+          const p = (y - 248) / 144;
+          const s = 0.50 + p * 0.18;
+          addHatchLine(innerHatchGroup, 188, y + 18, 228, y - 18, s, s + 0.08, 0.85, 0.85);
+          addHatchLine(innerHatchGroup, 188, y - 18, 228, y + 18, s + 0.03, s + 0.11, 0.82, 0.82);
+        }
+        // سقف چپ داخلی (هاشورهای عمودی)
+        for (let x = 218; x <= 284; x += 6.8) {
+          const p = (x - 218) / 66;
+          const s = 0.54 + p * 0.12;
+          addHatchLine(innerHatchGroup, x, 170, x - 4, 260, s, s + 0.08, 0.82, 0.78);
+        }
+        // سقف راست داخلی (کراس‌هچ متراکم)
+        for (let x = 282; x <= 368; x += 6.2) {
+          const p = (x - 282) / 86;
+          const s = 0.58 + p * 0.15;
+          addHatchLine(innerHatchGroup, x - 16, 180, x + 22, 272, s, s + 0.08, 0.82, 0.82);
+          addHatchLine(innerHatchGroup, x + 20, 180, x - 20, 272, s + 0.03, s + 0.11, 0.80, 0.80);
+        }
+
+        // ۶) هاشور داخل حروف RASMAN
+        for (let x = 112; x <= 488; x += 4.6) {
+          const p = (x - 112) / 376;
+          const s = 0.72 + p * 0.18;
+          addHatchLine(letterHatchGroup, x - 10, 548, x + 12, 500, s, s + 0.08, 0.78, 0.75);
+        }
+      }
+
+      buildAllHatching();
+
+      // آماده‌سازی تمام مسیرها و خطوط برای انیمیشن stroke-dashoffset
+      const drawables = [];
+      svg.querySelectorAll('[data-start]').forEach((el) => {
+        const length = el.getTotalLength();
+        el.style.strokeDasharray = length;
+        el.style.strokeDashoffset = length;
+        drawables.push({
+          el,
+          length,
+          start: parseFloat(el.dataset.start),
+          end: parseFloat(el.dataset.end),
+        });
+      });
+
+      function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+      }
+
+      function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+      }
+
+      // تابع اصلی کنترل پیشرفت (عدد بین 0 تا 1)
+      function renderProgress(progress) {
+        const p = clamp(progress, 0, 1);
+
+        // ۱. به‌روزرسانی خطوط اسکیس
+        for (let i = 0; i < drawables.length; i++) {
+          const item = drawables[i];
+          const local = clamp((p - item.start) / (item.end - item.start), 0, 1);
+          item.el.style.strokeDashoffset = item.length * (1 - easeOutCubic(local));
+        }
+
+        // ۲. نمایش نرم زیرعنوان در فاز پایانی (82% تا 100%)
+        const subLocal = clamp((p - 0.82) / 0.18, 0, 1);
+        subtitleClipRect.setAttribute('width', (376 * easeOutCubic(subLocal)).toFixed(2));
+
+        // ۳. پر شدن اسلایدر مشکی هم‌عرض لوگو + درصد زیر آن
+        progressFill.setAttribute('width', (BAR_MAX_WIDTH * p).toFixed(2));
+        progressPercent.textContent = Math.round(p * 100) + '%';
+      }
+
+      // اجرای خودکار دمو با منحنی سرعت طبیعی
+      let animFrameId = null;
+      function runAutoLoader(durationMs = 4200) {
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        replayBtn.classList.remove('visible');
+        renderProgress(0);
+        svg.classList.add('ready');
+
+        const startTime = performance.now();
+        function step(now) {
+          const raw = clamp((now - startTime) / durationMs, 0, 1);
+          // منحنی نرم (Ease-in-out) برای حس طبیعی لودینگ
+          const eased = raw < 0.5
+            ? 2 * raw * raw
+            : 1 - Math.pow(-2 * raw + 2, 2) / 2;
+
+          renderProgress(eased);
+
+          if (raw < 1) {
+            animFrameId = requestAnimationFrame(step);
+          } else {
+            renderProgress(1);
+            replayBtn.classList.add('visible');
+          }
+        }
+        animFrameId = requestAnimationFrame(step);
+      }
+
+      // API عمومی برای اتصال به درصد لود واقعی وب‌سایت (عدد 0 تا 100)
+      window.setRasmanLoaderProgress = function (percent) {
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        svg.classList.add('ready');
+        renderProgress(percent / 100);
+      };
+
+      replayBtn.addEventListener('click', () => runAutoLoader(4200));
+
+      // شروع لودینگ
+      runAutoLoader(4200);
+    })();
+  </script>
+</body>
+</html>

@@ -42,7 +42,8 @@ export const metadata: Metadata = {
     title: SITE_CONFIG.metadata.title,
   },
   other: {
-    'color-scheme': 'light dark',
+    'color-scheme': 'only light',
+    'darkreader-lock': 'true',
   },
   openGraph: {
     title: SITE_CONFIG.metadata.title,

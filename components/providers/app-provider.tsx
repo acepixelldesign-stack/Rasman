@@ -25,6 +25,7 @@ import { MOTION_TRANSITIONS } from '@/lib/motion/system';
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
 import { SmoothScrollProvider } from '@/components/providers/smooth-scroll-provider';
 import { PersistentShell } from '@/components/frame/persistent-shell';
+import { RasmanEntryLoader } from '@/components/motion/rasman-entry-loader';
 import {
   getScrollLockClientSnapshot,
   getScrollLockServerSnapshot,
@@ -335,25 +336,43 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     root.dir = dir;
   }, [locale, dir]);
 
-  // Sync full-viewport Projects ambient mode & cross-browser toolbar color (Safari, Chrome, Edge, Firefox, Samsung)
+  // Sync full-viewport Projects ambient mode, OS-immune color-scheme, & cross-browser toolbar/status bar color
   useEffect(() => {
     const root = document.documentElement;
+    const isDarkSurface = Boolean(ambientMode) || theme === 'dark';
+    const lockedColorScheme = isDarkSurface ? 'only dark' : 'only light';
+
     if (ambientMode) {
       root.dataset.ambientMode = ambientMode;
-      root.style.colorScheme = 'dark';
     } else {
       delete root.dataset.ambientMode;
-      root.style.colorScheme = theme;
     }
+
+    // Explicitly lock color-scheme so no OS dark mode or browser force-dark alters site colors
+    root.style.colorScheme = lockedColorScheme;
 
     const paletteKey = ambientMode ?? 'default';
     const targetColor = SITE_CONFIG.themeColors[paletteKey][theme];
     const head = document.head;
     if (!head) return;
 
-    // Never detach React/Next-managed <meta> nodes (causes React 19 removeChild crashes on navigation).
-    // Update any non-managed theme-color tags strictly in-place, and replace only our own managed tag
-    // so Safari 15–18 and Chromium browsers repaint the browser chrome immediately.
+    // Keep meta[name="color-scheme"] synchronized in-place (never detach React-owned head tags)
+    const existingColorSchemeMetas = head.querySelectorAll<HTMLMetaElement>(
+      'meta[name="color-scheme"]'
+    );
+    if (existingColorSchemeMetas.length > 0) {
+      existingColorSchemeMetas.forEach((tag) => {
+        tag.setAttribute('content', lockedColorScheme);
+      });
+    } else {
+      const colorSchemeMeta = document.createElement('meta');
+      colorSchemeMeta.name = 'color-scheme';
+      colorSchemeMeta.content = lockedColorScheme;
+      colorSchemeMeta.dataset.rasmanManaged = 'true';
+      head.appendChild(colorSchemeMeta);
+    }
+
+    // Update any non-managed theme-color tags in-place (never call remove on React-managed nodes)
     head
       .querySelectorAll<HTMLMetaElement>(
         'meta[name="theme-color"]:not([data-rasman-managed="true"])'
@@ -362,18 +381,34 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
         tag.setAttribute('content', targetColor);
       });
 
-    const existingManagedTheme = head.querySelector<HTMLMetaElement>(
-      'meta[name="theme-color"][data-rasman-managed="true"]'
-    );
-    if (existingManagedTheme && existingManagedTheme.parentNode === head) {
-      head.removeChild(existingManagedTheme);
-    }
+    // Replace only our own managed theme-color tags (covering BOTH OS light & OS dark media queries + unscoped)
+    // so Safari, Chrome, Edge, Firefox, and Samsung Internet ALWAYS apply the exact Projects color in every OS theme.
+    head
+      .querySelectorAll<HTMLMetaElement>(
+        'meta[name="theme-color"][data-rasman-managed="true"]'
+      )
+      .forEach((tag) => {
+        if (tag.parentNode === head) {
+          head.removeChild(tag);
+        }
+      });
 
-    const themeColorMeta = document.createElement('meta');
-    themeColorMeta.name = 'theme-color';
-    themeColorMeta.content = targetColor;
-    themeColorMeta.dataset.rasmanManaged = 'true';
-    head.appendChild(themeColorMeta);
+    const themeMetaSpecs: readonly { readonly media?: string }[] = [
+      { media: '(prefers-color-scheme: light)' },
+      { media: '(prefers-color-scheme: dark)' },
+      {},
+    ];
+
+    themeMetaSpecs.forEach((spec) => {
+      const meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      if (spec.media) {
+        meta.media = spec.media;
+      }
+      meta.content = targetColor;
+      meta.dataset.rasmanManaged = 'true';
+      head.appendChild(meta);
+    });
 
     let msNavMeta = head.querySelector<HTMLMetaElement>(
       'meta[name="msapplication-navbutton-color"][data-rasman-managed="true"]'
@@ -385,6 +420,18 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
       head.appendChild(msNavMeta);
     }
     msNavMeta.content = targetColor;
+
+    // Keep Apple iOS status bar readable in both light and dark/ambient surfaces
+    head
+      .querySelectorAll<HTMLMetaElement>(
+        'meta[name="apple-mobile-web-app-status-bar-style"]'
+      )
+      .forEach((tag) => {
+        tag.setAttribute(
+          'content',
+          isDarkSurface ? 'black-translucent' : 'default'
+        );
+      });
   }, [ambientMode, theme]);
 
   // Content copy & image drag protection (while preserving copy/paste inside form inputs)
@@ -518,6 +565,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
   return (
     <AppContext.Provider value={contextValue}>
       <MotionConfig reducedMotion="user" transition={MOTION_TRANSITIONS.base}>
+        <RasmanEntryLoader />
         <SmoothScrollProvider isPaused={isStartProjectOpen || isScrollLocked}>
           <PersistentShell>{children}</PersistentShell>
         </SmoothScrollProvider>
@@ -542,7 +590,7 @@ export function AppProvider({ children }: { readonly children: ReactNode }) {
       defaultTheme={SITE_CONFIG.defaultTheme}
       themes={['light', 'dark']}
       enableSystem={false}
-      enableColorScheme={true}
+      enableColorScheme={false}
       storageKey={SITE_CONFIG.storageKeys.theme}
     >
       <AppProviderInner>{children}</AppProviderInner>

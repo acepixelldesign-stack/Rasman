@@ -25,7 +25,7 @@ interface NavigationDrawerProps {
   readonly onNavigate: () => void;
 }
 
-const MENU_EMBLEM_SRC = '/assets/rasman-menu-emblem.png';
+const MENU_EMBLEM_SRC = '/assets/rasman-sketch-emblem.png';
 
 /**
  * Minimalist architectural navigation overlay framed cleanly inside the 4-sided grid:
@@ -88,37 +88,37 @@ export function NavigationDrawer({
             'bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
           )}
         >
-          {/* Scrollable Split Body: Mobile (Larger Emblem Top with 8px Top Padding -> Divided Menu Items) | Desktop (Divided Menu Start -> Full-Height Emblem End) */}
+          {/* Scrollable Split Body: Mobile (24px Top/Bottom Padding + Sketch Emblem -> Divided Menu with Top Divider Above Home) | Desktop (Divided Menu Start -> Full-Height Emblem End) */}
           <div
             data-scroll-lock-allow=""
-            className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-2 pb-4 desktop:px-10 desktop:py-8"
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 desktop:px-10 desktop:py-8"
           >
             <div className="flex w-full flex-col desktop:my-auto desktop:flex-row desktop:items-stretch desktop:justify-between desktop:gap-12">
-              {/* Rasman Architectural Line-Art Emblem (True Transparent Alpha — Pure Black in Light, Inverted White in Dark) */}
+              {/* Rasman Architectural Hand-Sketch Emblem (True Transparent Alpha — Pure Black in Light, Inverted White in Dark/Ambient) */}
               <motion.div
                 variants={MOTION_VARIANTS.mediaReveal}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="order-1 flex shrink-0 items-center justify-center pb-3 desktop:order-2 desktop:relative desktop:flex-1 desktop:pb-0"
+                className="order-1 flex shrink-0 items-center justify-center pb-6 desktop:order-2 desktop:relative desktop:flex-1 desktop:pb-0"
               >
-                <div className="relative h-[136px] aspect-[534/647] sm:h-[156px] desktop:absolute desktop:inset-0 desktop:aspect-auto desktop:h-full desktop:w-full">
+                <div className="relative h-[144px] aspect-[949/1024] sm:h-[164px] desktop:absolute desktop:inset-0 desktop:aspect-auto desktop:h-full desktop:w-full">
                   <Image
                     src={MENU_EMBLEM_SRC}
                     alt={dictionary.brand.logotype}
                     fill
                     priority
-                    sizes="(max-width: 768px) 156px, 560px"
+                    sizes="(max-width: 768px) 164px, 560px"
                     referrerPolicy="no-referrer"
                     className="rasman-emblem-invert object-contain object-center select-none dark:invert"
                   />
                 </div>
               </motion.div>
 
-              {/* Divided Navigation Links — Hairline dividers strictly between top-level items */}
+              {/* Divided Navigation Links — Top divider above Home on mobile, strictly between items on desktop */}
               <motion.ul
                 variants={MENU_LIST_VARIANTS}
-                className="order-2 flex w-full flex-col divide-y divide-[var(--grid-line)] desktop:order-1 desktop:max-w-[560px] desktop:flex-1"
+                className="order-2 flex w-full flex-col divide-y divide-[var(--grid-line)] border-t border-[var(--grid-line)] desktop:order-1 desktop:max-w-[560px] desktop:flex-1 desktop:border-t-0"
               >
                 {SITE_CONFIG.navigation.map((item) => {
                   const hasChildren = Boolean(
@@ -130,7 +130,7 @@ export function NavigationDrawer({
                     <motion.li
                       key={item.id}
                       variants={itemVariants}
-                      className="w-full py-2.5 first:pt-0 last:pb-0 desktop:py-3.5 desktop:first:pt-0 desktop:last:pb-0"
+                      className="w-full py-2.5 last:pb-0 desktop:py-3.5 desktop:first:pt-0 desktop:last:pb-0"
                     >
                       {hasChildren && item.children ? (
                         <div className="flex flex-col items-start">
@@ -239,7 +239,7 @@ export function NavigationDrawer({
               y: 6,
               transition: { duration: 0.18, ease: MOTION_EASE.exit },
             }}
-            className="shrink-0 px-4 pt-3 pb-4 desktop:hidden"
+            className="shrink-0 px-4 pt-3 pb-6 desktop:hidden"
           >
             {userProfile ? (
               <Link
