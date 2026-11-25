@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   MdArrowBack,
@@ -28,6 +28,7 @@ import { BlogCategoryIcon } from '@/components/blog/blog-category-icon';
 import { useStickySubBar } from '@/components/frame/sticky-sub-bar-context';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
+import { useSwipeUpDismiss } from '@/hooks/use-swipe-up-dismiss';
 import { cn } from '@/lib/utils';
 
 const POSTS_PER_PAGE = 10;
@@ -87,7 +88,18 @@ export function BlogStage() {
   const feedTopRef = useRef<HTMLDivElement>(null);
 
   useArchitecturalEntrance(stageRef, { isRtl });
+  const mobileSheetRef = useRef<HTMLDivElement>(null);
+  const closeMobileCategories = useCallback(
+    () => setIsMobileCategoriesOpen(false),
+    []
+  );
+
   useBodyScrollLock(isMobileCategoriesOpen);
+  useSwipeUpDismiss(
+    mobileSheetRef,
+    isMobileCategoriesOpen,
+    closeMobileCategories
+  );
 
   const mobileCategoryItemVariants = useMemo(
     () => createMenuItemVariants(isRtl),
@@ -184,7 +196,7 @@ export function BlogStage() {
             : dictionary.blog.openCategoriesAriaLabel
         }
         className={cn(
-          'flex h-12 w-full shrink-0 cursor-pointer items-center justify-between gap-3 px-4 text-start',
+          'flex h-[var(--grid-subbar)] w-full shrink-0 cursor-pointer items-center justify-between gap-3 px-4 text-start',
           'text-[15px] font-normal text-[var(--ink-primary)]'
         )}
       >
@@ -211,6 +223,7 @@ export function BlogStage() {
       <AnimatePresence initial={false}>
         {isMobileCategoriesOpen && (
           <motion.div
+            ref={mobileSheetRef}
             id={mobileCategoriesPanelId}
             variants={MOTION_VARIANTS.sheetFull}
             initial="hidden"
@@ -272,6 +285,15 @@ export function BlogStage() {
                 </motion.ul>
               </SmoothVerticalPane>
             </div>
+
+            {/* Mobile Drag-Up Handle to Dismiss Category Sheet */}
+            <div
+              data-swipe-handle=""
+              aria-hidden="true"
+              className="flex h-6 w-full shrink-0 items-center justify-center pb-1 desktop:hidden"
+            >
+              <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -282,7 +304,7 @@ export function BlogStage() {
     <section
       ref={stageRef}
       aria-label={dictionary.blog.regionAriaLabel}
-      className="relative flex min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col pt-12 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] desktop:flex-row desktop:overflow-hidden desktop:pt-0"
+      className="relative flex min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col pt-[var(--grid-subbar)] desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] desktop:flex-row desktop:overflow-hidden desktop:pt-0"
     >
       {/* Desktop Docked Start Category Sidebar (Stationary Across Route Transitions) */}
       <div className="hidden w-[264px] shrink-0 border-e border-[var(--grid-line)] desktop:block desktop-wide:w-[304px]">

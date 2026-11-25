@@ -91,7 +91,6 @@ export const SITE_CONFIG = {
   },
   navigation: [
     { id: 'home', href: '/' },
-    { id: 'sustainableArchitecture', href: '/projects?mode=sustainable' },
     {
       id: 'projects',
       children: [
@@ -99,8 +98,8 @@ export const SITE_CONFIG = {
         { id: 'sustainableProjects', href: '/projects?mode=sustainable' },
       ],
     },
-    { id: 'magazine', href: '/magazine' },
     { id: 'podcast', href: '/podcast' },
+    { id: 'magazine', href: '/magazine' },
     { id: 'team', href: '/about' },
     { id: 'contact', href: '/contact' },
   ] as readonly NavItemConfig[],

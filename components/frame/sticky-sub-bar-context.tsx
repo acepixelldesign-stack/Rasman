@@ -243,7 +243,7 @@ export function StickySubBarHost() {
           ref={hostRef}
           aria-label={bar.ariaLabel}
           initial={
-            prefersReducedMotion ? { opacity: 0 } : { y: -48, opacity: 0 }
+            prefersReducedMotion ? { opacity: 0 } : { y: -56, opacity: 0 }
           }
           animate={{
             y: 0,
@@ -256,7 +256,7 @@ export function StickySubBarHost() {
             prefersReducedMotion
               ? { opacity: 0, transition: { duration: 0.01 } }
               : {
-                  y: -48,
+                  y: -56,
                   opacity: 0,
                   transition: { duration: 0.36, ease: MOTION_EASE.calm },
                 }
@@ -267,8 +267,8 @@ export function StickySubBarHost() {
             !bar.hideBottomChrome && 'border-b border-[var(--grid-line)]'
           )}
         >
-          {/* Clipped 48px Horizontal Stage for Smooth Right<->Left Content Swaps */}
-          <div className="relative h-12 w-full overflow-hidden">
+          {/* Clipped Horizontal Stage (48px Mobile / 56px Desktop) for Smooth Right<->Left Content Swaps */}
+          <div className="relative h-[var(--grid-subbar)] w-full overflow-hidden">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={bar.id}
@@ -287,7 +287,7 @@ export function StickySubBarHost() {
                     ? { duration: 0.01 }
                     : { duration: 0.24, ease: MOTION_EASE.exit },
                 }}
-                className="flex h-12 w-full items-stretch"
+                className="flex h-[var(--grid-subbar)] w-full items-stretch"
               >
                 {bar.content}
               </motion.div>

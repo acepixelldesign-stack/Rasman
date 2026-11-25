@@ -54,54 +54,61 @@ export function ArchitecturalHeader({
 
       <div
         className={cn(
-          'flex h-full w-full items-center justify-between gap-2',
-          'ps-[calc(var(--grid-rail)+12px)] pe-[calc(var(--grid-rail)+12px)]',
-          'desktop:ps-[calc(var(--grid-rail)+16px)] desktop:pe-[calc(var(--grid-rail)+16px)]'
+          'flex h-full w-full items-stretch justify-between',
+          'ps-[var(--grid-rail)] pe-[var(--grid-rail)]'
         )}
       >
-        {/* Logical Start Zone: Thicker 2-Line Hamburger + Formal English SVG Logotype */}
-        <div className="flex items-center gap-2 desktop:gap-3">
+        {/* Logical Start Zone: Clean Hamburger Button + Short Hairline Divider (Matching Projects Bar) + RASMAN Wordmark */}
+        <div className="flex h-full items-center">
           <button
             type="button"
             onClick={onToggleMenu}
             aria-expanded={isMenuOpen}
             aria-controls={menuId}
             aria-label={menuAriaLabel}
-            className="group inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full"
+            className={cn(
+              'group inline-flex h-full shrink-0 cursor-pointer items-center justify-center',
+              'ps-4 pe-3 desktop:ps-5 desktop:pe-4'
+            )}
           >
-            <span className="flex w-[22px] flex-col items-start justify-center gap-[5px]">
-              {/* Thicker short top bar aligned to logical start */}
+            <span className="flex w-[20px] flex-col items-start justify-center gap-[5px]">
+              {/* Short top bar aligned to logical start */}
               <motion.span
                 aria-hidden="true"
                 initial={false}
                 animate={{
-                  width: isMenuOpen ? 20 : 12,
-                  y: isMenuOpen ? 3.75 : 0,
+                  width: isMenuOpen ? 18 : 11,
+                  y: isMenuOpen ? 3.5 : 0,
                   rotate: isMenuOpen ? 45 : 0,
                 }}
                 transition={MOTION_TRANSITIONS.base}
-                className="block h-[2.5px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
+                className="block h-[2px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
               />
-              {/* Thicker long bottom bar */}
+              {/* Long bottom bar */}
               <motion.span
                 aria-hidden="true"
                 initial={false}
                 animate={{
-                  width: isMenuOpen ? 20 : 22,
-                  y: isMenuOpen ? -3.75 : 0,
+                  width: isMenuOpen ? 18 : 20,
+                  y: isMenuOpen ? -3.5 : 0,
                   rotate: isMenuOpen ? -45 : 0,
                 }}
                 transition={MOTION_TRANSITIONS.base}
-                className="block h-[2.5px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
+                className="block h-[2px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
               />
             </span>
           </button>
+
+          <span
+            aria-hidden="true"
+            className="h-4 w-px shrink-0 bg-[var(--grid-line)]"
+          />
 
           <a
             href="#main-canvas"
             aria-label={dictionary.brand.homeAriaLabel}
             className={cn(
-              'inline-flex items-center select-none text-[var(--ink-primary)]',
+              'inline-flex h-full items-center ps-3.5 pe-3 select-none text-[var(--ink-primary)] desktop:ps-4',
               'transition-opacity duration-200 hover:opacity-75'
             )}
           >
@@ -109,17 +116,21 @@ export function ArchitecturalHeader({
           </a>
         </div>
 
-        {/* Logical End Zone: Optically Equal Gaps Between Language, Dark/Light, and Start Project */}
-        <div className="flex items-center gap-4">
-          <LanguageSwitcher />
-          <ThemeToggle />
+        {/* Logical End Zone: Square Language Cell + Square Theme Cell + Flush Full-Height Start Project CTA */}
+        <div className="flex h-full items-stretch">
+          <div className="flex h-full w-[var(--grid-header)] shrink-0 items-center justify-center border-s border-[var(--grid-line)]">
+            <LanguageSwitcher />
+          </div>
+          <div className="flex h-full w-[var(--grid-header)] shrink-0 items-center justify-center border-s border-[var(--grid-line)]">
+            <ThemeToggle />
+          </div>
           {userProfile ? (
             <Link
               href={SITE_CONFIG.routes.panel}
               className={cn(
-                'hidden desktop:inline-flex h-9 shrink-0 items-center justify-center rounded-full px-5',
-                'bg-[var(--brand-primary)] text-[12px] font-medium leading-none whitespace-nowrap text-[var(--brand-ink-on-primary)]',
-                'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)] active:bg-[var(--brand-primary-active)]'
+                'hidden desktop:inline-flex h-full shrink-0 items-center justify-center rounded-none border-s border-[var(--grid-line)] px-6',
+                'bg-[var(--btn-start-bg)] text-[12px] font-medium leading-none whitespace-nowrap text-[var(--btn-start-ink)]',
+                'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
               )}
             >
               {dictionary.header.userPanelLabel}
@@ -129,9 +140,9 @@ export function ArchitecturalHeader({
               type="button"
               onClick={openStartProjectModal}
               className={cn(
-                'hidden desktop:inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-full px-5',
-                'bg-[var(--brand-primary)] text-[12px] font-medium leading-none whitespace-nowrap text-[var(--brand-ink-on-primary)]',
-                'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)] active:bg-[var(--brand-primary-active)]'
+                'hidden desktop:inline-flex h-full shrink-0 cursor-pointer items-center justify-center rounded-none border-s border-[var(--grid-line)] px-6',
+                'bg-[var(--btn-start-bg)] text-[12px] font-medium leading-none whitespace-nowrap text-[var(--btn-start-ink)]',
+                'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
               )}
             >
               {dictionary.header.startProjectLabel}

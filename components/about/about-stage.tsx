@@ -521,9 +521,9 @@ export function AboutStage() {
     content: (
       <nav
         aria-label={dictionary.about.chapterNavAriaLabel}
-        className="flex h-12 w-full items-stretch"
+        className="flex h-[var(--grid-subbar)] w-full items-stretch"
       >
-        {/* 4 Segmented Step Cells: Square 48px Inactive Cells | Stretched Active Step Container */}
+        {/* 4 Segmented Step Cells: Square Inactive Cells (48px Mobile / 56px Desktop) | Stretched Active Step Container */}
         <div className="flex h-full min-w-0 flex-1 items-stretch">
           {chapters.map((chapter, index) => {
             const isActive = index === activeIndex;
@@ -537,10 +537,10 @@ export function AboutStage() {
                 style={{
                   flexGrow: isActive ? 1 : 0,
                   flexShrink: isActive ? 1 : 0,
-                  flexBasis: '48px',
+                  flexBasis: 'var(--grid-subbar)',
                 }}
                 className={cn(
-                  'relative flex h-full min-w-[48px] cursor-pointer items-center overflow-hidden border-e border-[var(--grid-line)]',
+                  'relative flex h-full min-w-[var(--grid-subbar)] cursor-pointer items-center overflow-hidden border-e border-[var(--grid-line)]',
                   'transition-[flex-grow,background-color,color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
                   isActive
                     ? 'justify-start gap-2.5 bg-transparent px-3.5 text-start text-[var(--ink-primary)] desktop:px-5'
@@ -579,10 +579,10 @@ export function AboutStage() {
           })}
         </div>
 
-        {/* Square Percentage Cell (48px x full height) at Logical End */}
+        {/* Square Percentage Cell (48px Mobile / 56px Desktop) at Logical End */}
         <div
           aria-live="polite"
-          className="flex h-full w-12 shrink-0 items-center justify-center"
+          className="flex h-full w-[var(--grid-subbar)] shrink-0 items-center justify-center"
         >
           <span
             dir="ltr"
@@ -600,7 +600,7 @@ export function AboutStage() {
       ref={stageRef}
       data-smooth-prevent=""
       aria-label={dictionary.about.regionAriaLabel}
-      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)] pt-12 touch-none overscroll-none"
+      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-[var(--bg-canvas)] pt-[var(--grid-subbar)] touch-none overscroll-none"
     >
 
       {/* Container-Queried Stage Viewport Below the 48px Progress Bar (Exact 100cqw / 100cqh) */}

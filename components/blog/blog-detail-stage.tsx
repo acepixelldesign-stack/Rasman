@@ -307,13 +307,13 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
           depth: 2,
           mobileOnly: false,
           content: (
-            <div className="flex h-12 w-full items-center justify-between gap-2">
+            <div className="flex h-[var(--grid-subbar)] w-full items-center justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center">
                 <Link
                   href="/magazine"
                   onClick={() => setNextStickyBarDirection('back')}
                   aria-label={dictionary.blog.backToMagazine}
-                  className="inline-flex h-12 shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+                  className="inline-flex h-[var(--grid-subbar)] shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
                 >
                   <MdArrowBack
                     size={18}
@@ -349,7 +349,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
                     : dictionary.blog.shareStoryLabel
                 }
                 className={cn(
-                  'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
+                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-subbar)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
                   copied
                     ? 'text-[var(--brand-text-hover)]'
                     : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
@@ -415,7 +415,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
     <article
       ref={articleRef}
       aria-label={title}
-      className="relative grid min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full grid-cols-1 bg-[var(--bg-canvas)] pt-12 desktop:grid-cols-[320px_minmax(0,1fr)] desktop:grid-rows-[auto_1fr] desktop-wide:grid-cols-[384px_minmax(0,1fr)]"
+      className="relative grid min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full grid-cols-1 bg-[var(--bg-canvas)] pt-[var(--grid-subbar)] desktop:grid-cols-[320px_minmax(0,1fr)] desktop:grid-rows-[auto_1fr] desktop-wide:grid-cols-[384px_minmax(0,1fr)]"
     >
       {/* 1. Article Header (Mobile: First | Desktop: End Column Row 1) */}
       <header className="order-1 flex w-full flex-col px-4 pt-6 pb-6 desktop:col-start-2 desktop:row-start-1 desktop:px-12 desktop:pt-10 desktop:pb-0">
@@ -466,7 +466,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
       {/* 2. Clean Captionless Square Cover Photo + Author Profile + Socials (Mobile: Second | Desktop: Sticky Start Column with 24px Padding) */}
       <aside
         data-smooth-prevent-desktop=""
-        className="order-2 flex w-full flex-col gap-5 border-y border-[var(--grid-line)] px-4 py-6 desktop:sticky desktop:top-[calc(var(--grid-header)+48px)] desktop:col-start-1 desktop:row-span-2 desktop:row-start-1 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom)-48px)] desktop:overflow-y-auto desktop:border-y-0 desktop:border-e desktop:p-6"
+        className="order-2 flex w-full flex-col gap-5 border-y border-[var(--grid-line)] px-4 py-6 desktop:sticky desktop:top-[calc(var(--grid-header)+var(--grid-subbar))] desktop:col-start-1 desktop:row-span-2 desktop:row-start-1 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom)-var(--grid-subbar))] desktop:overflow-y-auto desktop:border-y-0 desktop:border-e desktop:p-6"
       >
         {/* Square Cover Photography (Clean, zero overlay text) */}
         <figure

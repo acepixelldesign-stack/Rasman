@@ -110,14 +110,14 @@ export const MOTION_VARIANTS = {
     },
   } satisfies Variants,
 
-  /** Full remaining viewport height sheet below header + 48px floating bar */
+  /** Full remaining viewport height sheet below header + floating sticky bar */
   sheetFull: {
     hidden: {
       height: 0,
       opacity: 0,
     },
     visible: {
-      height: 'calc(100dvh - var(--grid-header) - var(--grid-bottom) - 48px)',
+      height: 'calc(100dvh - var(--grid-header) - var(--grid-bottom) - var(--grid-subbar))',
       opacity: 1,
       transition: {
         height: { duration: MOTION_DURATION.base, ease: MOTION_EASE.silk },

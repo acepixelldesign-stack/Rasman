@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Globe } from 'lucide-react';
@@ -12,6 +12,7 @@ import {
 } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
+import { useSwipeUpDismiss } from '@/hooks/use-swipe-up-dismiss';
 import { cn } from '@/lib/utils';
 
 /**
@@ -30,7 +31,10 @@ export function LanguageSwitcher() {
   const drawerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
+  const closeMenu = useCallback(() => setIsOpen(false), []);
+
   useBodyScrollLock(isOpen);
+  useSwipeUpDismiss(drawerRef, isOpen, closeMenu);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -146,6 +150,15 @@ export function LanguageSwitcher() {
             </ul>
           </div>
 
+          {/* Mobile Drag-Up Handle */}
+          <div
+            data-swipe-handle=""
+            aria-hidden="true"
+            className="flex h-5 w-full shrink-0 items-center justify-center desktop:hidden"
+          >
+            <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
+          </div>
+
           {/* Bottom Left & Right Frame Rail Intersection '+' Crosshairs */}
           <span
             aria-hidden="true"
@@ -167,7 +180,7 @@ export function LanguageSwitcher() {
   );
 
   return (
-    <div className="relative flex items-center">
+    <div className="relative flex h-full w-full items-center justify-center">
       <button
         ref={triggerRef}
         type="button"
@@ -180,8 +193,8 @@ export function LanguageSwitcher() {
           setIsOpen((prev) => !prev);
         }}
         className={cn(
-          'inline-flex h-8 w-6 cursor-pointer items-center justify-center rounded-full',
-          'transition-colors duration-200 hover:text-[var(--brand-text-hover)]',
+          'inline-flex h-full w-full cursor-pointer items-center justify-center rounded-none',
+          'transition-colors duration-200 hover:bg-[var(--surface-hover)] hover:text-[var(--brand-text-hover)]',
           isOpen
             ? 'text-[var(--brand-text-hover)]'
             : 'text-[var(--ink-primary)]'

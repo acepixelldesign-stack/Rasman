@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: SITE_CONFIG.metadata.title,
   },
   other: {
@@ -81,7 +81,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <meta name="apple-touch-fullscreen" content="yes" />
         {customPersianFontCss ? (
           <style id="rasman-custom-persian-font">{customPersianFontCss}</style>
         ) : null}

@@ -385,13 +385,121 @@ export function ProjectsStage({
       updateMobileActiveCard();
     };
 
+    // Mobile vertical swipe -> smooth horizontal projects scroll (cooperating cleanly with native horizontal pan)
+    let touchActive = false;
+    let touchAxis: 'x' | 'y' | null = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchLastY = 0;
+    let touchLastTime = 0;
+    let touchVelocityY = 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (document.documentElement.dataset.scrollLocked === 'true') return;
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+
+      touchActive = true;
+      touchAxis = null;
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchLastY = touch.clientY;
+      touchLastTime = performance.now();
+      touchVelocityY = 0;
+
+      const current = getLogicalOffset(el);
+      currentOffsetRef.current = current;
+      targetOffsetRef.current = current;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!touchActive || event.touches.length !== 1) return;
+      if (document.documentElement.dataset.scrollLocked === 'true') {
+        touchActive = false;
+        return;
+      }
+
+      const touch = event.touches[0];
+      if (!touch) return;
+
+      const totalX = touch.clientX - touchStartX;
+      const totalY = touch.clientY - touchStartY;
+
+      if (touchAxis === null) {
+        if (Math.abs(totalX) < 5 && Math.abs(totalY) < 5) return;
+        touchAxis = Math.abs(totalY) > Math.abs(totalX) ? 'y' : 'x';
+      }
+
+      if (touchAxis !== 'y') return;
+
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+      if (maxScroll <= 0) return;
+
+      event.preventDefault();
+
+      const now = performance.now();
+      const dt = Math.max(1, now - touchLastTime);
+      const stepY = touchLastY - touch.clientY;
+      touchLastY = touch.clientY;
+      touchLastTime = now;
+      touchVelocityY = stepY / dt;
+
+      if (!isAnimatingRef.current) {
+        const current = getLogicalOffset(el);
+        currentOffsetRef.current = current;
+        targetOffsetRef.current = current;
+      }
+
+      targetOffsetRef.current = Math.max(
+        0,
+        Math.min(maxScroll, targetOffsetRef.current + stepY * 1.35)
+      );
+
+      if (prefersReducedMotion) {
+        currentOffsetRef.current = targetOffsetRef.current;
+        applyLogicalOffset(el, currentOffsetRef.current);
+      } else {
+        startInertiaLoop();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!touchActive) return;
+      touchActive = false;
+
+      if (touchAxis === 'y' && !prefersReducedMotion) {
+        const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+        if (maxScroll > 0 && Math.abs(touchVelocityY) > 0.08) {
+          const momentum = Math.max(
+            -460,
+            Math.min(460, touchVelocityY * 220)
+          );
+          targetOffsetRef.current = Math.max(
+            0,
+            Math.min(maxScroll, targetOffsetRef.current + momentum)
+          );
+          startInertiaLoop();
+        }
+      }
+      touchAxis = null;
+    };
+
     el.addEventListener('wheel', handleWheel, { passive: false });
     el.addEventListener('scroll', handleScroll, { passive: true });
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', handleTouchEnd, { passive: true });
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       el.removeEventListener('wheel', handleWheel);
       el.removeEventListener('scroll', handleScroll);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('touchcancel', handleTouchEnd);
       window.removeEventListener('keydown', handleKeyDown);
       if (rafIdRef.current !== null) {
         window.cancelAnimationFrame(rafIdRef.current);
@@ -532,7 +640,7 @@ export function ProjectsStage({
       <div
         role="region"
         aria-label={dictionary.projects.filterBarAriaLabel}
-        className="flex h-12 w-full items-stretch"
+        className="flex h-[var(--grid-subbar)] w-full items-stretch"
       >
         {/* Block 1 (Start): Projects Title + Short Hairline Divider Matching Project Detail */}
         <div className="flex shrink-0 items-center ps-4 pe-3 desktop:ps-6 desktop:pe-4">
@@ -599,7 +707,7 @@ export function ProjectsStage({
           }
           onClick={() => setIsMegaFilterOpen((prev) => !prev)}
           className={cn(
-            'relative inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
+            'relative inline-flex h-[var(--grid-subbar)] w-[var(--grid-subbar)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
             isMegaFilterOpen || activeFilterCount > 0
               ? activeMode === 'sustainable'
                 ? 'text-[var(--brand-text-hover)]'
@@ -659,6 +767,7 @@ export function ProjectsStage({
             appliedFilters={appliedFilters}
             onApply={handleApplyFilters}
             onClear={handleClearFilters}
+            onClose={() => setIsMegaFilterOpen(false)}
           />
         )}
       </AnimatePresence>
@@ -669,7 +778,7 @@ export function ProjectsStage({
     <section
       ref={stageRef}
       aria-label={dictionary.projects.regionAriaLabel}
-      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-transparent pt-12"
+      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-transparent pt-[var(--grid-subbar)]"
     >
       {/* Unified Horizontal Scrolling Architectural Cards Stage (24px Desktop Padding, Right-to-Left Initial Entrance) */}
       <div

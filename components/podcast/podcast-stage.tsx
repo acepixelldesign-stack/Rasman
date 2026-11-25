@@ -37,6 +37,7 @@ import { PodcastPlayer } from '@/components/podcast/podcast-player';
 import { useStickySubBar } from '@/components/frame/sticky-sub-bar-context';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
+import { useSwipeUpDismiss } from '@/hooks/use-swipe-up-dismiss';
 import { cn } from '@/lib/utils';
 
 if (typeof window !== 'undefined') {
@@ -159,7 +160,11 @@ export function PodcastStage() {
 
   const stageRef = useRef<HTMLDivElement>(null);
   const mobilePanelId = useId();
+  const mobileSheetRef = useRef<HTMLDivElement>(null);
+  const closeMobileFilter = useCallback(() => setIsMobileFilterOpen(false), []);
+
   useBodyScrollLock(isMobileFilterOpen);
+  useSwipeUpDismiss(mobileSheetRef, isMobileFilterOpen, closeMobileFilter);
   const currentTimeRef = useRef<number>(currentTime);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscRef = useRef<OscillatorNode | null>(null);
@@ -582,7 +587,7 @@ export function PodcastStage() {
         aria-expanded={isMobileFilterOpen}
         aria-controls={mobilePanelId}
         className={cn(
-          'flex h-12 w-full shrink-0 cursor-pointer items-center justify-between gap-3 ps-4 pe-0 text-start',
+          'flex h-[var(--grid-subbar)] w-full shrink-0 cursor-pointer items-center justify-between gap-3 ps-4 pe-0 text-start',
           'text-[15px] font-normal text-[var(--ink-primary)]'
         )}
       >
@@ -605,12 +610,13 @@ export function PodcastStage() {
       <AnimatePresence initial={false}>
         {isMobileFilterOpen && (
           <motion.div
+            ref={mobileSheetRef}
             id={mobilePanelId}
             data-scroll-lock-allow=""
             initial={{ height: 0, opacity: 0 }}
             animate={{
               height:
-                'calc(100dvh - var(--grid-header) - var(--grid-bottom) - 48px)',
+                'calc(100dvh - var(--grid-header) - var(--grid-bottom) - var(--grid-subbar))',
               opacity: 1,
               transition: prefersReducedMotion
                 ? { duration: 0.01 }
@@ -738,6 +744,15 @@ export function PodcastStage() {
                 })}
               </ul>
             </SmoothVerticalPane>
+
+            {/* Mobile Drag-Up Handle to Dismiss Episodes Sheet */}
+            <div
+              data-swipe-handle=""
+              aria-hidden="true"
+              className="flex h-6 w-full shrink-0 items-center justify-center pb-1 desktop:hidden"
+            >
+              <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -750,7 +765,7 @@ export function PodcastStage() {
       aria-label={dictionary.podcast.regionAriaLabel}
       className={cn(
         'flex w-full flex-col bg-[var(--bg-canvas)] desktop:flex-row',
-        'min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] pt-12 pb-[112px] desktop:pt-0 desktop:pb-0',
+        'min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] pt-[var(--grid-subbar)] pb-[112px] desktop:pt-0 desktop:pb-0',
         'desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] desktop:overflow-hidden'
       )}
     >

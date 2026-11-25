@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -13,6 +13,7 @@ import {
   createSubmenuItemVariants,
 } from '@/components/motion/architectural-motion';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
+import { useSwipeUpDismiss } from '@/hooks/use-swipe-up-dismiss';
 import { cn } from '@/lib/utils';
 
 interface NavigationDrawerProps {
@@ -41,14 +42,52 @@ export function NavigationDrawer({
     useAppContext();
   const prefersReducedMotion = useReducedMotion();
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
+  const [lockedDesktopLogoHeight, setLockedDesktopLogoHeight] = useState<
+    number | null
+  >(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const navListRef = useRef<HTMLUListElement>(null);
+  const isProjectsOpenRef = useRef(isProjectsOpen);
   const projectsPanelId = useId();
 
+  useEffect(() => {
+    isProjectsOpenRef.current = isProjectsOpen;
+  }, [isProjectsOpen]);
+
   useBodyScrollLock(isOpen);
+  useSwipeUpDismiss(drawerRef, isOpen, onClose);
 
   const subItemVariants = useMemo(
     () => createSubmenuItemVariants(isRtl),
     [isRtl]
   );
+
+  // Measure desktop height from top of Home to bottom of Contact ONLY while Projects dropdown is collapsed
+  // so the logo height matches that exact span and NEVER resizes when Projects expands/collapses.
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+
+    const desktopMq = window.matchMedia(
+      '(min-width: 768px) and (min-height: 520px) and (orientation: landscape)'
+    );
+
+    const measureCollapsedMenuHeight = () => {
+      if (!desktopMq.matches || isProjectsOpenRef.current) return;
+      const listEl = navListRef.current;
+      if (!listEl) return;
+      const fullHeight = Math.round(listEl.getBoundingClientRect().height);
+      if (fullHeight > 80) {
+        setLockedDesktopLogoHeight(fullHeight);
+      }
+    };
+
+    const rafId = window.requestAnimationFrame(measureCollapsedMenuHeight);
+    window.addEventListener('resize', measureCollapsedMenuHeight);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', measureCollapsedMenuHeight);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -73,6 +112,7 @@ export function NavigationDrawer({
     <AnimatePresence>
       {isOpen && (
         <motion.nav
+          ref={drawerRef}
           id={id}
           aria-label={dictionary.navigation.navAriaLabel}
           data-smooth-prevent=""
@@ -101,8 +141,8 @@ export function NavigationDrawer({
             data-scroll-lock-allow=""
             className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 desktop:px-10 desktop:py-8"
           >
-            <div className="flex w-full flex-col desktop:my-auto desktop:flex-row desktop:items-stretch desktop:justify-between desktop:gap-12">
-              {/* Rasman Hand-Sketch Emblem: Starts Blurred/Hidden and Materializes Slowly Across 2.00s Open / 0.55s Close */}
+            <div className="flex w-full flex-col desktop:my-auto desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-12">
+              {/* Rasman Hand-Sketch Emblem: Locked to Collapsed First-to-Last Divider Height on Desktop */}
               <motion.div
                 initial={
                   prefersReducedMotion
@@ -131,15 +171,24 @@ export function NavigationDrawer({
                         transition: { duration: 0.55, ease: MOTION_EASE.calm },
                       }
                 }
-                className="order-1 flex shrink-0 items-center justify-center pb-6 desktop:order-2 desktop:relative desktop:flex-1 desktop:pb-0"
+                className="order-1 flex shrink-0 items-center justify-center pb-6 desktop:order-2 desktop:flex-1 desktop:pb-0"
               >
-                <div className="relative h-[144px] aspect-[949/1024] sm:h-[164px] desktop:absolute desktop:inset-0 desktop:aspect-auto desktop:h-full desktop:w-full">
+                <div
+                  style={
+                    lockedDesktopLogoHeight
+                      ? ({
+                          '--drawer-logo-desktop-h': `${lockedDesktopLogoHeight}px`,
+                        } as CSSProperties)
+                      : undefined
+                  }
+                  className="relative h-[144px] aspect-[949/1024] shrink-0 sm:h-[164px] desktop:h-[var(--drawer-logo-desktop-h,416px)] desktop:w-auto"
+                >
                   <Image
                     src={MENU_EMBLEM_SRC}
                     alt={dictionary.brand.logotype}
                     fill
                     priority
-                    sizes="(max-width: 768px) 164px, 560px"
+                    sizes="(max-width: 768px) 164px, 480px"
                     referrerPolicy="no-referrer"
                     className="rasman-emblem-invert object-contain object-center select-none dark:invert"
                   />
@@ -147,7 +196,10 @@ export function NavigationDrawer({
               </motion.div>
 
               {/* Divided Navigation Links With Animated Line-Drawing Hairlines & Sequential Text Reveal (2.00s Open / 1.00s Close) */}
-              <ul className="order-2 flex w-full flex-col desktop:order-1 desktop:max-w-[560px] desktop:flex-1">
+              <ul
+                ref={navListRef}
+                className="order-2 flex w-full flex-col desktop:order-1 desktop:max-w-[560px] desktop:flex-1"
+              >
                 {navItems.map((item, idx) => {
                   const hasChildren = Boolean(
                     item.children && item.children.length > 0
@@ -387,7 +439,7 @@ export function NavigationDrawer({
                     transition: { duration: 0.42, ease: MOTION_EASE.calm },
                   }
             }
-            className="shrink-0 px-4 pt-3 pb-6 desktop:hidden"
+            className="shrink-0 px-4 pt-3 pb-2 desktop:hidden"
           >
             {userProfile ? (
               <Link
@@ -396,8 +448,8 @@ export function NavigationDrawer({
                 onClick={onNavigate}
                 className={cn(
                   'flex h-12 w-full items-center justify-center rounded-full',
-                  'bg-[var(--brand-primary)] text-[14px] font-medium leading-none text-[var(--brand-ink-on-primary)]',
-                  'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)] active:bg-[var(--brand-primary-active)]'
+                  'bg-[var(--btn-start-bg)] text-[14px] font-medium leading-none text-[var(--btn-start-ink)]',
+                  'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
                 )}
               >
                 {dictionary.header.userPanelLabel}
@@ -411,14 +463,23 @@ export function NavigationDrawer({
                 }}
                 className={cn(
                   'flex h-12 w-full cursor-pointer items-center justify-center rounded-full',
-                  'bg-[var(--brand-primary)] text-[14px] font-medium leading-none text-[var(--brand-ink-on-primary)]',
-                  'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)] active:bg-[var(--brand-primary-active)]'
+                  'bg-[var(--btn-start-bg)] text-[14px] font-medium leading-none text-[var(--btn-start-ink)]',
+                  'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
                 )}
               >
                 {dictionary.header.startProjectLabel}
               </button>
             )}
           </motion.div>
+
+          {/* Mobile Drag-Up Handle to Dismiss Drawer */}
+          <div
+            data-swipe-handle=""
+            aria-hidden="true"
+            className="flex h-6 w-full shrink-0 items-center justify-center pb-1 desktop:hidden"
+          >
+            <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
+          </div>
         </motion.nav>
       )}
     </AnimatePresence>

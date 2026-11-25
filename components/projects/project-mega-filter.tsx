@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   MdCheck,
@@ -31,6 +31,7 @@ import {
   type ProjectYearId,
 } from '@/lib/data/projects';
 import { useAppContext } from '@/components/providers/app-provider';
+import { useSwipeUpDismiss } from '@/hooks/use-swipe-up-dismiss';
 import { MOTION_VARIANTS } from '@/lib/motion/system';
 import { cn } from '@/lib/utils';
 
@@ -156,6 +157,7 @@ interface ProjectMegaFilterProps {
   readonly appliedFilters: ProjectMegaFilterState;
   readonly onApply: (nextFilters: ProjectMegaFilterState) => void;
   readonly onClear: () => void;
+  readonly onClose?: () => void;
 }
 
 function toggleArrayItem<T extends string>(
@@ -179,13 +181,21 @@ export function ProjectMegaFilter({
   appliedFilters,
   onApply,
   onClear,
+  onClose,
 }: ProjectMegaFilterProps) {
   const { dictionary } = useAppContext();
+  const panelRef = useRef<HTMLDivElement>(null);
   const [draftFilters, setDraftFilters] =
     useState<ProjectMegaFilterState>(appliedFilters);
   const [openAccordions, setOpenAccordions] = useState<
     readonly AccordionSectionId[]
   >(['categories']);
+
+  const handleDismiss = useCallback(() => {
+    onClose?.();
+  }, [onClose]);
+
+  useSwipeUpDismiss(panelRef, Boolean(onClose), handleDismiss);
 
   const toggleAccordion = (sectionId: AccordionSectionId) => {
     setOpenAccordions((prev) =>
@@ -401,6 +411,7 @@ export function ProjectMegaFilter({
 
   return (
     <motion.div
+      ref={panelRef}
       id={id}
       role="dialog"
       data-scroll-lock-allow=""
@@ -576,7 +587,7 @@ export function ProjectMegaFilter({
       </div>
 
       {/* Borderless Footer Actions: Charcoal (Light) / Pure White (Dark) Full-Radius Apply + Adjacent Circular Clear Icon Button */}
-      <div className="flex shrink-0 items-center justify-end gap-2.5 px-4 py-4 desktop:px-6 desktop:py-5">
+      <div className="flex shrink-0 items-center justify-end gap-2.5 px-4 pt-4 pb-2 desktop:px-6 desktop:py-5">
         <button
           type="button"
           onClick={() => onApply(draftFilters)}
@@ -603,6 +614,15 @@ export function ProjectMegaFilter({
         >
           <MdRestartAlt size={20} aria-hidden="true" />
         </button>
+      </div>
+
+      {/* Mobile Drag-Up Handle to Dismiss Mega Filter */}
+      <div
+        data-swipe-handle=""
+        aria-hidden="true"
+        className="flex h-6 w-full shrink-0 items-center justify-center pb-1 desktop:hidden"
+      >
+        <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
       </div>
     </motion.div>
   );

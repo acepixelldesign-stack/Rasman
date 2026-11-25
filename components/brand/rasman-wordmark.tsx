@@ -7,7 +7,7 @@ interface RasmanWordmarkProps {
 }
 
 /**
- * Official pure-vector Rasman logotype with subtitle ("ARCHITECTURE & DESIGN")
+ * Official pure-vector Rasman wordmark ("RASMAN" without subtitle)
  * for the primary architectural header. Always remains LTR and inherits currentColor.
  */
 export function RasmanWordmark({
@@ -16,9 +16,9 @@ export function RasmanWordmark({
 }: RasmanWordmarkProps) {
   return (
     <RasmanLogo
-      variant="logotype"
+      variant="wordmark"
       label={label}
-      className={cn('h-[30px] w-auto desktop:h-[34px]', className)}
+      className={cn('h-[18px] w-auto desktop:h-[20px]', className)}
     />
   );
 }

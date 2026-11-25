@@ -48,6 +48,12 @@
   --btn-contrast-hover: #303030;
   --btn-contrast-ink: #ffffff;
 
+  /* Start Project & Auth Primary CTA (Pure Black in Light Mode, Pure White in Dark & Projects Ambient Modes) */
+  --btn-start-bg: #000000;
+  --btn-start-hover: #1f1f1f;
+  --btn-start-active: #333333;
+  --btn-start-ink: #ffffff;
+
   /* Interactive States */
   --surface-hover: rgba(0, 0, 0, 0.05);
   --surface-active: rgba(0, 0, 0, 0.09);
@@ -62,8 +68,9 @@
   --glass-popover-bg: rgba(238, 238, 238, 0.82);
   --glass-sheet-bg: rgba(255, 255, 255, 0.58);
 
-  /* Responsive Perimeter Grid Dimensions (8pt scale — 16px bottom on Mobile, 64px on Desktop) */
-  --grid-header: 56px;
+  /* Responsive Perimeter Grid Dimensions (Mobile: 48px Header & Sub-bar, 16px Rails/Bottom | Desktop: 56px All) */
+  --grid-header: 48px;
+  --grid-subbar: 48px;
   --grid-rail: 16px;
   --grid-bottom: 16px;
   --crosshair-size: 13px;
@@ -72,17 +79,10 @@
 
 @media (min-width: 768px) and (min-height: 520px) and (orientation: landscape) {
   :root {
-    --grid-header: 64px;
-    --grid-rail: 32px;
-    --grid-bottom: 48px;
-  }
-}
-
-@media (min-width: 1024px) and (min-height: 520px) and (orientation: landscape) {
-  :root {
-    --grid-header: 64px;
-    --grid-rail: 64px;
-    --grid-bottom: 64px;
+    --grid-header: 56px;
+    --grid-subbar: 56px;
+    --grid-rail: 56px;
+    --grid-bottom: 56px;
   }
 }
 
@@ -118,6 +118,12 @@
   --btn-contrast-bg: #ffffff;
   --btn-contrast-hover: #e5e5e5;
   --btn-contrast-ink: #0a0a0a;
+
+  /* Start Project Primary CTA (Pure White in Dark Mode) */
+  --btn-start-bg: #ffffff;
+  --btn-start-hover: #e5e5e5;
+  --btn-start-active: #d4d4d4;
+  --btn-start-ink: #000000;
 
   /* Interactive States */
   --surface-hover: rgba(255, 255, 255, 0.09);
@@ -163,6 +169,10 @@ html.dark[data-ambient-mode="sustainable"] {
   --btn-contrast-bg: #ffffff;
   --btn-contrast-hover: #e5e5e5;
   --btn-contrast-ink: #0a0a0a;
+  --btn-start-bg: #ffffff;
+  --btn-start-hover: #e5e5e5;
+  --btn-start-active: #d4d4d4;
+  --btn-start-ink: #000000;
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-active: rgba(255, 255, 255, 0.16);
   --focus-ring: #a9c785;
@@ -197,6 +207,10 @@ html.dark[data-ambient-mode="urban"] {
   --btn-contrast-bg: #ffffff;
   --btn-contrast-hover: #e5e5e5;
   --btn-contrast-ink: #0a0a0a;
+  --btn-start-bg: #ffffff;
+  --btn-start-hover: #e5e5e5;
+  --btn-start-active: #d4d4d4;
+  --btn-start-ink: #000000;
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-active: rgba(255, 255, 255, 0.16);
   --focus-ring: #c8a082;

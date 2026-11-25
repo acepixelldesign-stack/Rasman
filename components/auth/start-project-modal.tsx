@@ -478,8 +478,8 @@ export function StartProjectModal() {
                       type="submit"
                       className={cn(
                         'mt-1 flex h-12 w-full cursor-pointer items-center justify-center rounded-full px-6',
-                        'bg-[var(--brand-primary)] text-[14px] font-medium text-[var(--brand-ink-on-primary)]',
-                        'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)] active:bg-[var(--brand-primary-active)]'
+                        'bg-[var(--btn-start-bg)] text-[14px] font-medium text-[var(--btn-start-ink)]',
+                        'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
                       )}
                     >
                       {dictionary.auth.sendOtpCta}
@@ -605,7 +605,7 @@ export function StartProjectModal() {
                       className={cn(
                         'mt-1 flex h-12 w-full items-center justify-center rounded-full px-6 text-[14px] font-medium transition-colors duration-200',
                         isOtpComplete
-                          ? 'cursor-pointer bg-[var(--brand-primary)] text-[var(--brand-ink-on-primary)] hover:bg-[var(--brand-primary-hover)] active:bg-[var(--brand-primary-active)]'
+                          ? 'cursor-pointer bg-[var(--btn-start-bg)] text-[var(--btn-start-ink)] hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
                           : 'cursor-not-allowed bg-[var(--surface-hover)] text-[var(--ink-muted)]'
                       )}
                     >
@@ -870,7 +870,7 @@ export function StartProjectModal() {
                               className={cn(
                                 'flex h-10 cursor-pointer items-center justify-center rounded-full px-3 text-[12px] font-medium transition-colors duration-200',
                                 isSelected
-                                  ? 'bg-[var(--brand-primary)] text-[var(--brand-ink-on-primary)]'
+                                  ? 'bg-[var(--btn-start-bg)] text-[var(--btn-start-ink)]'
                                   : 'bg-[var(--surface-hover)] text-[var(--ink-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--ink-primary)]'
                               )}
                             >
@@ -885,8 +885,8 @@ export function StartProjectModal() {
                       type="submit"
                       className={cn(
                         'mt-2 flex h-12 w-full cursor-pointer items-center justify-center rounded-full px-6',
-                        'bg-[var(--brand-primary)] text-[14px] font-medium text-[var(--brand-ink-on-primary)]',
-                        'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)] active:bg-[var(--brand-primary-active)]'
+                        'bg-[var(--btn-start-bg)] text-[14px] font-medium text-[var(--btn-start-ink)]',
+                        'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
                       )}
                     >
                       {dictionary.auth.registerSubmitCta}

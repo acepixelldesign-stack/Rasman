@@ -171,13 +171,13 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
           depth: 2,
           mobileOnly: false,
           content: (
-            <div className="flex h-12 w-full items-center justify-between gap-2">
+            <div className="flex h-[var(--grid-subbar)] w-full items-center justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center">
                 <Link
                   href={`/projects?mode=${project.mode}`}
                   onClick={() => setNextStickyBarDirection('back')}
                   aria-label={dictionary.projects.detail.backToProjects}
-                  className="inline-flex h-12 shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+                  className="inline-flex h-[var(--grid-subbar)] shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
                 >
                   <MdArrowBack
                     size={18}
@@ -213,7 +213,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                     : dictionary.projects.detail.shareProjectLabel
                 }
                 className={cn(
-                  'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
+                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-subbar)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
                   copied
                     ? 'text-[var(--brand-text-hover)]'
                     : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
@@ -338,7 +338,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
     <article
       ref={articleRef}
       aria-label={title}
-      className="relative grid min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full grid-cols-1 bg-transparent pt-12 desktop:grid-cols-[264px_minmax(0,1fr)] desktop:grid-rows-[auto_1fr] desktop-wide:grid-cols-[304px_minmax(0,1fr)]"
+      className="relative grid min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full grid-cols-1 bg-transparent pt-[var(--grid-subbar)] desktop:grid-cols-[264px_minmax(0,1fr)] desktop:grid-rows-[auto_1fr] desktop-wide:grid-cols-[304px_minmax(0,1fr)]"
     >
       {/* 1. Project Header (Full Container Width Divider, Symmetric Top/Bottom/Start/End Padding) */}
       <header className="relative z-10 order-1 flex w-full flex-col px-4 pt-6 pb-0 desktop:col-start-2 desktop:row-start-1 desktop:px-10 desktop:pt-10 desktop:pb-0">
@@ -382,7 +382,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
       {/* 2. Stationary Sticky Project Dossier Spec Sheet (Matches Blog/Podcast Sidebar Width, 24px Desktop / 16px Mobile Padding, No Divider Under Title or Last Item) */}
       <aside
         data-smooth-prevent-desktop=""
-        className="relative z-10 order-2 flex w-full flex-col border-y border-[var(--grid-line)] px-4 py-6 desktop:sticky desktop:top-[calc(var(--grid-header)+48px)] desktop:col-start-1 desktop:row-span-2 desktop:row-start-1 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom)-48px)] desktop:overflow-y-auto desktop:border-y-0 desktop:border-e desktop:p-6"
+        className="relative z-10 order-2 flex w-full flex-col border-y border-[var(--grid-line)] px-4 py-6 desktop:sticky desktop:top-[calc(var(--grid-header)+var(--grid-subbar))] desktop:col-start-1 desktop:row-span-2 desktop:row-start-1 desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom)-var(--grid-subbar))] desktop:overflow-y-auto desktop:border-y-0 desktop:border-e desktop:p-6"
       >
         <div className="flex flex-col gap-5">
           <h2 className="text-[22px] font-medium leading-[1.3] tracking-[-0.015em] text-[var(--ink-primary)] rtl:leading-[1.45] rtl:tracking-normal">
@@ -571,7 +571,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                   type="button"
                   onClick={() => openLightbox('all')}
                   className={cn(
-                    'group inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[4px] px-5 desktop:flex-none',
+                    'group inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-5 desktop:flex-none',
                     'border border-[var(--grid-line-strong)] bg-transparent text-[13px] font-medium text-[var(--ink-primary)] desktop:text-[14px]',
                     'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
                   )}
@@ -601,7 +601,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                       aria-label={
                         dictionary.projects.detail.galleryPrevAriaLabel
                       }
-                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-[4px] border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
                     >
                       {isRtl ? (
                         <MdChevronRight size={22} aria-hidden="true" />
@@ -616,7 +616,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                       aria-label={
                         dictionary.projects.detail.galleryNextAriaLabel
                       }
-                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-[4px] border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
                     >
                       {isRtl ? (
                         <MdChevronLeft size={22} aria-hidden="true" />
