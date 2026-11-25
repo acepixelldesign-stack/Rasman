@@ -349,7 +349,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
                     : dictionary.blog.shareStoryLabel
                 }
                 className={cn(
-                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-subbar)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
+                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-cell)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
                   copied
                     ? 'text-[var(--brand-text-hover)]'
                     : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'

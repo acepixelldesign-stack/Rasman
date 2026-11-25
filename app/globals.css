@@ -71,6 +71,8 @@
   /* Responsive Perimeter Grid Dimensions (Mobile: 40px Header & Sub-bar, 16px Rails/Bottom | Desktop: 48px All) */
   --grid-header: 40px;
   --grid-subbar: 40px;
+  --grid-cell: 40px;
+  --header-cta-width: 96px;
   --grid-rail: 16px;
   --grid-bottom: 16px;
   --crosshair-size: 13px;
@@ -81,6 +83,7 @@
   :root {
     --grid-header: 48px;
     --grid-subbar: 48px;
+    --grid-cell: 48px;
     --grid-rail: 48px;
     --grid-bottom: 48px;
   }

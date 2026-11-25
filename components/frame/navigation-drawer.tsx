@@ -414,7 +414,7 @@ export function NavigationDrawer({
             </div>
           </div>
 
-          {/* Mobile-Only Fixed Bottom Stretched 48px CTA (No Top Border) */}
+          {/* Mobile-Only Bottom Docked Sticky CTA Bar With '+' Crosshair Intersections */}
           <motion.div
             initial={
               prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }
@@ -439,47 +439,65 @@ export function NavigationDrawer({
                     transition: { duration: 0.42, ease: MOTION_EASE.calm },
                   }
             }
-            className="shrink-0 px-4 pt-3 pb-2 desktop:hidden"
+            className="relative shrink-0 border-t border-[var(--grid-line)] bg-[var(--bg-header-glass)] backdrop-blur-xl desktop:hidden"
           >
-            {userProfile ? (
-              <Link
-                href={SITE_CONFIG.routes.panel}
-                prefetch={true}
-                onClick={onNavigate}
-                className={cn(
-                  'flex h-12 w-full items-center justify-center rounded-full',
-                  'bg-[var(--btn-start-bg)] text-[14px] font-medium leading-none text-[var(--btn-start-ink)]',
-                  'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
-                )}
-              >
-                {dictionary.header.userPanelLabel}
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  openStartProjectModal();
-                }}
-                className={cn(
-                  'flex h-12 w-full cursor-pointer items-center justify-center rounded-full',
-                  'bg-[var(--btn-start-bg)] text-[14px] font-medium leading-none text-[var(--btn-start-ink)]',
-                  'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
-                )}
-              >
-                {dictionary.header.startProjectLabel}
-              </button>
-            )}
-          </motion.div>
+            {/* Top-Start & Top-End Frame Rail Intersection '+' Crosshairs */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-[7px] -start-[7px] z-[40] block h-[13px] w-[13px]"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-[7px] -end-[7px] z-[40] block h-[13px] w-[13px]"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
 
-          {/* Mobile Drag-Up Handle to Dismiss Drawer */}
-          <div
-            data-swipe-handle=""
-            aria-hidden="true"
-            className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center pb-1 active:cursor-grabbing desktop:hidden"
-          >
-            <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
-          </div>
+            <div className="px-4 pt-3 pb-1">
+              {userProfile ? (
+                <Link
+                  href={SITE_CONFIG.routes.panel}
+                  prefetch={true}
+                  onClick={onNavigate}
+                  className={cn(
+                    'flex h-[40px] w-full items-center justify-center rounded-[4px]',
+                    'bg-[var(--btn-start-bg)] text-[14px] font-medium leading-none text-[var(--btn-start-ink)]',
+                    'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
+                  )}
+                >
+                  {dictionary.header.userPanelLabel}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    openStartProjectModal();
+                  }}
+                  className={cn(
+                    'flex h-[40px] w-full cursor-pointer items-center justify-center rounded-[4px]',
+                    'bg-[var(--btn-start-bg)] text-[14px] font-medium leading-none text-[var(--btn-start-ink)]',
+                    'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
+                  )}
+                >
+                  {dictionary.header.startProjectLabel}
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Drag-Up Handle to Dismiss Drawer */}
+            <div
+              data-swipe-handle=""
+              aria-hidden="true"
+              className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center pb-1 active:cursor-grabbing"
+            >
+              <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
+            </div>
+          </motion.div>
         </motion.nav>
       )}
     </AnimatePresence>

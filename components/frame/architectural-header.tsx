@@ -113,19 +113,19 @@ export function ArchitecturalHeader({
           </a>
         </div>
 
-        {/* Logical End Zone: Square Language Cell + Square Theme Cell + Flush Full-Height Start Project CTA */}
+        {/* Logical End Zone: 40px Language Cell + 40px Theme Cell + 96px Flush Start Project CTA */}
         <div className="flex h-full items-stretch">
-          <div className="flex h-full w-[var(--grid-header)] shrink-0 items-center justify-center border-s border-[var(--grid-line)]">
+          <div className="flex h-full w-[var(--grid-cell)] shrink-0 items-center justify-center border-s border-[var(--grid-line)]">
             <LanguageSwitcher />
           </div>
-          <div className="flex h-full w-[var(--grid-header)] shrink-0 items-center justify-center border-s border-[var(--grid-line)]">
+          <div className="flex h-full w-[var(--grid-cell)] shrink-0 items-center justify-center border-s border-[var(--grid-line)]">
             <ThemeToggle />
           </div>
           {userProfile ? (
             <Link
               href={SITE_CONFIG.routes.panel}
               className={cn(
-                'hidden desktop:inline-flex h-full shrink-0 items-center justify-center rounded-none border-s border-[var(--grid-line)] px-6',
+                'hidden desktop:inline-flex h-full w-[var(--header-cta-width)] shrink-0 items-center justify-center rounded-none border-s border-[var(--grid-line)] px-2',
                 'bg-[var(--btn-start-bg)] text-[12px] font-medium leading-none whitespace-nowrap text-[var(--btn-start-ink)]',
                 'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
               )}
@@ -137,7 +137,7 @@ export function ArchitecturalHeader({
               type="button"
               onClick={openStartProjectModal}
               className={cn(
-                'hidden desktop:inline-flex h-full shrink-0 cursor-pointer items-center justify-center rounded-none border-s border-[var(--grid-line)] px-6',
+                'hidden desktop:inline-flex h-full w-[var(--header-cta-width)] shrink-0 cursor-pointer items-center justify-center rounded-none border-s border-[var(--grid-line)] px-2',
                 'bg-[var(--btn-start-bg)] text-[12px] font-medium leading-none whitespace-nowrap text-[var(--btn-start-ink)]',
                 'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
               )}

@@ -694,7 +694,7 @@ export function ProjectsStage({
           />
         </button>
 
-        {/* Block 3 (End Square 48x48): ArchDaily-Style Accordion Mega Filter Trigger */}
+        {/* Block 3 (End 40px Cell): ArchDaily-Style Accordion Mega Filter Trigger */}
         <button
           ref={filterTriggerRef}
           type="button"
@@ -707,7 +707,7 @@ export function ProjectsStage({
           }
           onClick={() => setIsMegaFilterOpen((prev) => !prev)}
           className={cn(
-            'relative inline-flex h-[var(--grid-subbar)] w-[var(--grid-subbar)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
+            'relative inline-flex h-[var(--grid-subbar)] w-[var(--grid-cell)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
             isMegaFilterOpen || activeFilterCount > 0
               ? activeMode === 'sustainable'
                 ? 'text-[var(--brand-text-hover)]'
