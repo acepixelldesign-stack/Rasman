@@ -5,6 +5,7 @@ import type {
   ProjectColorId,
   ProjectLocationId,
   ProjectMaterialId,
+  ProjectMediaCategoryId,
   ProjectMode,
   ProjectStatusId,
   ProjectTypeId,
@@ -240,6 +241,7 @@ export interface Dictionary {
       readonly leadArchitectLabel: string;
       readonly metricsHeading: string;
       readonly galleryHeading: string;
+      readonly viewAllGalleryLabel: string;
       readonly galleryPrevAriaLabel: string;
       readonly galleryNextAriaLabel: string;
       readonly shareProjectLabel: string;
@@ -249,13 +251,11 @@ export interface Dictionary {
       readonly notFoundTitle: string;
       readonly lightbox: {
         readonly dialogAriaLabel: string;
+        readonly categoriesAriaLabel: string;
         readonly closeAriaLabel: string;
         readonly prevAriaLabel: string;
         readonly nextAriaLabel: string;
-        readonly tabs: {
-          readonly images: string;
-          readonly documents: string;
-        };
+        readonly tabs: Record<ProjectMediaCategoryId, string>;
       };
     };
   };
@@ -589,21 +589,26 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
         leadArchitectLabel: 'Lead Architect',
         metricsHeading: 'Environmental Performance',
         galleryHeading: 'Gallery',
-        galleryPrevAriaLabel: 'Previous gallery images',
-        galleryNextAriaLabel: 'Next gallery images',
+        viewAllGalleryLabel: 'View All',
+        galleryPrevAriaLabel: 'Previous gallery image',
+        galleryNextAriaLabel: 'Next gallery image',
         shareProjectLabel: 'Share this project',
         shareCopiedLabel: 'Link copied',
-        previousProjectLabel: 'Previous',
-        nextProjectLabel: 'Next',
+        previousProjectLabel: 'Previous Project',
+        nextProjectLabel: 'Next Project',
         notFoundTitle: 'This project could not be found.',
         lightbox: {
           dialogAriaLabel: 'Project gallery lightbox',
+          categoriesAriaLabel: 'Gallery media categories',
           closeAriaLabel: 'Close lightbox',
           prevAriaLabel: 'Previous item',
           nextAriaLabel: 'Next item',
           tabs: {
-            images: 'Project Images',
-            documents: 'Design Documents',
+            all: 'All',
+            exterior: 'Exterior',
+            interior: 'Interior',
+            details: 'Details',
+            documents: 'Drawings',
           },
         },
       },
@@ -936,20 +941,25 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
         leadArchitectLabel: 'معمار مسئول',
         metricsHeading: 'عملکرد اقلیمی و پایداری',
         galleryHeading: 'گالری',
-        galleryPrevAriaLabel: 'تصاویر قبلی گالری',
-        galleryNextAriaLabel: 'تصاویر بعدی گالری',
+        viewAllGalleryLabel: 'مشاهده همه',
+        galleryPrevAriaLabel: 'تصویر قبلی گالری',
+        galleryNextAriaLabel: 'تصویر بعدی گالری',
         shareProjectLabel: 'اشتراک‌گذاری پروژه',
         shareCopiedLabel: 'لینک کپی شد',
-        previousProjectLabel: 'قبلی',
-        nextProjectLabel: 'بعدی',
+        previousProjectLabel: 'پروژه قبلی',
+        nextProjectLabel: 'پروژه بعدی',
         notFoundTitle: 'پروژه مورد نظر یافت نشد.',
         lightbox: {
           dialogAriaLabel: 'پیش‌نمایش تمام‌صفحه پروژه',
+          categoriesAriaLabel: 'دسته‌بندی تصاویر گالری',
           closeAriaLabel: 'بستن پیش‌نمایش',
           prevAriaLabel: 'مورد قبلی',
           nextAriaLabel: 'مورد بعدی',
           tabs: {
-            images: 'تصاویر پروژه',
+            all: 'همه',
+            exterior: 'نمای بیرونی',
+            interior: 'فضای داخلی',
+            details: 'جزئیات و مصالح',
             documents: 'مدارک طراحی',
           },
         },
@@ -1283,21 +1293,26 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
         leadArchitectLabel: 'المعماري المسؤول',
         metricsHeading: 'الأداء البيئي',
         galleryHeading: 'المعرض',
-        galleryPrevAriaLabel: 'الصور السابقة',
-        galleryNextAriaLabel: 'الصور التالية',
+        viewAllGalleryLabel: 'عرض الكل',
+        galleryPrevAriaLabel: 'الصورة السابقة',
+        galleryNextAriaLabel: 'الصورة التالية',
         shareProjectLabel: 'مشاركة المشروع',
         shareCopiedLabel: 'تم نسخ الرابط',
-        previousProjectLabel: 'السابق',
-        nextProjectLabel: 'التالي',
+        previousProjectLabel: 'المشروع السابق',
+        nextProjectLabel: 'المشروع التالي',
         notFoundTitle: 'تعذر العثور على هذا المشروع.',
         lightbox: {
           dialogAriaLabel: 'معرض صور المشروع بملء الشاشة',
+          categoriesAriaLabel: 'تصنيفات صور المعرض',
           closeAriaLabel: 'إغلاق المعرض',
           prevAriaLabel: 'العنصر السابق',
           nextAriaLabel: 'العنصر التالي',
           tabs: {
-            images: 'صور المشروع',
-            documents: 'مستندات التصميم',
+            all: 'الكل',
+            exterior: 'الخارجي',
+            interior: 'الداخلي',
+            details: 'التفاصيل',
+            documents: 'المخططات',
           },
         },
       },

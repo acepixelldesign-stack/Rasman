@@ -58,11 +58,33 @@ export interface ProjectNarrativeSection {
   readonly paragraph: LocalizedText;
 }
 
+export type ProjectMediaCategoryId =
+  | 'all'
+  | 'exterior'
+  | 'interior'
+  | 'details'
+  | 'documents';
+
+export type ProjectMediaItemCategory = Exclude<ProjectMediaCategoryId, 'all'>;
+
 export interface ProjectGalleryFrame {
   readonly image: string;
   readonly alt: LocalizedText;
   readonly caption: LocalizedText;
 }
+
+export interface CategorizedProjectMedia extends ProjectGalleryFrame {
+  readonly id: string;
+  readonly category: ProjectMediaItemCategory;
+}
+
+export const PROJECT_MEDIA_CATEGORIES: readonly ProjectMediaCategoryId[] = [
+  'all',
+  'exterior',
+  'interior',
+  'details',
+  'documents',
+] as const;
 
 export interface ArchitecturalProject {
   readonly slug: string;
@@ -1228,4 +1250,101 @@ export function getProjectDesignDocuments(
       },
     },
   ];
+}
+
+export function getProjectCategorizedMedia(
+  project: ArchitecturalProject
+): readonly CategorizedProjectMedia[] {
+  const modeSupplementalImages: Record<
+    ProjectMode,
+    readonly [string, string]
+  > = {
+    sustainable: [
+      '/images/projects/kashan-detail-1.jpg',
+      '/images/projects/shiraz-courtyard-2.jpg',
+    ],
+    urban: [
+      '/images/projects/isfahan-detail-1.jpg',
+      '/images/projects/arcade-detail-2.jpg',
+    ],
+  };
+
+  const [extraA, extraB] = modeSupplementalImages[project.mode];
+  const seenImages = new Set<string>();
+  const items: CategorizedProjectMedia[] = [];
+
+  const pushUnique = (
+    frame: ProjectGalleryFrame,
+    category: ProjectMediaItemCategory,
+    suffix: string
+  ) => {
+    if (seenImages.has(frame.image)) return;
+    seenImages.add(frame.image);
+    items.push({
+      ...frame,
+      id: `${project.slug}-${category}-${suffix}`,
+      category,
+    });
+  };
+
+  // Primary exterior hero frame
+  pushUnique(
+    {
+      image: project.heroImage,
+      alt: project.heroAlt,
+      caption: project.heroCaption,
+    },
+    'exterior',
+    'hero'
+  );
+
+  // Project-specific gallery frames categorized cleanly across interior & details
+  const galleryCategories: readonly ProjectMediaItemCategory[] = [
+    'interior',
+    'details',
+    'exterior',
+  ];
+  project.gallery.forEach((frame, index) => {
+    pushUnique(
+      frame,
+      galleryCategories[index % galleryCategories.length],
+      `gallery-${index}`
+    );
+  });
+
+  // Supplemental exterior & material detail studies for rich category browsing
+  pushUnique(
+    {
+      image: extraA,
+      alt: {
+        en: `${project.title.en} architectural envelope and daylight study`,
+        fa: `مطالعه پوسته معماری و نورگیری ${project.title.fa}`,
+        ar: `دراسة الغلاف المعماري والضوء لمشروع ${project.title.ar ?? project.title.en}`,
+      },
+      caption: project.subtitle,
+    },
+    'exterior',
+    'study-a'
+  );
+
+  pushUnique(
+    {
+      image: extraB,
+      alt: {
+        en: `${project.title.en} tactile material and courtyard sequence`,
+        fa: `توالی فضایی و بافت مصالح ${project.title.fa}`,
+        ar: `التسلسل المكاني وملمس المواد في ${project.title.ar ?? project.title.en}`,
+      },
+      caption: project.heroCaption,
+    },
+    'details',
+    'study-b'
+  );
+
+  // Technical architectural design documents (plan, section, elevation)
+  getProjectDesignDocuments(project).forEach((doc, index) => {
+    pushUnique(doc, 'documents', `doc-${index}`);
+  });
+
+  return items;
 }
