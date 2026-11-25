@@ -43,8 +43,6 @@ export const metadata: Metadata = {
   },
   other: {
     'mobile-web-app-capable': 'yes',
-    'apple-mobile-web-app-capable': 'yes',
-    'apple-touch-fullscreen': 'yes',
     'color-scheme': 'only light',
     'supported-color-schemes': 'only light',
     'darkreader-lock': 'true',
@@ -75,6 +73,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <meta name="apple-touch-fullscreen" content="yes" />
         {customPersianFontCss ? (
           <style id="rasman-custom-persian-font">{customPersianFontCss}</style>
         ) : null}

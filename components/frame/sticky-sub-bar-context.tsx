@@ -142,20 +142,17 @@ function unregisterBar(owner: symbol): void {
   }, 40);
 }
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 /**
  * Hook for any page/stage to mount its sticky 48px sub-bar into the persistent host
  * directly beneath ArchitecturalHeader.
  */
 export function useStickySubBar(config: StickySubBarConfig | null): void {
-  const ownerRef = useRef<symbol | null>(null);
-  if (ownerRef.current === null) {
-    ownerRef.current = Symbol('rasman-sticky-sub-bar');
-  }
+  const [owner] = useState<symbol>(() => Symbol('rasman-sticky-sub-bar'));
 
-  useLayoutEffect(() => {
-    const owner = ownerRef.current;
-    if (!owner) return;
-
+  useIsomorphicLayoutEffect(() => {
     if (config) {
       registerOrUpdateBar(owner, config);
     } else {
@@ -164,13 +161,10 @@ export function useStickySubBar(config: StickySubBarConfig | null): void {
   });
 
   useEffect(() => {
-    const owner = ownerRef.current;
     return () => {
-      if (owner) {
-        unregisterBar(owner);
-      }
+      unregisterBar(owner);
     };
-  }, []);
+  }, [owner]);
 }
 
 /**
