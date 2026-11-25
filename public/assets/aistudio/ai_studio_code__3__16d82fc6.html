@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RASMAN — نمایشگر و خروجی SVG لوگو</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+      background: #f2f2f2;
+      color: #111;
+      padding: 28px 16px;
+      display: flex;
+      justify-content: center;
+      transition: background 0.25s, color 0.25s;
+    }
+    body.page-dark {
+      background: #111111;
+      color: #f5f5f5;
+    }
+    .app {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 14px;
+      border-radius: 10px;
+      border: 1.5px solid #cfcfcf;
+      background: #ffffff;
+      color: #000000;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    button:hover { opacity: 0.85; }
+    button.active {
+      background: #000000;
+      color: #ffffff;
+      border-color: #000000;
+    }
+    body.page-dark button {
+      background: #1c1c1c;
+      color: #ffffff;
+      border-color: #333333;
+    }
+    body.page-dark button.active {
+      background: #ffffff;
+      color: #000000;
+      border-color: #ffffff;
+    }
+
+    /* پیش‌نمایش اصلی با رنگ سفید/مشکی خالص */
+    .stage {
+      min-height: 360px;
+      border-radius: 16px;
+      border: 1.5px solid #d4d4d4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 36px 24px;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .stage.light {
+      background: #FFFFFF;
+      color: #000000;
+      border-color: #d9d9d9;
+    }
+    .stage.dark {
+      background: #000000;
+      color: #FFFFFF;
+      border-color: #2b2b2b;
+    }
+
+    .favicon-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      width: 100%;
+    }
+    .browser-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 18px;
+      border-radius: 10px 10px 0 0;
+      border: 1px solid currentColor;
+      border-bottom: none;
+      font-size: 13px;
+      direction: ltr;
+    }
+    .fav-sizes {
+      display: flex;
+      align-items: flex-end;
+      gap: 28px;
+    }
+    .fav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .code-wrap {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1.5px solid #d4d4d4;
+      background: #ffffff;
+    }
+    body.page-dark .code-wrap {
+      border-color: #2b2b2b;
+      background: #161616;
+    }
+    .code-head {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(128,128,128,0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    pre {
+      margin: 0;
+      padding: 14px;
+      direction: ltr;
+      text-align: left;
+      font-size: 12px;
+      line-height: 1.55;
+      max-height: 220px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- دکمه‌های تغییر حالت و تغییر دارک/لایت -->
+    <div class="topbar">
+      <div class="btn-group" id="modeButtons">
+        <button data-mode="full" class="active">لوگو کامل (با متن زیرش)</button>
+        <button data-mode="mark">فقط لوگو (آیکون)</button>
+        <button data-mode="logotype">فقط لوگوتایپ (با زیرمتن)</button>
+        <button data-mode="wordmark">فقط RASMAN</button>
+        <button data-mode="favicon">فاوآیکون (Favicon)</button>
+      </div>
+
+      <div class="btn-group" id="themeButtons">
+        <button data-theme="light" class="active">☀️ لایت (مشکی خالص)</button>
+        <button data-theme="dark">🌙 دارک (سفید خالص)</button>
+      </div>
+    </div>
+
+    <!-- نمایشگر اصلی -->
+    <div id="stage" class="stage light"></div>
+
+    <!-- دکمه‌های کپی و دانلود -->
+    <div class="actions">
+      <div class="btn-group">
+        <button id="copyBtn">📋 کپی کد SVG این حالت</button>
+        <button id="downloadBtn">⬇️ دانلود فایل .svg</button>
+      </div>
+      <span id="statusText" style="font-size:12px; opacity:0.8;"></span>
+    </div>
+
+    <!-- نمایش کد SVG تولیدشده -->
+    <div class="code-wrap">
+      <div class="code-head">
+        <span id="fileNameLabel">rasman-full-light.svg</span>
+        <span>SVG Vector Pure B&amp;W</span>
+      </div>
+      <pre id="codeOutput"></pre>
+    </div>
+
+  </div>
+
+  <script>
+    // مسیرهای وکتور خالص (بدون هیچ تگ text تا در RTL و هر سیستمی بدون خطا رندر شود)
+    const MARK_PATHS = `
+    <path d="M18 242V142C18 118 25 101 44.7 84.4L115.6 24.7C129.3 13.1 150.7 13.1 164.4 24.7L244 92.4V121.3L153.7 44.6C146.1 38.1 133.9 38.1 126.3 44.6L55.2 104.9C46.1 112.7 40 125.9 40 137.9V242A22 22 0 0 0 62 264H142C162 264 174 248 179 214C185 162 224 150 282 126C288 198 256 248 199 244C208 212 228 188 254 171C224 182 200 202 190 232C182 260 168 286 142 286H62A44 44 0 0 1 18 242Z"/>
+    <path d="M140 83L201.5 135.3L187.2 152.1L140 112L105.2 141.6Q96 149.4 96 161.4V240H74V163Q74 139 92.3 123.5Z"/>`;
+
+    const RASMAN_PATHS = `
+      <g transform="translate(18, 0)" fill="currentColor">
+        <path d="M0 0H3.6V30H0Z"/>
+        <path d="M3.6 0H14.2A9.2 9.2 0 0 1 14.2 18.4H13.8L24 30H19.3L9.1 18.4H8.2V14.8H14.2A5.6 5.6 0 0 0 14.2 3.6H3.6Z"/>
+      </g>
+      <path transform="translate(64.8, 0)" fill="currentColor" d="M11.1 0H14.9L26 30H22L13 5.7L4 30H0Z"/>
+      <path transform="translate(113.6, 0)" fill="none" stroke="currentColor" stroke-width="3.6" d="M19.8 5.2C17.6 2.6 14.4 1.8 11 1.8C5.8 1.8 2.8 4.4 2.8 8C2.8 11.6 5.6 13.4 11.4 14.8C17.2 16.2 19.8 18.2 19.8 22C19.8 25.8 16.4 28.2 11 28.2C7 28.2 3.8 27 1.8 24.4"/>
+      <path transform="translate(158.4, 0)" fill="currentColor" d="M0 30V0H3.7L14.5 19.2L25.3 0H29V30H25.4V7.2L14.5 26.6L3.6 7.2V30Z"/>
+      <path transform="translate(210.2, 0)" fill="currentColor" d="M11.1 0H14.9L26 30H22L13 5.7L4 30H0Z"/>
+      <path transform="translate(259, 0)" fill="currentColor" d="M0 30V0H3.8L19.4 23.6V0H23V30H19.2L3.6 6.4V30Z"/>`;
+
+    const SUBTITLE_PATHS = `
+      <path transform="translate(18.6, 0)" d="M0 9L4 0L8 9"/>
+      <path transform="translate(33.35, 0)" d="M0 9V0H4.5A2.4 2.4 0 0 1 4.5 4.8H0M4 4.8L7.2 9"/>
+      <path transform="translate(47.3, 0)" d="M7.68 1.32A4.5 4.5 0 1 0 7.68 7.68"/>
+      <path transform="translate(61.75, 0)" d="M0 0V9M7 0V9M0 4.5H7"/>
+      <path transform="translate(75.5, 0)" d="M0.3 0V9"/>
+      <path transform="translate(82.85, 0)" d="M0 0H7.4M3.7 0V9"/>
+      <path transform="translate(97, 0)" d="M6.4 0H0V9H6.4M0 4.5H5.5"/>
+      <path transform="translate(110.15, 0)" d="M7.68 1.32A4.5 4.5 0 1 0 7.68 7.68"/>
+      <path transform="translate(124.6, 0)" d="M0 0H7.4M3.7 0V9"/>
+      <path transform="translate(138.75, 0)" d="M0 0V5.6A3.5 3.4 0 0 0 7 5.6V0"/>
+      <path transform="translate(152.5, 0)" d="M0 9V0H4.5A2.4 2.4 0 0 1 4.5 4.8H0M4 4.8L7.2 9"/>
+      <path transform="translate(166.45, 0)" d="M6.4 0H0V9H6.4M0 4.5H5.5"/>
+      <path transform="translate(187.75, 0)" d="M7.4 9L2.1 3.1C1.2 2.1 1.6 0.2 3.4 0.2C5 0.2 5.4 1.6 4.6 2.8C3.8 4 0.7 4.7 0.7 6.7C0.7 8.3 2 9 3.6 9C5.4 9 6.6 7.4 7.5 5.3"/>
+      <path transform="translate(210.15, 0)" d="M0 0V9H3.2A4.5 4.5 0 0 0 3.2 0Z"/>
+      <path transform="translate(224.6, 0)" d="M6.4 0H0V9H6.4M0 4.5H5.5"/>
+      <path transform="translate(237.75, 0)" d="M6.4 1.5C5.6 0.4 4.5 0 3.3 0C1.5 0 0.4 0.9 0.4 2.2C0.4 3.5 1.4 4.1 3.5 4.6C5.6 5.1 6.6 5.8 6.6 7C6.6 8.3 5.4 9 3.4 9C2 9 0.9 8.5 0.2 7.6"/>
+      <path transform="translate(251.3, 0)" d="M0.3 0V9"/>
+      <path transform="translate(258.65, 0)" d="M7.68 1.32A4.5 4.5 0 1 0 9 4.5H4.8"/>
+      <path transform="translate(274.4, 0)" d="M0 9V0L7 9V0"/>`;
+
+    let currentMode = "full";
+    let currentTheme = "light";
+
+    function buildSVG(mode, theme, forExport = false) {
+      const hex = theme === "dark" ? "#FFFFFF" : "#000000";
+      const colorAttr = forExport ? `color="${hex}"` : `style="color: currentColor"`;
+
+      if (mode === "full") {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 390" ${colorAttr} fill="none">
+  <g fill="currentColor">${MARK_PATHS}
+  </g>
+  <g transform="translate(0, 322)">${RASMAN_PATHS}
+  </g>
+  <g transform="translate(0, 366)" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">${SUBTITLE_PATHS}
+  </g>
+</svg>`;
+      }
+
+      if (mode === "mark") {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" ${colorAttr} fill="none">
+  <g fill="currentColor">${MARK_PATHS}
+  </g>
+</svg>`;
+      }
+
+      if (mode === "logotype") {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 84" ${colorAttr} fill="none">
+  <g transform="translate(0, 14)">${RASMAN_PATHS}
+  </g>
+  <g transform="translate(0, 58)" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">${SUBTITLE_PATHS}
+  </g>
+</svg>`;
+      }
+
+      if (mode === "wordmark") {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 58" ${colorAttr} fill="none">
+  <g transform="translate(0, 14)">${RASMAN_PATHS}
+  </g>
+</svg>`;
+      }
+
+      // Favicon با سوییچ هوشمند Dark/Light مرورگر
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <style>
+    path { fill: #000000; }
+    @media (prefers-color-scheme: dark) {
+      path { fill: #FFFFFF; }
+    }
+  </style>${MARK_PATHS}
+</svg>`;
+    }
+
+    function render() {
+      const stage = document.getElementById("stage");
+      const codeOutput = document.getElementById("codeOutput");
+      const fileNameLabel = document.getElementById("fileNameLabel");
+
+      stage.className = `stage ${currentTheme}`;
+      document.body.classList.toggle("page-dark", currentTheme === "dark");
+
+      if (currentMode === "favicon") {
+        const markPreview = buildSVG("mark", currentTheme, false);
+        stage.innerHTML = `
+          <div class="favicon-preview">
+            <div class="browser-tab">
+              <span style="width:16px;height:16px;display:inline-block;">${markPreview}</span>
+              <span>RASMAN — Architecture &amp; Design</span>
+            </div>
+            <div class="fav-sizes">
+              <div class="fav-item"><div style="width:64px;height:64px;">${markPreview}</div><span>64×64</span></div>
+              <div class="fav-item"><div style="width:32px;height:32px;">${markPreview}</div><span>32×32</span></div>
+              <div class="fav-item"><div style="width:16px;height:16px;">${markPreview}</div><span>16×16</span></div>
+            </div>
+          </div>`;
+        fileNameLabel.textContent = "favicon.svg";
+      } else {
+        const previewWidth =
+          currentMode === "full" ? 210 :
+          currentMode === "mark" ? 180 : 320;
+        stage.innerHTML = `<div style="width:${previewWidth}px;max-width:100%;">${buildSVG(currentMode, currentTheme, false)}</div>`;
+        fileNameLabel.textContent = `rasman-${currentMode}-${currentTheme}.svg`;
+      }
+
+      codeOutput.textContent = buildSVG(currentMode, currentTheme, true);
+    }
+
+    // رویداد دکمه‌های حالت
+    document.querySelectorAll("#modeButtons button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#modeButtons button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentMode = btn.dataset.mode;
+        render();
+      });
+    });
+
+    // رویداد دکمه‌های دارک و لایت
+    document.querySelectorAll("#themeButtons button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#themeButtons button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentTheme = btn.dataset.theme;
+        render();
+      });
+    });
+
+    // کپی کد SVG
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      const code = buildSVG(currentMode, currentTheme, true);
+      await navigator.clipboard.writeText(code);
+      const st = document.getElementById("statusText");
+      st.textContent = "✅ کد SVG در کلیپ‌بورد کپی شد";
+      setTimeout(() => st.textContent = "", 2500);
+    });
+
+    // دانلود مستقیم فایل SVG
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const code = buildSVG(currentMode, currentTheme, true);
+      const blob = new Blob([code], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = currentMode === "favicon" ? "favicon.svg" : `rasman-${currentMode}-${currentTheme}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    render();
+  </script>
+</body>
+</html>
