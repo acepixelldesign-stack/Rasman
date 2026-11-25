@@ -20,6 +20,8 @@ import {
   type Locale,
   type ThemeMode,
 } from '@/lib/config/site';
+import type { ProjectMode } from '@/lib/data/projects';
+import { MOTION_TRANSITIONS } from '@/lib/motion/system';
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
 import { SmoothScrollProvider } from '@/components/providers/smooth-scroll-provider';
 import { PersistentShell } from '@/components/frame/persistent-shell';
@@ -237,6 +239,8 @@ interface AppContextValue {
   readonly userProfile: UserProfile | null;
   readonly setUserProfile: (profile: UserProfile | null) => void;
   readonly signOut: () => void;
+  readonly ambientMode: ProjectMode | null;
+  readonly setAmbientMode: (mode: ProjectMode | null) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -264,6 +268,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
   const [authenticatedPhone, setAuthenticatedPhone] = useState<string | null>(
     null
   );
+  const [ambientMode, setAmbientMode] = useState<ProjectMode | null>(null);
 
   useEffect(() => {
     if (clientInitialized && isClientMounted) return;
@@ -329,6 +334,58 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     root.lang = locale;
     root.dir = dir;
   }, [locale, dir]);
+
+  // Sync full-viewport Projects ambient mode & cross-browser toolbar color (Safari, Chrome, Edge, Firefox, Samsung)
+  useEffect(() => {
+    const root = document.documentElement;
+    if (ambientMode) {
+      root.dataset.ambientMode = ambientMode;
+      root.style.colorScheme = 'dark';
+    } else {
+      delete root.dataset.ambientMode;
+      root.style.colorScheme = theme;
+    }
+
+    const paletteKey = ambientMode ?? 'default';
+    const targetColor = SITE_CONFIG.themeColors[paletteKey][theme];
+    const head = document.head;
+    if (!head) return;
+
+    // Never detach React/Next-managed <meta> nodes (causes React 19 removeChild crashes on navigation).
+    // Update any non-managed theme-color tags strictly in-place, and replace only our own managed tag
+    // so Safari 15–18 and Chromium browsers repaint the browser chrome immediately.
+    head
+      .querySelectorAll<HTMLMetaElement>(
+        'meta[name="theme-color"]:not([data-rasman-managed="true"])'
+      )
+      .forEach((tag) => {
+        tag.setAttribute('content', targetColor);
+      });
+
+    const existingManagedTheme = head.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"][data-rasman-managed="true"]'
+    );
+    if (existingManagedTheme && existingManagedTheme.parentNode === head) {
+      head.removeChild(existingManagedTheme);
+    }
+
+    const themeColorMeta = document.createElement('meta');
+    themeColorMeta.name = 'theme-color';
+    themeColorMeta.content = targetColor;
+    themeColorMeta.dataset.rasmanManaged = 'true';
+    head.appendChild(themeColorMeta);
+
+    let msNavMeta = head.querySelector<HTMLMetaElement>(
+      'meta[name="msapplication-navbutton-color"][data-rasman-managed="true"]'
+    );
+    if (!msNavMeta) {
+      msNavMeta = document.createElement('meta');
+      msNavMeta.name = 'msapplication-navbutton-color';
+      msNavMeta.dataset.rasmanManaged = 'true';
+      head.appendChild(msNavMeta);
+    }
+    msNavMeta.content = targetColor;
+  }, [ambientMode, theme]);
 
   // Content copy & image drag protection (while preserving copy/paste inside form inputs)
   useEffect(() => {
@@ -433,6 +490,8 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
       userProfile,
       setUserProfile,
       signOut,
+      ambientMode,
+      setAmbientMode,
     }),
     [
       locale,
@@ -452,12 +511,13 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
       userProfile,
       setUserProfile,
       signOut,
+      ambientMode,
     ]
   );
 
   return (
     <AppContext.Provider value={contextValue}>
-      <MotionConfig reducedMotion="user">
+      <MotionConfig reducedMotion="user" transition={MOTION_TRANSITIONS.base}>
         <SmoothScrollProvider isPaused={isStartProjectOpen || isScrollLocked}>
           <PersistentShell>{children}</PersistentShell>
         </SmoothScrollProvider>

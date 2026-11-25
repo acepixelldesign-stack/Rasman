@@ -70,7 +70,7 @@ export function PersistentShell({ children }: PersistentShellProps) {
   }, []);
 
   return (
-    <div className="relative min-h-dvh w-full bg-[var(--bg-canvas)] text-[var(--ink-primary)] transition-colors duration-200">
+    <div className="relative min-h-dvh w-full bg-[var(--bg-canvas)] text-[var(--ink-primary)] transition-colors duration-500">
       {/* Accessible Skip Link */}
       <a
         href="#main-canvas"
@@ -96,7 +96,7 @@ export function PersistentShell({ children }: PersistentShellProps) {
           'pointer-events-none fixed z-30',
           'top-[var(--grid-header)] bottom-[var(--grid-bottom)] start-0',
           'w-[var(--grid-rail)] border-e border-[var(--grid-line)]',
-          'bg-[var(--bg-rail)] transition-colors duration-200'
+          'bg-[var(--bg-rail)] transition-colors duration-500'
         )}
       />
 
@@ -107,7 +107,7 @@ export function PersistentShell({ children }: PersistentShellProps) {
           'pointer-events-none fixed z-30',
           'top-[var(--grid-header)] bottom-[var(--grid-bottom)] end-0',
           'w-[var(--grid-rail)] border-s border-[var(--grid-line)]',
-          'bg-[var(--bg-rail)] transition-colors duration-200'
+          'bg-[var(--bg-rail)] transition-colors duration-500'
         )}
       />
 
@@ -117,7 +117,7 @@ export function PersistentShell({ children }: PersistentShellProps) {
         className={cn(
           'pointer-events-none fixed bottom-0 inset-x-0 z-30',
           'h-[var(--grid-bottom)] border-t border-[var(--grid-line)]',
-          'bg-[var(--bg-rail)] transition-colors duration-200'
+          'bg-[var(--bg-rail)] transition-colors duration-500'
         )}
       >
         <span className="header-rail-divider-start absolute inset-y-0 w-px bg-[var(--grid-line)]" />
@@ -143,7 +143,7 @@ export function PersistentShell({ children }: PersistentShellProps) {
         id="main-canvas"
         aria-label={dictionary.stage.regionAriaLabel}
         className={cn(
-          'relative min-h-dvh w-full bg-[var(--bg-canvas)] transition-colors duration-200',
+          'relative min-h-dvh w-full bg-[var(--bg-canvas)] transition-colors duration-500',
           'pt-[var(--grid-header)] pb-[var(--grid-bottom)]',
           'ps-[var(--grid-rail)] pe-[var(--grid-rail)]'
         )}

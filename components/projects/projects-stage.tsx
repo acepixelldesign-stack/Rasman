@@ -9,36 +9,22 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
+import { ChevronsUpDown } from 'lucide-react';
 import {
-  MdCheck,
   MdClose,
   MdEnergySavingsLeaf,
   MdLocationCity,
-  MdRestartAlt,
   MdTune,
 } from 'react-icons/md';
-import { SITE_CONFIG } from '@/lib/config/site';
-import {
-  ARCHITECTURAL_PROJECTS,
-  PROJECT_LOCATION_OPTIONS,
-  PROJECT_MODE_ARTWORK,
-  PROJECT_MODE_OPTIONS,
-  PROJECT_STATUS_OPTIONS,
-  PROJECT_TYPE_OPTIONS,
-  type ProjectLocationId,
-  type ProjectMode,
-  type ProjectStatusId,
-  type ProjectTypeId,
-} from '@/lib/data/projects';
+import { ARCHITECTURAL_PROJECTS, type ProjectMode } from '@/lib/data/projects';
+import { MOTION_TRANSITIONS, MOTION_VARIANTS } from '@/lib/motion/system';
 import {
   markRouteContentHydrated,
   useAppContext,
 } from '@/components/providers/app-provider';
 import {
-  ARCHITECTURAL_EASE,
   CARD_STAGGER_CONTAINER_VARIANTS,
   CARD_STAGGER_ITEM_VARIANTS,
   useArchitecturalEntrance,
@@ -46,9 +32,12 @@ import {
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { ProjectCard } from '@/components/projects/project-card';
 import {
-  ProjectFilterDropdown,
-  type FilterDropdownOption,
-} from '@/components/projects/project-filter-dropdown';
+  EMPTY_PROJECT_FILTERS,
+  ProjectMegaFilter,
+  countActiveProjectFilters,
+  filterArchitecturalProjects,
+  type ProjectMegaFilterState,
+} from '@/components/projects/project-mega-filter';
 import { cn } from '@/lib/utils';
 
 const HORIZONTAL_LERP = 0.095;
@@ -60,15 +49,19 @@ interface ProjectsStageProps {
 }
 
 /**
- * Primary Horizontal Projects Architectural Stage:
- * - Segmented 2-mode pill toggle (Sustainable Architecture vs. Urban Architecture) with icons
- * - Three glassmorphic dropdown filters: TYPE, STATUS (Concept / In Progress / Completed), and LOCATION (Cities)
- * - Large square project cards in a smooth horizontal inertial gallery (wheel-to-horizontal, drag-pan, touch-swipe, RTL parity)
+ * Unified Horizontal Projects Architectural Stage (Mobile & Desktop):
+ * - Fixed 48px Architectural Floating Top Bar on BOTH Mobile and Desktop:
+ *     - Start block: Projects Title
+ *     - Center stretched block: Direct click-to-switch Mode Text + Icon (Green for Sustainable, Brown for Urban; no popup menu)
+ *     - End square 48x48 block: Filter Settings icon triggering the ArchDaily-inspired Accordion Mega Filter
+ * - Clean 10% brand-color background wash synchronized across Light & Dark mode (no background sketch image)
+ * - Tall vertically stretched architectural project cards unified across mobile and desktop
+ * - Mobile cards default collapsed like desktop and smoothly reveal descriptions when entering horizontally
  */
 export function ProjectsStage({
   initialMode = 'sustainable',
 }: ProjectsStageProps) {
-  const { isRtl, dictionary } = useAppContext();
+  const { isRtl, dictionary, setAmbientMode } = useAppContext();
   const searchParams = useSearchParams();
   const modeParam = searchParams.get('mode');
   const urlMode: ProjectMode =
@@ -87,24 +80,68 @@ export function ProjectsStage({
     manualOverride && manualOverride.param === modeParam
       ? manualOverride.mode
       : urlMode;
-  const [selectedType, setSelectedType] = useState<ProjectTypeId>('all');
-  const [selectedStatus, setSelectedStatus] = useState<ProjectStatusId>('all');
-  const [selectedLocation, setSelectedLocation] =
-    useState<ProjectLocationId>('all');
+
+  const [appliedFilters, setAppliedFilters] = useState<ProjectMegaFilterState>(
+    EMPTY_PROJECT_FILTERS
+  );
   const [isDragging, setIsDragging] = useState(false);
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isMegaFilterOpen, setIsMegaFilterOpen] = useState(false);
+  const [mobileRevealState, setMobileRevealState] = useState<{
+    readonly key: string;
+    readonly slug: string | null;
+  }>({ key: '', slug: null });
 
   const stageRef = useRef<HTMLElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const mobileFilterRef = useRef<HTMLDivElement>(null);
-  const mobileFilterTriggerRef = useRef<HTMLButtonElement>(null);
-  const mobileFilterId = useId();
+  const floatingBarRef = useRef<HTMLDivElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  const cardItemRefs = useRef<Map<string, HTMLLIElement>>(new Map());
+  const hasMobileScrolledRef = useRef(false);
+  const megaFilterId = useId();
+
   useArchitecturalEntrance(stageRef, { isRtl });
-  useBodyScrollLock(isMobileFiltersOpen);
+  useBodyScrollLock(isMegaFilterOpen);
+
+  const activeFilterCount = useMemo(
+    () => countActiveProjectFilters(appliedFilters),
+    [appliedFilters]
+  );
+
+  const filterKey = useMemo(
+    () =>
+      [
+        activeMode,
+        isRtl ? 'rtl' : 'ltr',
+        appliedFilters.categories.join(','),
+        appliedFilters.locations.join(','),
+        appliedFilters.statuses.join(','),
+        appliedFilters.architects.join(','),
+        appliedFilters.years.join(','),
+        appliedFilters.materials.join(','),
+        appliedFilters.areas.join(','),
+        appliedFilters.colors.join(','),
+      ].join('|'),
+    [activeMode, appliedFilters, isRtl]
+  );
+
+  const activeMobileSlug =
+    mobileRevealState.key === filterKey ? mobileRevealState.slug : null;
 
   useEffect(() => {
     markRouteContentHydrated();
   }, []);
+
+  // Drive full-viewport 20% Brand-400 / Secondary-400 backdrop behind grids & cross-browser toolbar color
+  useEffect(() => {
+    setAmbientMode(activeMode);
+  }, [activeMode, setAmbientMode]);
+
+  useEffect(() => {
+    return () => {
+      setAmbientMode(null);
+    };
+  }, [setAmbientMode]);
+
   const targetOffsetRef = useRef(0);
   const currentOffsetRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
@@ -117,21 +154,21 @@ export function ProjectsStage({
   });
 
   useEffect(() => {
-    if (!isMobileFiltersOpen) return;
+    if (!isMegaFilterOpen) return;
 
     const handlePointerDown = (event: MouseEvent) => {
       if (
-        mobileFilterRef.current &&
-        !mobileFilterRef.current.contains(event.target as Node)
+        floatingBarRef.current &&
+        !floatingBarRef.current.contains(event.target as Node)
       ) {
-        setIsMobileFiltersOpen(false);
+        setIsMegaFilterOpen(false);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsMobileFiltersOpen(false);
-        mobileFilterTriggerRef.current?.focus();
+        setIsMegaFilterOpen(false);
+        filterTriggerRef.current?.focus();
       }
     };
 
@@ -142,7 +179,7 @@ export function ProjectsStage({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMobileFiltersOpen]);
+  }, [isMegaFilterOpen]);
 
   const handleModeChange = (nextMode: ProjectMode) => {
     if (nextMode === activeMode) return;
@@ -153,58 +190,23 @@ export function ProjectsStage({
     }
   };
 
-  const hasActiveDropdownFilter =
-    selectedType !== 'all' ||
-    selectedStatus !== 'all' ||
-    selectedLocation !== 'all';
-
-  const handleResetFilters = () => {
-    setSelectedType('all');
-    setSelectedStatus('all');
-    setSelectedLocation('all');
+  const handleApplyFilters = (nextFilters: ProjectMegaFilterState) => {
+    setAppliedFilters(nextFilters);
+    setIsMegaFilterOpen(false);
   };
 
-  const filteredProjects = useMemo(() => {
-    return ARCHITECTURAL_PROJECTS.filter((project) => {
-      if (project.mode !== activeMode) return false;
-      if (selectedType !== 'all' && project.type !== selectedType) return false;
-      if (selectedStatus !== 'all' && project.status !== selectedStatus)
-        return false;
-      if (selectedLocation !== 'all' && project.location !== selectedLocation)
-        return false;
-      return true;
-    });
-  }, [activeMode, selectedType, selectedStatus, selectedLocation]);
+  const handleClearFilters = () => {
+    setAppliedFilters(EMPTY_PROJECT_FILTERS);
+  };
 
-  const typeOptions = useMemo<readonly FilterDropdownOption<ProjectTypeId>[]>(
+  const filteredProjects = useMemo(
     () =>
-      PROJECT_TYPE_OPTIONS.map((value) => ({
-        value,
-        label: dictionary.projects.typeOptions[value],
-      })),
-    [dictionary.projects.typeOptions]
-  );
-
-  const statusOptions = useMemo<
-    readonly FilterDropdownOption<ProjectStatusId>[]
-  >(
-    () =>
-      PROJECT_STATUS_OPTIONS.map((value) => ({
-        value,
-        label: dictionary.projects.statusOptions[value],
-      })),
-    [dictionary.projects.statusOptions]
-  );
-
-  const locationOptions = useMemo<
-    readonly FilterDropdownOption<ProjectLocationId>[]
-  >(
-    () =>
-      PROJECT_LOCATION_OPTIONS.map((value) => ({
-        value,
-        label: dictionary.projects.locationOptions[value],
-      })),
-    [dictionary.projects.locationOptions]
+      filterArchitecturalProjects(
+        ARCHITECTURAL_PROJECTS,
+        activeMode,
+        appliedFilters
+      ),
+    [activeMode, appliedFilters]
   );
 
   const getLogicalOffset = useCallback(
@@ -252,16 +254,17 @@ export function ProjectsStage({
     rafIdRef.current = window.requestAnimationFrame(tick);
   }, [applyLogicalOffset]);
 
-  // Reset horizontal track scroll whenever mode, filter, or text direction changes
+  // Reset horizontal track scroll & mobile scroll-reveal whenever mode, filter, or text direction changes
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
     targetOffsetRef.current = 0;
     currentOffsetRef.current = 0;
+    hasMobileScrolledRef.current = false;
     el.scrollLeft = 0;
-  }, [isRtl, activeMode, selectedType, selectedStatus, selectedLocation]);
+  }, [filterKey]);
 
-  // Frame-by-frame smooth horizontal wheel & keyboard scrolling
+  // Frame-by-frame smooth horizontal wheel & keyboard scrolling + mobile horizontal slide-in description reveal
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || typeof window === 'undefined') return;
@@ -270,7 +273,57 @@ export function ProjectsStage({
       '(prefers-reduced-motion: reduce)'
     ).matches;
 
+    const desktopMediaQuery = window.matchMedia(
+      '(min-width: 768px) and (min-height: 520px) and (orientation: landscape)'
+    );
+
+    const updateMobileActiveCard = () => {
+      if (desktopMediaQuery.matches) return;
+      const logicalOffset = getLogicalOffset(el);
+      if (logicalOffset > 10) {
+        hasMobileScrolledRef.current = true;
+      }
+      if (!hasMobileScrolledRef.current) return;
+
+      const elRect = el.getBoundingClientRect();
+      const elCenter = elRect.left + elRect.width / 2;
+      let bestSlug: string | null = null;
+      let bestScore = -1;
+
+      cardItemRefs.current.forEach((node, slug) => {
+        const rect = node.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const visibleWidth = Math.max(
+          0,
+          Math.min(elRect.right, rect.right) - Math.max(elRect.left, rect.left)
+        );
+        const visibleRatio = visibleWidth / rect.width;
+        if (visibleRatio < 0.6) return;
+
+        const cardCenter = rect.left + rect.width / 2;
+        const centerProximity =
+          1 -
+          Math.min(
+            1,
+            Math.abs(cardCenter - elCenter) / Math.max(1, elRect.width)
+          );
+        const score = visibleRatio * 1.4 + centerProximity;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestSlug = slug;
+        }
+      });
+
+      setMobileRevealState((prev) =>
+        prev.key === filterKey && prev.slug === bestSlug
+          ? prev
+          : { key: filterKey, slug: bestSlug }
+      );
+    };
+
     const handleWheel = (event: WheelEvent) => {
+      if (document.documentElement.dataset.scrollLocked === 'true') return;
       if (event.ctrlKey || event.metaKey) return;
 
       const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
@@ -305,6 +358,7 @@ export function ProjectsStage({
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (document.documentElement.dataset.scrollLocked === 'true') return;
       if (
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement
@@ -345,6 +399,7 @@ export function ProjectsStage({
         currentOffsetRef.current = current;
         targetOffsetRef.current = current;
       }
+      updateMobileActiveCard();
     };
 
     el.addEventListener('wheel', handleWheel, { passive: false });
@@ -359,7 +414,7 @@ export function ProjectsStage({
         window.cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [applyLogicalOffset, getLogicalOffset, isRtl, startInertiaLoop]);
+  }, [applyLogicalOffset, filterKey, getLogicalOffset, isRtl, startInertiaLoop]);
 
   // Smooth desktop mouse grab-drag without blocking clicks on project cards
   useEffect(() => {
@@ -382,7 +437,10 @@ export function ProjectsStage({
       const logicalDelta = isRtl ? deltaX : -deltaX;
       targetOffsetRef.current = Math.max(
         0,
-        Math.min(maxScroll, dragStateRef.current.startOffset + logicalDelta * 1.25)
+        Math.min(
+          maxScroll,
+          dragStateRef.current.startOffset + logicalDelta * 1.25
+        )
       );
       startInertiaLoop();
     };
@@ -427,369 +485,214 @@ export function ProjectsStage({
     }
   };
 
+  const nextToggleMode: ProjectMode =
+    activeMode === 'sustainable' ? 'urban' : 'sustainable';
+
+  const ActiveModeIcon =
+    activeMode === 'sustainable' ? MdEnergySavingsLeaf : MdLocationCity;
+
   return (
     <section
       ref={stageRef}
       aria-label={dictionary.projects.regionAriaLabel}
-      className="relative flex min-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col bg-[var(--bg-canvas)] desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] desktop:overflow-hidden"
+      className="relative flex h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col overflow-hidden bg-transparent pt-12"
     >
-      {/* Mode-Specific Architectural Sketch Background (20% Opacity, Light/Dark/RTL Adaptive) */}
+      {/* Unified Fixed Architectural Floating Top Bar (Mobile & Desktop, 48px):
+          [Projects Title] | [Mode Icon + Direct Click-to-Switch Mode Text (Green/Brown)] | [48x48 Mega Filter Trigger] */}
       <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none opacity-20 mix-blend-multiply dark:mix-blend-screen"
+        ref={floatingBarRef}
+        className={cn(
+          'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[34]',
+          'flex flex-col bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)] transition-colors duration-500',
+          'border-b border-[var(--grid-line)]'
+        )}
       >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeMode}
-            initial={{ opacity: 0, scale: 1.015 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{
-              duration: 0.72,
-              ease: ARCHITECTURAL_EASE,
-            }}
-            className="relative h-full w-full"
-          >
-            <Image
-              src={PROJECT_MODE_ARTWORK[activeMode]}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              referrerPolicy="no-referrer"
-              className="object-cover object-[78%_bottom] desktop:object-bottom contrast-[1.04] dark:invert dark:hue-rotate-180 dark:contrast-[1.06] rtl:-scale-x-100"
-            />
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Top Editorial Title + Segmented Mode Toggle & Dropdown Filters */}
-      <header className="relative z-20 flex shrink-0 flex-col gap-6 px-4 pt-6 pb-4 desktop:gap-7 desktop:px-10 desktop:pt-8 desktop:pb-5 desktop-wide:px-14">
-        <h1
-          data-gsap="heading"
-          className="text-[clamp(1.65rem,2.6vw,2.25rem)] font-medium leading-[1.15] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.35] rtl:tracking-normal"
-        >
-          {dictionary.projects.title}
-        </h1>
-
         <div
-          ref={mobileFilterRef}
           role="region"
           aria-label={dictionary.projects.filterBarAriaLabel}
-          className="relative flex flex-nowrap items-center gap-2.5 desktop:flex-wrap desktop:gap-3"
+          className="flex h-12 w-full items-stretch"
         >
-          {/* Two-Mode Shadowless Frosted Muted-Grey Glass Segmented Button (Full-Width Fill on Mobile) */}
-          <div
-            data-gsap="control"
-            role="tablist"
-            aria-label={dictionary.projects.modeToggleAriaLabel}
-            className={cn(
-              'rasman-glass no-scrollbar flex min-w-0 flex-1 items-center overflow-x-auto rounded-full p-1',
-              'desktop:inline-flex desktop:w-auto desktop:flex-none'
-            )}
-          >
-            {PROJECT_MODE_OPTIONS.map((mode) => {
-              const isActive = activeMode === mode;
-              const Icon =
-                mode === 'sustainable' ? MdEnergySavingsLeaf : MdLocationCity;
-
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => handleModeChange(mode)}
-                  className={cn(
-                    'relative inline-flex h-7 flex-1 justify-center desktop:flex-none cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12px] leading-none font-medium transition-colors duration-200',
-                    'whitespace-nowrap',
-                    isActive
-                      ? 'text-[var(--brand-ink-on-primary)]'
-                      : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
-                  )}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="projects-mode-thumb"
-                      transition={{
-                        duration: 0.32,
-                        ease: ARCHITECTURAL_EASE,
-                      }}
-                      className={cn(
-                        'absolute inset-0 rounded-full',
-                        mode === 'sustainable'
-                          ? 'bg-[var(--brand-primary)]'
-                          : 'bg-[var(--accent-khaki)]'
-                      )}
-                    />
-                  )}
-                  <Icon
-                    size={15}
-                    aria-hidden="true"
-                    className={cn(
-                      'relative z-10 shrink-0 transition-colors duration-200',
-                      isActive
-                        ? 'text-[var(--brand-ink-on-primary)]'
-                        : 'text-[var(--ink-muted)]'
-                    )}
-                  />
-                  <span className="relative z-10">
-                    {dictionary.projects.modeTabs[mode]}
-                  </span>
-                </button>
-              );
-            })}
+          {/* Block 1 (Start): Projects Title */}
+          <div className="flex shrink-0 items-center border-e border-[var(--grid-line)] px-4 desktop:px-6">
+            <h1 className="text-[15px] font-medium leading-none text-[var(--ink-primary)] desktop:text-[16px]">
+              {dictionary.projects.title}
+            </h1>
           </div>
 
-          {/* Mobile Glassmorphic Shadowless Filter Icon Button beside Segmented Button */}
+          {/* Block 2 (Center Stretched): Mode Icon + Direct Click-to-Switch Mode Text (Green / Brown, No Dropdown Menu) */}
           <button
-            data-gsap="control"
-            ref={mobileFilterTriggerRef}
             type="button"
-            aria-expanded={isMobileFiltersOpen}
-            aria-controls={mobileFilterId}
-            aria-label={dictionary.projects.filtersTriggerAriaLabel}
-            onClick={() => setIsMobileFiltersOpen((prev) => !prev)}
+            onClick={() => handleModeChange(nextToggleMode)}
+            aria-label={`${dictionary.projects.modeToggleAriaLabel}: ${dictionary.projects.modes[activeMode]}`}
             className={cn(
-              'rasman-glass relative inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-250 desktop:hidden',
-              'hover:bg-[var(--glass-control-hover)]',
-              isMobileFiltersOpen || hasActiveDropdownFilter
+              'flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2.5 px-3.5 text-start transition-colors duration-250 hover:bg-[var(--surface-hover)] desktop:px-5',
+              activeMode === 'sustainable'
                 ? 'text-[var(--brand-text-hover)]'
+                : 'text-[var(--accent-khaki)]'
+            )}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={activeMode}
+                variants={MOTION_VARIANTS.textSwap}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="flex min-w-0 items-center gap-2"
+              >
+                <ActiveModeIcon
+                  size={17}
+                  aria-hidden="true"
+                  className="shrink-0"
+                />
+                <span className="truncate text-[14px] font-medium leading-none desktop:text-[15px]">
+                  {dictionary.projects.modes[activeMode]}
+                </span>
+              </motion.span>
+            </AnimatePresence>
+
+            <ChevronsUpDown
+              size={17}
+              strokeWidth={1.75}
+              aria-hidden="true"
+              className="shrink-0 opacity-85"
+            />
+          </button>
+
+          {/* Block 3 (End Square 48x48): ArchDaily-Style Accordion Mega Filter Trigger (Toggles to X When Open) */}
+          <button
+            ref={filterTriggerRef}
+            type="button"
+            aria-expanded={isMegaFilterOpen}
+            aria-controls={megaFilterId}
+            aria-label={
+              isMegaFilterOpen
+                ? dictionary.projects.closeFiltersAriaLabel
+                : dictionary.projects.filtersTriggerAriaLabel
+            }
+            onClick={() => setIsMegaFilterOpen((prev) => !prev)}
+            className={cn(
+              'relative inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
+              isMegaFilterOpen || activeFilterCount > 0
+                ? activeMode === 'sustainable'
+                  ? 'text-[var(--brand-text-hover)]'
+                  : 'text-[var(--accent-khaki)]'
                 : 'text-[var(--ink-primary)]'
             )}
           >
-            <MdTune size={18} aria-hidden="true" />
-            {hasActiveDropdownFilter && !isMobileFiltersOpen && (
-              <span
-                aria-hidden="true"
-                className="absolute top-1.5 end-1.5 h-1.5 w-1.5 rounded-full bg-[var(--brand-text-hover)]"
-              />
-            )}
-          </button>
-
-          {/* Desktop Inline Dropdown Filters */}
-          <div
-            data-gsap="control"
-            className="hidden desktop:inline-flex desktop:flex-wrap desktop:items-center desktop:gap-3"
-          >
-            {/* Dropdown 1: Project Type */}
-            <ProjectFilterDropdown
-              label={dictionary.projects.typeLabel}
-              value={selectedType}
-              options={typeOptions}
-              onChange={setSelectedType}
-            />
-
-            {/* Dropdown 2: Project Status (Concept / In Progress / Completed) */}
-            <ProjectFilterDropdown
-              label={dictionary.projects.statusLabel}
-              value={selectedStatus}
-              options={statusOptions}
-              onChange={setSelectedStatus}
-            />
-
-            {/* Dropdown 3: Cities / Location */}
-            <ProjectFilterDropdown
-              label={dictionary.projects.locationLabel}
-              value={selectedLocation}
-              options={locationOptions}
-              onChange={setSelectedLocation}
-            />
-
-            {/* Subtle Reset Filter Trigger when filtered */}
-            <AnimatePresence>
-              {hasActiveDropdownFilter && (
-                <motion.button
-                  type="button"
-                  initial={{ opacity: 0, scale: 0.94 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.94 }}
-                  transition={{
-                    duration: SITE_CONFIG.motion.fastDuration,
-                    ease: ARCHITECTURAL_EASE,
-                  }}
-                  onClick={handleResetFilters}
-                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[12px] font-medium text-[var(--ink-muted)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+            <AnimatePresence mode="wait" initial={false}>
+              {isMegaFilterOpen ? (
+                <motion.span
+                  key="filter-close"
+                  variants={MOTION_VARIANTS.iconSwap}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="inline-flex items-center justify-center"
                 >
-                  <MdRestartAlt size={15} aria-hidden="true" />
-                  <span>{dictionary.projects.resetFilters}</span>
-                </motion.button>
+                  <MdClose size={20} aria-hidden="true" />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="filter-tune"
+                  variants={MOTION_VARIANTS.iconSwap}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="inline-flex items-center justify-center"
+                >
+                  <MdTune size={19} aria-hidden="true" />
+                </motion.span>
               )}
             </AnimatePresence>
-          </div>
-
-          {/* Mobile Expanded Filter Panel (Shadowless Glass Container) */}
-          <AnimatePresence>
-            {isMobileFiltersOpen && (
-              <motion.div
-                id={mobileFilterId}
-                role="dialog"
-                data-scroll-lock-allow=""
-                aria-label={dictionary.projects.filtersPanelTitle}
-                initial={{ opacity: 0, y: -8, scale: 0.985 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.985 }}
-                transition={{
-                  duration: 0.34,
-                  ease: ARCHITECTURAL_EASE,
-                }}
-                className="rasman-glass-popover absolute top-[calc(100%+8px)] start-0 end-0 z-30 rounded-2xl p-4 desktop:hidden"
+            {activeFilterCount > 0 && !isMegaFilterOpen && (
+              <span
+                dir="ltr"
+                aria-hidden="true"
+                className={cn(
+                  'bidi-isolate absolute top-1.5 end-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-medium tabular-nums text-[var(--brand-ink-on-primary)]',
+                  activeMode === 'sustainable'
+                    ? 'bg-[var(--brand-primary)]'
+                    : 'bg-[var(--accent-khaki)]'
+                )}
               >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-[12px] font-medium tracking-[0.04em] text-[var(--ink-primary)] rtl:tracking-normal">
-                    {dictionary.projects.filtersPanelTitle}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {hasActiveDropdownFilter && (
-                      <button
-                        type="button"
-                        onClick={handleResetFilters}
-                        className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-full px-2.5 text-[12px] font-medium text-[var(--brand-text-hover)] transition-colors duration-150 hover:bg-[var(--surface-hover)]"
-                      >
-                        <MdRestartAlt size={14} aria-hidden="true" />
-                        <span>{dictionary.projects.resetFilters}</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      aria-label={dictionary.projects.filtersTriggerAriaLabel}
-                      onClick={() => {
-                        setIsMobileFiltersOpen(false);
-                        mobileFilterTriggerRef.current?.focus();
-                      }}
-                      className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
-                    >
-                      <MdClose size={16} aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex max-h-[min(58dvh,420px)] flex-col gap-4 overflow-y-auto pe-1">
-                  {/* Group 1: Type */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-medium tracking-[0.04em] text-[var(--ink-muted)] rtl:tracking-normal">
-                      {dictionary.projects.typeLabel}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {typeOptions.map((option) => {
-                        const isSelected = option.value === selectedType;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => setSelectedType(option.value)}
-                            className={cn(
-                              'inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors duration-200',
-                              isSelected
-                                ? 'bg-[var(--glass-control-thumb)] text-[var(--brand-text-hover)]'
-                                : 'bg-[var(--glass-control-bg)] text-[var(--ink-secondary)] hover:bg-[var(--glass-control-hover)] hover:text-[var(--ink-primary)]'
-                            )}
-                          >
-                            {isSelected && (
-                              <MdCheck size={13} aria-hidden="true" />
-                            )}
-                            <span>{option.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Group 2: Status */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-medium tracking-[0.04em] text-[var(--ink-muted)] rtl:tracking-normal">
-                      {dictionary.projects.statusLabel}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {statusOptions.map((option) => {
-                        const isSelected = option.value === selectedStatus;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => setSelectedStatus(option.value)}
-                            className={cn(
-                              'inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors duration-200',
-                              isSelected
-                                ? 'bg-[var(--glass-control-thumb)] text-[var(--brand-text-hover)]'
-                                : 'bg-[var(--glass-control-bg)] text-[var(--ink-secondary)] hover:bg-[var(--glass-control-hover)] hover:text-[var(--ink-primary)]'
-                            )}
-                          >
-                            {isSelected && (
-                              <MdCheck size={13} aria-hidden="true" />
-                            )}
-                            <span>{option.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Group 3: Location */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-medium tracking-[0.04em] text-[var(--ink-muted)] rtl:tracking-normal">
-                      {dictionary.projects.locationLabel}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {locationOptions.map((option) => {
-                        const isSelected = option.value === selectedLocation;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => setSelectedLocation(option.value)}
-                            className={cn(
-                              'inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors duration-200',
-                              isSelected
-                                ? 'bg-[var(--glass-control-thumb)] text-[var(--brand-text-hover)]'
-                                : 'bg-[var(--glass-control-bg)] text-[var(--ink-secondary)] hover:bg-[var(--glass-control-hover)] hover:text-[var(--ink-primary)]'
-                            )}
-                          >
-                            {isSelected && (
-                              <MdCheck size={13} aria-hidden="true" />
-                            )}
-                            <span>{option.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                {activeFilterCount}
+              </span>
             )}
-          </AnimatePresence>
+          </button>
         </div>
-      </header>
 
-      {/* Large Horizontal Scrolling Architectural Cards Stage (Staggered Cascade) */}
+        {/* Bottom Start & End Frame Rail Intersection '+' Crosshairs */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-[6px] -start-[7px] z-[35] block h-[13px] w-[13px]"
+        >
+          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+        </span>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-[6px] -end-[7px] z-[35] block h-[13px] w-[13px]"
+        >
+          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+        </span>
+
+        {/* Full-Screen Frosted-Glass ArchDaily-Inspired Accordion Mega Filter */}
+        <AnimatePresence initial={false}>
+          {isMegaFilterOpen && (
+            <ProjectMegaFilter
+              key={`mega-filter-${filterKey}`}
+              id={megaFilterId}
+              activeMode={activeMode}
+              appliedFilters={appliedFilters}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Unified Horizontal Scrolling Architectural Cards Stage (Tall Stretched Mobile & Desktop Cards, 16px Gap) */}
       <div
         ref={scrollerRef}
         data-smooth-prevent=""
         onMouseDown={handleMouseDown}
         onClickCapture={handleClickCapture}
         className={cn(
-          'no-scrollbar relative z-10 flex w-full flex-1 flex-row items-center overflow-x-auto overflow-y-hidden touch-pan-x',
-          'px-4 pt-2 pb-8 desktop:px-10 desktop:pt-2 desktop:pb-6 desktop-wide:px-14',
+          'no-scrollbar relative z-10 flex min-h-0 w-full flex-1 flex-row items-center overflow-x-auto overflow-y-hidden touch-pan-x',
+          'px-4 py-4 desktop:px-8 desktop:py-6 desktop-wide:px-10',
           isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
         )}
       >
         <AnimatePresence mode="wait" initial={false}>
           {filteredProjects.length > 0 ? (
             <motion.ul
-              key={`${activeMode}-${selectedType}-${selectedStatus}-${selectedLocation}`}
+              key={filterKey}
               variants={CARD_STAGGER_CONTAINER_VARIANTS}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="flex flex-row items-center gap-5 desktop:gap-7 desktop-wide:gap-8"
+              className="flex h-full flex-row items-center gap-4 desktop:gap-5"
             >
               {filteredProjects.map((project, index) => (
                 <motion.li
                   key={project.slug}
+                  ref={(node) => {
+                    if (node) {
+                      cardItemRefs.current.set(project.slug, node);
+                    } else {
+                      cardItemRefs.current.delete(project.slug);
+                    }
+                  }}
                   variants={CARD_STAGGER_ITEM_VARIANTS}
-                  className="shrink-0"
+                  className="flex h-full shrink-0 items-center"
                 >
-                  <ProjectCard project={project} priority={index < 2} />
+                  <ProjectCard
+                    project={project}
+                    priority={index < 3}
+                    isMobileActive={activeMobileSlug === project.slug}
+                  />
                 </motion.li>
               ))}
             </motion.ul>
@@ -799,10 +702,7 @@ export function ProjectsStage({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{
-                duration: SITE_CONFIG.motion.fastDuration,
-                ease: SITE_CONFIG.motion.ease,
-              }}
+              transition={MOTION_TRANSITIONS.fast}
               className="flex flex-col items-start gap-3 py-10"
             >
               <p className="text-[18px] font-medium text-[var(--ink-primary)]">
@@ -813,14 +713,16 @@ export function ProjectsStage({
               </p>
               <button
                 type="button"
-                onClick={handleResetFilters}
+                onClick={handleClearFilters}
                 className={cn(
-                  'mt-2 inline-flex h-10 cursor-pointer items-center justify-center rounded-full px-5',
-                  'bg-[var(--brand-primary)] text-[13px] font-medium text-[var(--brand-ink-on-primary)]',
-                  'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)]'
+                  'mt-2 inline-flex h-10 cursor-pointer items-center justify-center rounded-[3px] px-5',
+                  'text-[13px] font-medium text-[var(--brand-ink-on-primary)] transition-colors duration-200',
+                  activeMode === 'sustainable'
+                    ? 'bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]'
+                    : 'bg-[var(--accent-khaki)] hover:opacity-90'
                 )}
               >
-                {dictionary.projects.resetFilters}
+                {dictionary.projects.clearFiltersLabel}
               </button>
             </motion.div>
           )}

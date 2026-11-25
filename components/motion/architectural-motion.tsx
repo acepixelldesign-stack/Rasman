@@ -4,169 +4,38 @@ import { useEffect, type DependencyList, type RefObject } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import type { Variants } from 'motion/react';
-import { SITE_CONFIG } from '@/lib/config/site';
+import {
+  MOTION_EASE,
+  MOTION_VARIANTS,
+  createDirectionalItemVariants,
+} from '@/lib/motion/system';
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(useGSAP);
 }
 
 /**
- * Shared Framer Motion Architectural Variants (Expo-Out, Staggered Cascade):
- * - Designed so hamburger drawer, lists, dropdowns, and panels feel calm, deliberate, and tactile.
+ * Shared Framer Motion Architectural Variants unified with `/lib/motion/system.ts`:
+ * - Re-exported for clean backward compatibility across drawer, feed, and card stages.
  */
-export const ARCHITECTURAL_EASE = SITE_CONFIG.motion.ease;
+export const ARCHITECTURAL_EASE = MOTION_EASE.calm;
 
-export const MENU_OVERLAY_VARIANTS: Variants = {
-  hidden: {
-    opacity: 0,
-  },
-  visible: {
-    opacity: 1,
-    transition: {
-      duration: 0.48,
-      ease: ARCHITECTURAL_EASE,
-      when: 'beforeChildren',
-    },
-  },
-  exit: {
-    opacity: 0,
-    transition: {
-      duration: 0.18,
-      ease: ARCHITECTURAL_EASE,
-    },
-  },
-};
+export const MENU_OVERLAY_VARIANTS: Variants = MOTION_VARIANTS.overlay;
 
-export const MENU_LIST_VARIANTS: Variants = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.085,
-      delayChildren: 0.1,
-    },
-  },
-  exit: {
-    transition: {
-      staggerChildren: 0.02,
-      staggerDirection: -1,
-    },
-  },
-};
+export const MENU_LIST_VARIANTS: Variants = MOTION_VARIANTS.listContainer;
 
-export const createMenuItemVariants = (isRtl: boolean): Variants => ({
-  hidden: {
-    opacity: 0,
-    x: isRtl ? 28 : -28,
-    y: 10,
-  },
-  visible: {
-    opacity: 1,
-    x: 0,
-    y: 0,
-    transition: {
-      duration: 0.56,
-      ease: ARCHITECTURAL_EASE,
-    },
-  },
-  exit: {
-    opacity: 0,
-    x: isRtl ? 10 : -10,
-    transition: {
-      duration: 0.14,
-      ease: ARCHITECTURAL_EASE,
-    },
-  },
-});
+export const createMenuItemVariants = (isRtl: boolean): Variants =>
+  createDirectionalItemVariants(isRtl, 22);
 
-export const SUBMENU_LIST_VARIANTS: Variants = {
-  hidden: {
-    height: 0,
-    opacity: 0,
-  },
-  visible: {
-    height: 'auto',
-    opacity: 1,
-    transition: {
-      height: { duration: 0.44, ease: ARCHITECTURAL_EASE },
-      opacity: { duration: 0.36, ease: ARCHITECTURAL_EASE },
-      staggerChildren: 0.075,
-      delayChildren: 0.12,
-    },
-  },
-  exit: {
-    height: 0,
-    opacity: 0,
-    transition: {
-      height: { duration: 0.32, ease: ARCHITECTURAL_EASE },
-      opacity: { duration: 0.2, ease: ARCHITECTURAL_EASE },
-    },
-  },
-};
+export const SUBMENU_LIST_VARIANTS: Variants = MOTION_VARIANTS.submenuContainer;
 
-export const createSubmenuItemVariants = (isRtl: boolean): Variants => ({
-  hidden: {
-    opacity: 0,
-    x: isRtl ? 16 : -16,
-  },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: {
-      duration: 0.44,
-      ease: ARCHITECTURAL_EASE,
-    },
-  },
-  exit: {
-    opacity: 0,
-    x: isRtl ? 10 : -10,
-    transition: {
-      duration: 0.18,
-    },
-  },
-});
+export const createSubmenuItemVariants = (isRtl: boolean): Variants =>
+  createDirectionalItemVariants(isRtl, 14);
 
-export const CARD_STAGGER_CONTAINER_VARIANTS: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.09,
-      delayChildren: 0.08,
-    },
-  },
-  exit: {
-    opacity: 0,
-    transition: {
-      duration: 0.24,
-      ease: ARCHITECTURAL_EASE,
-    },
-  },
-};
+export const CARD_STAGGER_CONTAINER_VARIANTS: Variants =
+  MOTION_VARIANTS.cardContainer;
 
-export const CARD_STAGGER_ITEM_VARIANTS: Variants = {
-  hidden: {
-    opacity: 0,
-    y: 22,
-    scale: 0.975,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.62,
-      ease: ARCHITECTURAL_EASE,
-    },
-  },
-  exit: {
-    opacity: 0,
-    y: -10,
-    transition: {
-      duration: 0.22,
-      ease: ARCHITECTURAL_EASE,
-    },
-  },
-};
+export const CARD_STAGGER_ITEM_VARIANTS: Variants = MOTION_VARIANTS.cardItem;
 
 interface UseArchitecturalEntranceOptions {
   readonly isRtl?: boolean;
@@ -221,7 +90,7 @@ export function useArchitecturalEntrance(
 
       const tl = gsap.timeline({
         defaults: {
-          ease: SITE_CONFIG.motion.gsapEase,
+          ease: MOTION_EASE.gsapCalm,
           clearProps: 'transform',
         },
       });
@@ -330,9 +199,9 @@ export function useArchitecturalEntrance(
           gsap.to(revealed, {
             autoAlpha: 1,
             y: 0,
-            duration: 0.72,
-            stagger: 0.09,
-            ease: SITE_CONFIG.motion.gsapEase,
+            duration: 0.68,
+            stagger: 0.075,
+            ease: MOTION_EASE.gsapCalm,
             clearProps: 'transform',
           });
         }

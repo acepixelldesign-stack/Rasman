@@ -33,13 +33,20 @@
   --grid-line-strong: rgba(0, 0, 0, 0.22);
   --grid-crosshair: rgba(0, 0, 0, 0.34);
 
-  /* Brand Primary (Rasman Olivine Scale) */
+  /* Brand Primary (Rasman Olivine Scale) & Secondary Warm Earth */
   --brand-primary: #597838;
+  --brand-400: #86a95d;
   --brand-primary-hover: #465d2e;
   --brand-primary-active: #3a4b29;
   --brand-ink-on-primary: #ffffff;
   --brand-text-hover: #597838;
   --accent-khaki: #9e7658;
+  --secondary-400: #b58d6f;
+
+  /* High-Contrast Primary Action Button (Charcoal in Light Mode, Pure White in Dark Mode) */
+  --btn-contrast-bg: #1e1e1e;
+  --btn-contrast-hover: #303030;
+  --btn-contrast-ink: #ffffff;
 
   /* Interactive States */
   --surface-hover: rgba(0, 0, 0, 0.05);
@@ -53,6 +60,7 @@
   --glass-control-hover: rgba(115, 115, 115, 0.18);
   --glass-control-thumb: rgba(255, 255, 255, 0.86);
   --glass-popover-bg: rgba(238, 238, 238, 0.82);
+  --glass-sheet-bg: rgba(255, 255, 255, 0.58);
 
   /* Responsive Perimeter Grid Dimensions (8pt scale — 16px bottom on Mobile, 64px on Desktop) */
   --grid-header: 56px;
@@ -98,11 +106,18 @@
 
   /* Brand Primary (High-Contrast Olivine on Pure Black) & Secondary Brown */
   --brand-primary: #74984a;
+  --brand-400: #86a95d;
   --brand-primary-hover: #597838;
   --brand-primary-active: #465d2e;
   --brand-ink-on-primary: #ffffff;
   --brand-text-hover: #9bba74;
   --accent-khaki: #9e7658;
+  --secondary-400: #b58d6f;
+
+  /* High-Contrast Primary Action Button (Pure White in Dark Mode) */
+  --btn-contrast-bg: #ffffff;
+  --btn-contrast-hover: #e5e5e5;
+  --btn-contrast-ink: #0a0a0a;
 
   /* Interactive States */
   --surface-hover: rgba(255, 255, 255, 0.09);
@@ -116,6 +131,85 @@
   --glass-control-hover: rgba(163, 163, 163, 0.22);
   --glass-control-thumb: rgba(255, 255, 255, 0.16);
   --glass-popover-bg: rgba(24, 24, 24, 0.82);
+  --glass-sheet-bg: rgba(12, 12, 12, 0.6);
+}
+
+/* ==========================================================================
+   FULL-VIEWPORT PROJECTS AMBIENT BACKDROP (20% Brand-400 / Secondary-400)
+   Applies the rich dark Projects atmosphere consistently across BOTH Light
+   and Dark modes — extending behind grids, side rails, header, bottom bar,
+   and browser chrome with matching high-contrast ink & grid tokens.
+   ========================================================================== */
+html[data-ambient-mode="sustainable"],
+html.dark[data-ambient-mode="sustainable"] {
+  color-scheme: dark;
+  --bg-canvas: #1b2213;
+  --bg-rail: #1b2213;
+  --bg-surface-elevated: #222a19;
+  --bg-header-glass: rgba(27, 34, 19, 0.72);
+  --bg-overlay: rgba(27, 34, 19, 0.96);
+  --glass-sheet-bg: rgba(27, 34, 19, 0.58);
+  --ink-primary: #ffffff;
+  --ink-secondary: #a3a3a3;
+  --ink-muted: #737373;
+  --grid-line: rgba(255, 255, 255, 0.16);
+  --grid-line-strong: rgba(255, 255, 255, 0.28);
+  --grid-crosshair: rgba(255, 255, 255, 0.38);
+  --brand-primary: #74984a;
+  --brand-primary-hover: #597838;
+  --brand-primary-active: #465d2e;
+  --brand-text-hover: #9bba74;
+  --accent-khaki: #b58d6f;
+  --btn-contrast-bg: #ffffff;
+  --btn-contrast-hover: #e5e5e5;
+  --btn-contrast-ink: #0a0a0a;
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --surface-active: rgba(255, 255, 255, 0.16);
+  --focus-ring: #9bba74;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.26);
+  --glass-control-bg: rgba(163, 163, 163, 0.13);
+  --glass-control-hover: rgba(163, 163, 163, 0.22);
+  --glass-control-thumb: rgba(255, 255, 255, 0.16);
+  --glass-popover-bg: rgba(27, 34, 19, 0.86);
+}
+
+html[data-ambient-mode="urban"],
+html.dark[data-ambient-mode="urban"] {
+  color-scheme: dark;
+  --bg-canvas: #241c16;
+  --bg-rail: #241c16;
+  --bg-surface-elevated: #2c221b;
+  --bg-header-glass: rgba(36, 28, 22, 0.72);
+  --bg-overlay: rgba(36, 28, 22, 0.96);
+  --glass-sheet-bg: rgba(36, 28, 22, 0.58);
+  --ink-primary: #ffffff;
+  --ink-secondary: #a3a3a3;
+  --ink-muted: #737373;
+  --grid-line: rgba(255, 255, 255, 0.16);
+  --grid-line-strong: rgba(255, 255, 255, 0.28);
+  --grid-crosshair: rgba(255, 255, 255, 0.38);
+  --brand-primary: #74984a;
+  --brand-primary-hover: #597838;
+  --brand-primary-active: #465d2e;
+  --brand-text-hover: #9bba74;
+  --accent-khaki: #b58d6f;
+  --btn-contrast-bg: #ffffff;
+  --btn-contrast-hover: #e5e5e5;
+  --btn-contrast-ink: #0a0a0a;
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --surface-active: rgba(255, 255, 255, 0.16);
+  --focus-ring: #b58d6f;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.26);
+  --glass-control-bg: rgba(163, 163, 163, 0.13);
+  --glass-control-hover: rgba(163, 163, 163, 0.22);
+  --glass-control-thumb: rgba(255, 255, 255, 0.16);
+  --glass-popover-bg: rgba(36, 28, 22, 0.86);
+}
+
+html[data-ambient-mode] .rasman-emblem-invert {
+  filter: invert(1);
 }
 
 @layer base {
@@ -154,7 +248,8 @@
   html {
     background-color: var(--bg-canvas);
     color: var(--ink-primary);
-    color-scheme: only light;
+    color-scheme: light;
+    transition: background-color 520ms cubic-bezier(0.22, 1, 0.36, 1);
     touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
@@ -166,12 +261,13 @@
   }
 
   html.dark {
-    color-scheme: only dark;
+    color-scheme: dark;
   }
 
   body {
     background-color: var(--bg-canvas);
     color: var(--ink-primary);
+    transition: background-color 520ms cubic-bezier(0.22, 1, 0.36, 1);
     font-family: var(--font-latin), system-ui, -apple-system, sans-serif;
     line-height: 1.6;
     overflow-x: hidden;
@@ -272,12 +368,22 @@
   box-shadow: none;
 }
 
+.rasman-glass-sheet {
+  background-color: var(--glass-sheet-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  transform: translateZ(0);
+  isolation: isolate;
+  box-shadow: none;
+}
+
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .rasman-glass {
     background-color: var(--glass-popover-bg);
   }
 
-  .rasman-glass-popover {
+  .rasman-glass-popover,
+  .rasman-glass-sheet {
     background-color: var(--bg-overlay);
   }
 }

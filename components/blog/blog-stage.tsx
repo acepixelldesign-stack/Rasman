@@ -13,9 +13,9 @@ import {
   getBlogLocalizedText,
   type BlogCategoryId,
 } from '@/lib/data/blog';
+import { MOTION_TRANSITIONS, MOTION_VARIANTS } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import {
-  ARCHITECTURAL_EASE,
   CARD_STAGGER_CONTAINER_VARIANTS,
   CARD_STAGGER_ITEM_VARIANTS,
   MENU_LIST_VARIANTS,
@@ -29,13 +29,52 @@ import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane'
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
 
-const POSTS_PER_PAGE = 3;
+const POSTS_PER_PAGE = 10;
+const BLOG_ARCHIVE_TOTAL_PAGES = 6;
+
+type PaginationItem = number | 'ellipsis-start' | 'ellipsis-end';
+
+function buildPaginationItems(
+  currentPage: number,
+  totalPages: number
+): readonly PaginationItem[] {
+  if (totalPages <= 4) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 2) {
+    return [1, 2, 3, 'ellipsis-end', totalPages];
+  }
+
+  if (currentPage === 3 && totalPages > 5) {
+    return [1, 2, 3, 4, 'ellipsis-end', totalPages];
+  }
+
+  if (currentPage >= totalPages - 1) {
+    return [
+      1,
+      'ellipsis-start',
+      totalPages - 2,
+      totalPages - 1,
+      totalPages,
+    ];
+  }
+
+  return [
+    1,
+    'ellipsis-start',
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    ...(currentPage + 1 < totalPages - 1 ? (['ellipsis-end'] as const) : []),
+    totalPages,
+  ];
+}
 
 /**
  * Primary Blog / Magazine Architectural Stage:
  * - Calm Framer Motion staggered category drawer on mobile & staggered card entrance
- * - Architectural pagination anchored cleanly after the last blog card in the feed
- *   with 16px (p-4) padding on Previous and Next controls
+ * - 10 essays on Page 1 with 1 2 3 ... 6 architectural pagination anchored cleanly at the bottom
  */
 export function BlogStage() {
   const { locale, isRtl, dictionary } = useAppContext();
@@ -74,16 +113,19 @@ export function BlogStage() {
     return BLOG_POSTS.filter((post) => post.categoryId === activeCategory);
   }, [activeCategory]);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredPosts.length / POSTS_PER_PAGE)
-  );
+  const totalPages =
+    activeCategory === 'all'
+      ? BLOG_ARCHIVE_TOTAL_PAGES
+      : Math.max(1, Math.ceil(filteredPosts.length / POSTS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
 
   const paginatedPosts = useMemo(() => {
+    if (activeCategory === 'all') {
+      return safePage === 1 ? filteredPosts.slice(0, POSTS_PER_PAGE) : [];
+    }
     const startIndex = (safePage - 1) * POSTS_PER_PAGE;
     return filteredPosts.slice(startIndex, startIndex + POSTS_PER_PAGE);
-  }, [filteredPosts, safePage]);
+  }, [activeCategory, filteredPosts, safePage]);
 
   const scrollFeedToTop = () => {
     if (typeof window === 'undefined') return;
@@ -118,9 +160,9 @@ export function BlogStage() {
     scrollFeedToTop();
   };
 
-  const pageNumbers = useMemo(
-    () => Array.from({ length: totalPages }, (_, index) => index + 1),
-    [totalPages]
+  const paginationItems = useMemo(
+    () => buildPaginationItems(safePage, totalPages),
+    [safePage, totalPages]
   );
 
   return (
@@ -195,24 +237,10 @@ export function BlogStage() {
           {isMobileCategoriesOpen && (
             <motion.div
               id={mobileCategoriesPanelId}
-              initial={{ height: 0, opacity: 0 }}
-              animate={{
-                height:
-                  'calc(100dvh - var(--grid-header) - var(--grid-bottom) - 48px)',
-                opacity: 1,
-                transition: {
-                  height: { duration: 0.48, ease: ARCHITECTURAL_EASE },
-                  opacity: { duration: 0.36, ease: ARCHITECTURAL_EASE },
-                },
-              }}
-              exit={{
-                height: 0,
-                opacity: 0,
-                transition: {
-                  height: { duration: 0.36, ease: ARCHITECTURAL_EASE },
-                  opacity: { duration: 0.24, ease: ARCHITECTURAL_EASE },
-                },
-              }}
+              variants={MOTION_VARIANTS.sheetFull}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               className="flex flex-col overflow-hidden"
             >
               <div data-scroll-lock-allow="" className="flex min-h-0 flex-1 flex-col">
@@ -308,16 +336,23 @@ export function BlogStage() {
                     </motion.li>
                   ))}
                 </motion.ul>
+              ) : filteredPosts.length > 0 ? (
+                <motion.div
+                  key={`${activeCategory}-page-${safePage}-blank`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={MOTION_TRANSITIONS.fast}
+                  className="min-h-[40dvh] w-full"
+                  aria-hidden="true"
+                />
               ) : (
                 <motion.div
                   key="blog-empty"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  transition={{
-                    duration: 0.42,
-                    ease: ARCHITECTURAL_EASE,
-                  }}
+                  transition={MOTION_TRANSITIONS.base}
                   className="flex flex-col items-start gap-4 py-16"
                 >
                   <p className="text-[16px] text-[var(--ink-secondary)]">
@@ -339,41 +374,53 @@ export function BlogStage() {
             </AnimatePresence>
           </div>
 
-          {/* Architectural Pagination at End of Blog List (16px Padding on Prev/Next Buttons) */}
+          {/* Architectural Pagination at End of Blog List (Square Icon-Only Prev/Next + Ellipsis) */}
           {filteredPosts.length > 0 && (
             <nav
               aria-label={dictionary.blog.paginationAriaLabel}
-              className="mt-4 flex w-full items-center justify-between border-t border-[var(--grid-line)] bg-[var(--bg-canvas)]"
+              className="mt-4 flex w-full items-stretch justify-between border-t border-[var(--grid-line)] bg-[var(--bg-canvas)]"
             >
               <button
                 type="button"
                 disabled={safePage <= 1}
                 onClick={() => handlePageChange(safePage - 1)}
+                aria-label={dictionary.blog.previousPageLabel}
                 className={cn(
-                  'group inline-flex cursor-pointer items-center gap-2.5 border-e border-[var(--grid-line)] p-4 text-start text-[13px] font-medium transition-colors duration-200 desktop:text-[14px]',
+                  'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-e border-[var(--grid-line)] transition-colors duration-200',
                   safePage <= 1
                     ? 'cursor-not-allowed text-[var(--ink-muted)] opacity-45'
                     : 'text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--brand-text-hover)]'
                 )}
               >
                 <MdArrowBack
-                  size={18}
+                  size={19}
                   aria-hidden="true"
                   className={cn('shrink-0', isRtl && '-scale-x-100')}
                 />
-                <span>{dictionary.blog.previousPageLabel}</span>
               </button>
 
-              <div className="flex items-center justify-center gap-1 px-2">
-                {pageNumbers.map((pageNum) => {
-                  const isCurrent = pageNum === safePage;
+              <div className="flex min-w-0 flex-1 items-center justify-center gap-0.5 px-2 desktop:gap-1">
+                {paginationItems.map((item) => {
+                  if (item === 'ellipsis-start' || item === 'ellipsis-end') {
+                    return (
+                      <span
+                        key={item}
+                        aria-hidden="true"
+                        className="inline-flex h-9 w-7 select-none items-center justify-center text-[13px] tracking-[0.08em] text-[var(--ink-muted)]"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const isCurrent = item === safePage;
                   return (
                     <button
-                      key={pageNum}
+                      key={item}
                       type="button"
-                      onClick={() => handlePageChange(pageNum)}
+                      onClick={() => handlePageChange(item)}
                       aria-current={isCurrent ? 'page' : undefined}
-                      aria-label={`${dictionary.blog.pageAriaLabel} ${pageNum}`}
+                      aria-label={`${dictionary.blog.pageAriaLabel} ${item}`}
                       className={cn(
                         'inline-flex h-9 w-9 cursor-pointer items-center justify-center text-[13px] tabular-nums transition-colors duration-200 desktop:text-[14px]',
                         isCurrent
@@ -382,7 +429,7 @@ export function BlogStage() {
                       )}
                     >
                       <span dir="ltr" className="bidi-isolate">
-                        {pageNum}
+                        {item}
                       </span>
                     </button>
                   );
@@ -393,16 +440,16 @@ export function BlogStage() {
                 type="button"
                 disabled={safePage >= totalPages}
                 onClick={() => handlePageChange(safePage + 1)}
+                aria-label={dictionary.blog.nextPageLabel}
                 className={cn(
-                  'group inline-flex cursor-pointer items-center gap-2.5 border-s border-[var(--grid-line)] p-4 text-end text-[13px] font-medium transition-colors duration-200 desktop:text-[14px]',
+                  'inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
                   safePage >= totalPages
                     ? 'cursor-not-allowed text-[var(--ink-muted)] opacity-45'
                     : 'text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--brand-text-hover)]'
                 )}
               >
-                <span>{dictionary.blog.nextPageLabel}</span>
                 <MdArrowForward
-                  size={18}
+                  size={19}
                   aria-hidden="true"
                   className={cn('shrink-0', isRtl && '-scale-x-100')}
                 />

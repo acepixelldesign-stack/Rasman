@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { SITE_CONFIG } from '@/lib/config/site';
+import { MOTION_TRANSITIONS } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import { RasmanWordmark } from '@/components/brand/rasman-wordmark';
 import { LanguageSwitcher } from '@/components/frame/language-switcher';
@@ -38,7 +39,7 @@ export function ArchitecturalHeader({
         'fixed top-0 inset-x-0 z-40 h-[var(--grid-header)]',
         'border-b border-[var(--grid-line)]',
         'bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150 [transform:translateZ(0)]',
-        'transition-colors duration-200'
+        'transition-colors duration-500'
       )}
     >
       {/* Continuous 1px vertical grid hairlines aligned to the side rails */}
@@ -78,10 +79,7 @@ export function ArchitecturalHeader({
                   y: isMenuOpen ? 3.75 : 0,
                   rotate: isMenuOpen ? 45 : 0,
                 }}
-                transition={{
-                  duration: 0.42,
-                  ease: SITE_CONFIG.motion.ease,
-                }}
+                transition={MOTION_TRANSITIONS.base}
                 className="block h-[2.5px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
               />
               {/* Thicker long bottom bar */}
@@ -93,10 +91,7 @@ export function ArchitecturalHeader({
                   y: isMenuOpen ? -3.75 : 0,
                   rotate: isMenuOpen ? -45 : 0,
                 }}
-                transition={{
-                  duration: 0.42,
-                  ease: SITE_CONFIG.motion.ease,
-                }}
+                transition={MOTION_TRANSITIONS.base}
                 className="block h-[2.5px] origin-center rounded-full bg-[var(--ink-primary)] transition-colors duration-200 group-hover:bg-[var(--brand-text-hover)]"
               />
             </span>

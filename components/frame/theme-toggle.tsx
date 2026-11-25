@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { MdDarkMode, MdLightMode } from 'react-icons/md';
-import { SITE_CONFIG } from '@/lib/config/site';
+import { MOTION_VARIANTS } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import { cn } from '@/lib/utils';
 
@@ -34,13 +34,10 @@ export function ThemeToggle() {
         {isDark ? (
           <motion.span
             key="sun"
-            initial={{ opacity: 0, rotate: -45, scale: 0.75 }}
-            animate={{ opacity: 1, rotate: 0, scale: 1 }}
-            exit={{ opacity: 0, rotate: 45, scale: 0.75 }}
-            transition={{
-              duration: SITE_CONFIG.motion.fastDuration,
-              ease: SITE_CONFIG.motion.ease,
-            }}
+            variants={MOTION_VARIANTS.iconSwap}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             className="flex items-center justify-center"
           >
             <MdLightMode size={19} aria-hidden="true" />
@@ -48,13 +45,10 @@ export function ThemeToggle() {
         ) : (
           <motion.span
             key="moon"
-            initial={{ opacity: 0, rotate: 45, scale: 0.75 }}
-            animate={{ opacity: 1, rotate: 0, scale: 1 }}
-            exit={{ opacity: 0, rotate: -45, scale: 0.75 }}
-            transition={{
-              duration: SITE_CONFIG.motion.fastDuration,
-              ease: SITE_CONFIG.motion.ease,
-            }}
+            variants={MOTION_VARIANTS.iconSwap}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             className="flex items-center justify-center"
           >
             <MdDarkMode size={19} aria-hidden="true" />

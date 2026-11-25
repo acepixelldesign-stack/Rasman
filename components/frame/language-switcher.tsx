@@ -3,8 +3,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { MdKeyboardArrowDown } from 'react-icons/md';
+import { Globe } from 'lucide-react';
 import { SITE_CONFIG, type Locale } from '@/lib/config/site';
+import {
+  MOTION_EASE,
+  MOTION_STAGGER,
+  MOTION_VARIANTS,
+} from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
@@ -63,8 +68,6 @@ export function LanguageSwitcher() {
     triggerRef.current?.focus();
   };
 
-  const activeLocaleMeta = dictionary.locales[locale];
-
   const drawerNode = (
     <AnimatePresence initial={false}>
       {isOpen && (
@@ -74,27 +77,10 @@ export function LanguageSwitcher() {
           role="listbox"
           data-scroll-lock-allow=""
           aria-label={dictionary.header.languageMenuAriaLabel}
-          initial={{ height: 0, opacity: 0 }}
-          animate={{
-            height: 'auto',
-            opacity: 1,
-            transition: prefersReducedMotion
-              ? { duration: 0.01 }
-              : {
-                  height: { duration: 0.44, ease: SITE_CONFIG.motion.ease },
-                  opacity: { duration: 0.3, ease: SITE_CONFIG.motion.ease },
-                },
-          }}
-          exit={{
-            height: 0,
-            opacity: 0,
-            transition: prefersReducedMotion
-              ? { duration: 0.01 }
-              : {
-                  height: { duration: 0.34, ease: SITE_CONFIG.motion.ease },
-                  opacity: { duration: 0.22, ease: SITE_CONFIG.motion.ease },
-                },
-          }}
+          variants={MOTION_VARIANTS.sheetAuto}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className={cn(
             'fixed top-[var(--grid-header)] start-[var(--grid-rail)] end-[var(--grid-rail)] z-[38]',
             'overflow-visible border-b border-[var(--grid-line)]',
@@ -115,16 +101,16 @@ export function LanguageSwitcher() {
                     initial={
                       prefersReducedMotion
                         ? { opacity: 1, y: 0 }
-                        : { opacity: 0, y: -8 }
+                        : { opacity: 0, y: -6 }
                     }
                     animate={{ opacity: 1, y: 0 }}
                     transition={
                       prefersReducedMotion
                         ? { duration: 0.01 }
                         : {
-                            duration: 0.34,
-                            delay: 0.06 + index * 0.06,
-                            ease: SITE_CONFIG.motion.ease,
+                            duration: 0.3,
+                            delay: 0.05 + index * MOTION_STAGGER.tight,
+                            ease: MOTION_EASE.calm,
                           }
                     }
                   >
@@ -194,22 +180,14 @@ export function LanguageSwitcher() {
           setIsOpen((prev) => !prev);
         }}
         className={cn(
-          'inline-flex h-8 cursor-pointer items-center gap-1 rounded-full px-0',
-          'text-[12px] font-medium tracking-[0.04em] text-[var(--ink-primary)]',
-          'transition-colors duration-200 hover:text-[var(--brand-text-hover)]'
+          'inline-flex h-8 w-6 cursor-pointer items-center justify-center rounded-full',
+          'transition-colors duration-200 hover:text-[var(--brand-text-hover)]',
+          isOpen
+            ? 'text-[var(--brand-text-hover)]'
+            : 'text-[var(--ink-primary)]'
         )}
       >
-        <MdKeyboardArrowDown
-          size={16}
-          aria-hidden="true"
-          className={cn(
-            'shrink-0 text-[var(--ink-muted)] transition-transform duration-300',
-            isOpen && 'rotate-180 text-[var(--brand-text-hover)]'
-          )}
-        />
-        <span dir="ltr" className="bidi-isolate tabular-nums leading-none">
-          {activeLocaleMeta.shortCode}
-        </span>
+        <Globe size={18} strokeWidth={1.65} aria-hidden="true" />
       </button>
 
       {hasOpened && typeof document !== 'undefined'

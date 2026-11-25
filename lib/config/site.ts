@@ -63,16 +63,31 @@ export const SITE_CONFIG = {
     resendCooldownSeconds: 60,
     minPhoneDigits: 10,
   },
+  themeColors: {
+    default: {
+      light: '#ffffff',
+      dark: '#000000',
+    },
+    sustainable: {
+      light: '#1b2213',
+      dark: '#1b2213',
+    },
+    urban: {
+      light: '#241c16',
+      dark: '#241c16',
+    },
+  },
   motion: {
-    /** Architectural ease curve (Expo Out) for calm, perceptible motion */
-    ease: [0.16, 1, 0.3, 1] as const,
+    /** Unified Rasman Calm Motion curve (zero bounce) */
+    ease: [0.22, 1, 0.36, 1] as const,
+    silkEase: [0.16, 1, 0.3, 1] as const,
     gsapEase: 'power3.out',
     fastDuration: 0.28,
-    standardDuration: 0.56,
-    slowDuration: 0.78,
-    drawerDuration: 0.52,
-    staggerItem: 0.085,
-    staggerGroup: 0.11,
+    standardDuration: 0.42,
+    slowDuration: 0.54,
+    drawerDuration: 0.42,
+    staggerItem: 0.065,
+    staggerGroup: 0.085,
   },
   navigation: [
     { id: 'home', href: '/' },

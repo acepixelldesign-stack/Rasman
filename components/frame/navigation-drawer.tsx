@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
 import { MdKeyboardArrowDown } from 'react-icons/md';
 import { SITE_CONFIG } from '@/lib/config/site';
+import { MOTION_EASE, MOTION_VARIANTS } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import {
-  ARCHITECTURAL_EASE,
   MENU_LIST_VARIANTS,
   MENU_OVERLAY_VARIANTS,
   SUBMENU_LIST_VARIANTS,
@@ -88,40 +88,29 @@ export function NavigationDrawer({
             'bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
           )}
         >
-          {/* Scrollable Split Body: Mobile (Compact Emblem Top -> Divided Menu Items) | Desktop (Divided Menu Start -> Full-Height Emblem End) */}
+          {/* Scrollable Split Body: Mobile (Larger Emblem Top with 8px Top Padding -> Divided Menu Items) | Desktop (Divided Menu Start -> Full-Height Emblem End) */}
           <div
             data-scroll-lock-allow=""
-            className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 desktop:px-10 desktop:py-8"
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-2 pb-4 desktop:px-10 desktop:py-8"
           >
-            <div className="my-auto flex w-full flex-col desktop:flex-row desktop:items-stretch desktop:justify-between desktop:gap-12">
+            <div className="flex w-full flex-col desktop:my-auto desktop:flex-row desktop:items-stretch desktop:justify-between desktop:gap-12">
               {/* Rasman Architectural Line-Art Emblem (True Transparent Alpha — Pure Black in Light, Inverted White in Dark) */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                  transition: {
-                    duration: 0.62,
-                    delay: 0.14,
-                    ease: ARCHITECTURAL_EASE,
-                  },
-                }}
-                exit={{
-                  opacity: 0,
-                  scale: 0.98,
-                  transition: { duration: 0.2 },
-                }}
-                className="order-1 flex shrink-0 items-center justify-center pb-4 desktop:order-2 desktop:relative desktop:flex-1 desktop:pb-0"
+                variants={MOTION_VARIANTS.mediaReveal}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="order-1 flex shrink-0 items-center justify-center pb-3 desktop:order-2 desktop:relative desktop:flex-1 desktop:pb-0"
               >
-                <div className="relative h-[104px] aspect-[534/647] sm:h-[124px] desktop:absolute desktop:inset-0 desktop:aspect-auto desktop:h-full desktop:w-full">
+                <div className="relative h-[136px] aspect-[534/647] sm:h-[156px] desktop:absolute desktop:inset-0 desktop:aspect-auto desktop:h-full desktop:w-full">
                   <Image
                     src={MENU_EMBLEM_SRC}
                     alt={dictionary.brand.logotype}
                     fill
                     priority
-                    sizes="(max-width: 768px) 124px, 560px"
+                    sizes="(max-width: 768px) 156px, 560px"
                     referrerPolicy="no-referrer"
-                    className="object-contain object-center select-none dark:invert"
+                    className="rasman-emblem-invert object-contain object-center select-none dark:invert"
                   />
                 </div>
               </motion.div>
@@ -233,24 +222,24 @@ export function NavigationDrawer({
             </div>
           </div>
 
-          {/* Mobile-Only Fixed Bottom Stretched 48px CTA */}
+          {/* Mobile-Only Fixed Bottom Stretched 48px CTA (No Top Border) */}
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{
               opacity: 1,
               y: 0,
               transition: {
-                duration: 0.48,
-                delay: 0.36,
-                ease: ARCHITECTURAL_EASE,
+                duration: 0.42,
+                delay: 0.24,
+                ease: MOTION_EASE.calm,
               },
             }}
             exit={{
               opacity: 0,
-              y: 8,
-              transition: { duration: 0.2 },
+              y: 6,
+              transition: { duration: 0.18, ease: MOTION_EASE.exit },
             }}
-            className="shrink-0 border-t border-[var(--grid-line)] px-4 pt-3 pb-4 desktop:hidden"
+            className="shrink-0 px-4 pt-3 pb-4 desktop:hidden"
           >
             {userProfile ? (
               <Link

@@ -23,7 +23,7 @@ import {
   STUDIO_PROFILE,
   getAboutLocalizedText,
 } from '@/lib/data/about';
-import { SITE_CONFIG } from '@/lib/config/site';
+import { MOTION_TRANSITIONS } from '@/lib/motion/system';
 import { useAppContext } from '@/components/providers/app-provider';
 import { cn } from '@/lib/utils';
 
@@ -589,10 +589,7 @@ export function AboutStage() {
                         : { opacity: 0, y: 5 }
                     }
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.36,
-                      ease: SITE_CONFIG.motion.ease,
-                    }}
+                    transition={MOTION_TRANSITIONS.fast}
                     className="min-w-0 flex-1 truncate text-start text-[13px] font-medium leading-none text-[var(--ink-primary)] desktop:text-[14px]"
                   >
                     {chapter.label}
@@ -626,67 +623,69 @@ export function AboutStage() {
           onScroll={syncProgress}
           className="no-scrollbar flex h-full w-full flex-row items-stretch overflow-x-auto overflow-y-hidden touch-none overscroll-none"
         >
-          {/* SECTION 1: RASMAN TEAM (Desktop: Text Start + 56px Gap + Equal-Width Photo End | Mobile: Photo First -> Text) */}
+          {/* SECTION 1: RASMAN TEAM (Sticky Title -> Full-Width Viewport-Scaled Photo -> Description; Gap == Top Padding) */}
           <article
             ref={(el) => {
               sectionRefs.current[0] = el;
             }}
-            className="flex h-full w-[100cqw] shrink-0 flex-col justify-between gap-4 overflow-hidden border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-8 desktop:px-14 desktop:py-12"
+            className="flex h-full w-[100cqw] shrink-0 flex-col justify-start gap-6 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
-            <h1 className="shrink-0 text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
-              {dictionary.about.sectionStudio}
-            </h1>
+            <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
+              <h1 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+                {dictionary.about.sectionStudio}
+              </h1>
+            </div>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] items-center gap-4 desktop:grid-cols-2 desktop:grid-rows-1 desktop:gap-[56px]">
-              {/* Studio Photo: First on Mobile, Equal-Width End Column on Desktop, Dynamically Height-Constrained */}
-              <div className="order-1 relative h-full max-h-[calc(100cqh-220px)] min-h-[140px] w-full overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:order-2 desktop:max-h-[min(460px,calc(100cqh-172px))]">
-                <Image
-                  src={STUDIO_PROFILE.image}
-                  alt={studioImageAlt}
-                  fill
-                  priority
-                  sizes="(max-width: 768px) calc(100vw - 64px), 44vw"
-                  referrerPolicy="no-referrer"
-                  className="object-cover"
-                />
-              </div>
+            {/* Full-Width Studio Photo Dynamically Scaling Vertically with Viewport Height */}
+            <div className="relative min-h-[120px] w-full flex-1 overflow-hidden rounded-[4px] bg-[var(--surface-hover)]">
+              <Image
+                src={STUDIO_PROFILE.image}
+                alt={studioImageAlt}
+                fill
+                priority
+                sizes="(max-width: 768px) calc(100vw - 64px), calc(100vw - 160px)"
+                referrerPolicy="no-referrer"
+                className="object-cover"
+              />
+            </div>
 
-              {/* Studio Editorial Copy: Second on Mobile, Equal-Width Start Column on Desktop */}
-              <div className="order-2 flex w-full flex-col justify-center text-start desktop:order-1">
-                <p className="text-[13px] font-normal leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[17px] desktop:leading-[1.9] rtl:leading-[1.9] desktop:rtl:leading-[2.05]">
-                  {studioParagraph}
-                </p>
-              </div>
+            {/* Studio Editorial Copy Below Image */}
+            <div className="w-full shrink-0 text-start">
+              <p className="text-[13px] font-normal leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[17px] desktop:leading-[1.9] rtl:leading-[1.9] desktop:rtl:leading-[2.05]">
+                {studioParagraph}
+              </p>
             </div>
           </article>
 
-          {/* SECTION 2: FOUNDER / بنیان‌گذار / المؤسس */}
+          {/* SECTION 2: FOUNDER / بنیان‌گذار / المؤسس (Sticky Title, Square Portrait, Vertically Centered Details) */}
           <article
             ref={(el) => {
               sectionRefs.current[1] = el;
             }}
-            className="flex h-full w-[100cqw] shrink-0 flex-col justify-between gap-4 overflow-hidden border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-8 desktop:px-14 desktop:py-12"
+            className="flex h-full w-[100cqw] shrink-0 flex-col justify-start gap-6 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
-            <h2 className="shrink-0 text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
-              {dictionary.about.sectionPrincipal}
-            </h2>
+            <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
+              <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
+                {dictionary.about.sectionPrincipal}
+              </h2>
+            </div>
 
-            <div className="flex min-h-0 flex-1 flex-col items-start justify-center gap-4 desktop:flex-row desktop:items-center desktop:gap-[56px]">
-              {/* Dynamically Height-Constrained Founder Portrait */}
-              <div className="group relative aspect-[3/4] h-[clamp(150px,calc(100cqh-280px),280px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(220px,calc(100cqh-188px),420px)]">
+            <div className="flex min-h-0 flex-1 flex-col items-start justify-start gap-4 desktop:flex-row desktop:items-center desktop:justify-start desktop:gap-12">
+              {/* Dynamically Scaled Square Founder Portrait: Desktop spans exact flex-1 height so top, bottom, and text gaps all equal title top padding (48px) */}
+              <div className="group relative aspect-square h-[min(calc(100cqw-32px),calc(100cqh-304px))] w-[min(calc(100cqw-32px),calc(100cqh-304px))] min-h-[120px] min-w-[120px] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-full desktop:w-auto desktop:max-h-full desktop:max-w-[46cqw] desktop:self-stretch">
                 <Image
                   src={STUDIO_FOUNDER.portrait}
                   alt={founderPortraitAlt}
                   fill
                   priority
-                  sizes="(max-width: 768px) 220px, 320px"
+                  sizes="(max-width: 768px) calc(100vw - 64px), 420px"
                   referrerPolicy="no-referrer"
                   className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
                 />
               </div>
 
-              {/* Founder Name, Role, Bio & Social Links */}
-              <div className="flex min-w-0 max-w-2xl flex-1 flex-col gap-3 text-start desktop:gap-4">
+              {/* Founder Name, Role, Bio & Social Links (Start-Aligned) */}
+              <div className="flex min-w-0 max-w-2xl flex-1 flex-col items-start gap-2.5 text-start desktop:gap-4">
                 <div className="flex flex-col gap-0.5">
                   <h3 className="text-[20px] font-medium leading-[1.25] tracking-[-0.015em] text-[var(--ink-primary)] desktop:text-[28px] rtl:leading-[1.45] rtl:tracking-normal">
                     {founderName}
@@ -696,7 +695,7 @@ export function AboutStage() {
                   </p>
                 </div>
 
-                <p className="text-[13px] leading-[1.7] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[16px] desktop:leading-[1.85] rtl:leading-[1.9] desktop:rtl:leading-[2]">
+                <p className="text-[13px] leading-[1.65] text-[var(--ink-secondary)] sm:text-[14px] desktop:text-[16px] desktop:leading-[1.85] rtl:leading-[1.85] desktop:rtl:leading-[2]">
                   {founderBio}
                 </p>
 
@@ -725,21 +724,21 @@ export function AboutStage() {
             </div>
           </article>
 
-          {/* SECTION 3: CURRENT MEMBERS (Sticky Title + Side-by-Side Row, ~24px Smaller Portraits & Founder-Matched Name/Role Typography) */}
+          {/* SECTION 3: CURRENT MEMBERS (Sticky Title + Exact Padding-Matched Gap + Scaled Side-by-Side Row) */}
           <article
             ref={(el) => {
               sectionRefs.current[2] = el;
             }}
-            className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
+            className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-start gap-6 border-e border-[var(--grid-line)] px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
-            <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
+            <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
               <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
                 {dictionary.about.sectionCoreTeam}
               </h2>
             </div>
 
-            {/* Single Side-by-Side Horizontal Row with Proportionally Reduced Portraits & Founder-Scale Metadata */}
-            <ul className="flex min-h-0 flex-1 flex-row items-center gap-6 pe-4 desktop:gap-9 desktop:pe-8">
+            {/* Single Side-by-Side Horizontal Row Aligned Directly Below Title Gap Without Vertical Overflow */}
+            <ul className="flex min-h-0 flex-1 flex-row items-start gap-6 pe-4 desktop:gap-9 desktop:pe-8">
               {CORE_TEAM_MEMBERS.map((member) => {
                 const memberName = getAboutLocalizedText(member.name, locale);
                 const memberRole = getAboutLocalizedText(member.role, locale);
@@ -751,10 +750,10 @@ export function AboutStage() {
                 return (
                   <li
                     key={member.id}
-                    className="group flex h-full shrink-0 flex-col justify-center gap-3"
+                    className="group flex h-full shrink-0 flex-col justify-start gap-3"
                   >
-                    {/* Dynamic 3:4 Portrait Container (~24px smaller width & proportionally ~32px shorter height) */}
-                    <div className="relative aspect-[3/4] h-[clamp(124px,calc(100cqh-264px),368px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(156px,calc(100cqh-328px),408px)]">
+                    {/* Dynamic 3:4 Portrait Container Scaled to Maintain Top & Bottom Padding Parity */}
+                    <div className="relative aspect-[3/4] h-[clamp(112px,calc(100cqh-232px),340px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(156px,calc(100cqh-324px),408px)]">
                       <Image
                         src={member.portrait}
                         alt={memberAlt}
@@ -803,21 +802,21 @@ export function AboutStage() {
             </ul>
           </article>
 
-          {/* SECTION 4: PREVIOUS MEMBERS (Sticky Title + 2 Stacked Horizontal Rows, Dynamic Square Size, RTL-Right-Aligned Tenure) */}
+          {/* SECTION 4: PREVIOUS MEMBERS (Exact Padding-Matched Gap, Desktop Side-by-Side Metadata & Auto-Distributed Columns) */}
           <article
             ref={(el) => {
               sectionRefs.current[3] = el;
             }}
-            className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-between gap-4 px-4 py-6 desktop:gap-6 desktop:px-14 desktop:py-12"
+            className="flex h-full min-w-[100cqw] w-max shrink-0 flex-col justify-start gap-6 px-4 py-6 desktop:gap-12 desktop:px-14 desktop:py-12"
           >
-            <div className="sticky start-4 w-fit shrink-0 desktop:start-14">
+            <div className="sticky start-4 z-10 w-fit shrink-0 desktop:start-14">
               <h2 className="text-[28px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink-primary)] desktop:text-[32px] rtl:leading-[1.35] rtl:tracking-normal">
                 {dictionary.about.sectionPreviousTeam}
               </h2>
             </div>
 
-            {/* 2 Stacked Rows Flowing Sequentially Horizontally (Left in EN, Right in FA/AR), Zero Vertical Overflow */}
-            <ul className="grid min-h-0 flex-1 grid-flow-col grid-rows-2 items-center gap-x-5 gap-y-4 pe-4 desktop:gap-x-8 desktop:gap-y-5 desktop:pe-8">
+            {/* 2 Stacked Rows: Mobile Stacked Card | Desktop Side-by-Side Card + Auto-Distributed Grid Column Spacing */}
+            <ul className="grid min-h-0 w-full flex-1 grid-flow-col grid-rows-2 items-start gap-x-5 gap-y-4 pe-4 desktop:items-center desktop:justify-between desktop:gap-x-8 desktop:gap-y-6 desktop:pe-0">
               {PREVIOUS_TEAM_MEMBERS.map((member) => {
                 const memberName = getAboutLocalizedText(member.name, locale);
                 const memberRole = getAboutLocalizedText(member.role, locale);
@@ -829,27 +828,27 @@ export function AboutStage() {
                 return (
                   <li
                     key={member.id}
-                    className="group flex shrink-0 flex-col gap-2"
+                    className="group flex shrink-0 flex-col gap-2 desktop:flex-row desktop:items-center desktop:gap-4"
                   >
-                    {/* Dynamic Compact Square Portrait Fitted Cleanly for 2 Rows Inside Ribbon Height */}
-                    <div className="relative aspect-square h-[clamp(76px,calc((100cqh-264px)/2),172px)] w-[clamp(76px,calc((100cqh-264px)/2),172px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(96px,calc((100cqh-320px)/2),192px)] desktop:w-[clamp(96px,calc((100cqh-320px)/2),192px)]">
+                    {/* Dynamic Scaled Square Portrait Preventing Card Overlap Across Both Rows */}
+                    <div className="relative aspect-square h-[clamp(72px,calc((100cqh-248px)/2),152px)] w-[clamp(72px,calc((100cqh-248px)/2),152px)] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:h-[clamp(84px,calc((100cqh-264px)/2),148px)] desktop:w-[clamp(84px,calc((100cqh-264px)/2),148px)]">
                       <Image
                         src={member.portrait}
                         alt={memberAlt}
                         fill
                         loading="lazy"
-                        sizes="(max-width: 768px) 160px, 200px"
+                        sizes="(max-width: 768px) 152px, 148px"
                         referrerPolicy="no-referrer"
                         className="object-cover grayscale transition-all duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
                       />
                     </div>
 
-                    {/* Name, Role & Tenure Date Below Image (Right-Aligned in Persian & Arabic / Left-Aligned in English) */}
-                    <div className="flex w-[clamp(124px,calc((100cqh-232px)/2),192px)] flex-col gap-0.5 text-start">
-                      <h3 className="truncate text-[13px] font-medium leading-[1.3] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[14px]">
+                    {/* Name, Role & Tenure Date (Below Image on Mobile | Beside Image on Desktop) */}
+                    <div className="flex w-[clamp(112px,calc((100cqh-232px)/2),160px)] min-w-0 flex-col gap-0.5 text-start desktop:w-[clamp(132px,13cqw,184px)] desktop:gap-1">
+                      <h3 className="truncate text-[13px] font-medium leading-[1.3] text-[var(--ink-primary)] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] desktop:text-[15px]">
                         {memberName}
                       </h3>
-                      <p className="truncate text-[11px] leading-[1.4] text-[var(--ink-secondary)] desktop:text-[12px]">
+                      <p className="truncate text-[11px] leading-[1.4] text-[var(--ink-secondary)] desktop:text-[13px]">
                         {memberRole}
                       </p>
                       <p className="text-start text-[11px] font-normal leading-[1.35] text-[var(--ink-muted)] desktop:text-[12px]">

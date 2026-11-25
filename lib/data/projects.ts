@@ -21,6 +21,33 @@ export type ProjectLocationId =
   | 'tehran'
   | 'isfahan';
 
+export type ProjectArchitectId =
+  | 'dariush'
+  | 'sara'
+  | 'navid'
+  | 'kian'
+  | 'mina';
+
+export type ProjectYearId = '2026' | '2025' | '2024';
+
+export type ProjectMaterialId =
+  | 'rammedEarth'
+  | 'limestone'
+  | 'timber'
+  | 'brick'
+  | 'limePlaster'
+  | 'glassSteel';
+
+export type ProjectAreaId = 'small' | 'medium' | 'large';
+
+export type ProjectColorId =
+  | 'ochre'
+  | 'limestone'
+  | 'terracotta'
+  | 'timber'
+  | 'charcoal'
+  | 'olivine';
+
 export interface ProjectMetric {
   readonly label: LocalizedText;
   readonly value: string;
@@ -43,8 +70,12 @@ export interface ArchitecturalProject {
   readonly type: Exclude<ProjectTypeId, 'all'>;
   readonly status: Exclude<ProjectStatusId, 'all'>;
   readonly location: Exclude<ProjectLocationId, 'all'>;
-  readonly year: string;
+  readonly architectId: ProjectArchitectId;
+  readonly year: ProjectYearId;
   readonly areaSqm: string;
+  readonly areaRange: ProjectAreaId;
+  readonly materials: readonly ProjectMaterialId[];
+  readonly colorPalette: ProjectColorId;
   readonly title: LocalizedText;
   readonly subtitle: LocalizedText;
   readonly overview: LocalizedText;
@@ -95,6 +126,53 @@ export const PROJECT_LOCATION_OPTIONS: readonly ProjectLocationId[] = [
   'isfahan',
 ] as const;
 
+export const PROJECT_ARCHITECT_OPTIONS: readonly ProjectArchitectId[] = [
+  'dariush',
+  'sara',
+  'navid',
+  'kian',
+  'mina',
+] as const;
+
+export const PROJECT_YEAR_OPTIONS: readonly ProjectYearId[] = [
+  '2026',
+  '2025',
+  '2024',
+] as const;
+
+export const PROJECT_MATERIAL_OPTIONS: readonly ProjectMaterialId[] = [
+  'rammedEarth',
+  'limestone',
+  'timber',
+  'brick',
+  'limePlaster',
+  'glassSteel',
+] as const;
+
+export const PROJECT_AREA_OPTIONS: readonly ProjectAreaId[] = [
+  'small',
+  'medium',
+  'large',
+] as const;
+
+export const PROJECT_COLOR_OPTIONS: readonly ProjectColorId[] = [
+  'ochre',
+  'limestone',
+  'terracotta',
+  'timber',
+  'charcoal',
+  'olivine',
+] as const;
+
+export const PROJECT_COLOR_SWATCHES: Record<ProjectColorId, string> = {
+  ochre: '#c79c6e',
+  limestone: '#d8d0c3',
+  terracotta: '#b36b4d',
+  timber: '#8a6242',
+  charcoal: '#4a4b49',
+  olivine: '#597838',
+} as const;
+
 export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
   {
     slug: 'yazd-desert-pavilion',
@@ -102,8 +180,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'cultural',
     status: 'completed',
     location: 'yazd',
+    architectId: 'dariush',
     year: '2025',
     areaSqm: '1,420',
+    areaRange: 'medium',
+    materials: ['rammedEarth', 'limePlaster', 'timber'],
+    colorPalette: 'ochre',
     title: {
       en: 'Yazd Desert Pavilion',
       fa: 'کوشک کویری یزد',
@@ -200,8 +282,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'residential',
     status: 'completed',
     location: 'shiraz',
+    architectId: 'dariush',
     year: '2024',
     areaSqm: '680',
+    areaRange: 'small',
+    materials: ['limestone', 'timber', 'limePlaster'],
+    colorPalette: 'limestone',
     title: {
       en: 'Shiraz Passive Courtyard House',
       fa: 'خانه حیاط‌دار غیرفعال شیراز',
@@ -298,8 +384,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'hospitality',
     status: 'inProgress',
     location: 'kashan',
+    architectId: 'sara',
     year: '2026',
     areaSqm: '2,150',
+    areaRange: 'medium',
+    materials: ['rammedEarth', 'limePlaster', 'brick'],
+    colorPalette: 'terracotta',
     title: {
       en: 'Kashan Rammed-Earth Retreat',
       fa: 'اقامتگاه خاک کوبیده کاشان',
@@ -386,8 +476,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'cultural',
     status: 'concept',
     location: 'lavasan',
+    architectId: 'navid',
     year: '2026',
     areaSqm: '540',
+    areaRange: 'small',
+    materials: ['timber', 'limestone', 'glassSteel'],
+    colorPalette: 'timber',
     title: {
       en: 'Lavasan Timber & Botanical Pavilion',
       fa: 'پاویون چوبی و باغ گیاه‌شناسی لواسان',
@@ -474,8 +568,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'residential',
     status: 'inProgress',
     location: 'yazd',
+    architectId: 'kian',
     year: '2026',
     areaSqm: '920',
+    areaRange: 'small',
+    materials: ['rammedEarth', 'limestone', 'timber'],
+    colorPalette: 'ochre',
     title: {
       en: 'Bafgh Solar Thermal Cloister',
       fa: 'سرای حرارتی خورشیدی بافق',
@@ -562,8 +660,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'urbanMixed',
     status: 'inProgress',
     location: 'tehran',
+    architectId: 'mina',
     year: '2026',
     areaSqm: '5,800',
+    areaRange: 'large',
+    materials: ['limestone', 'glassSteel', 'timber'],
+    colorPalette: 'olivine',
     title: {
       en: 'Fereshteh Biophilic Terraces',
       fa: 'ساختمان تراس‌های زیست‌اقلیمی فرشته',
@@ -650,8 +752,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'cultural',
     status: 'completed',
     location: 'isfahan',
+    architectId: 'dariush',
     year: '2025',
     areaSqm: '3,100',
+    areaRange: 'large',
+    materials: ['brick', 'glassSteel', 'limestone'],
+    colorPalette: 'terracotta',
     title: {
       en: 'Isfahan Olive Courtyard Gallery',
       fa: 'گالری حیاط زیتون اصفهان',
@@ -738,8 +844,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'urbanMixed',
     status: 'concept',
     location: 'tehran',
+    architectId: 'mina',
     year: '2026',
     areaSqm: '4,400',
+    areaRange: 'large',
+    materials: ['limestone', 'glassSteel', 'limePlaster'],
+    colorPalette: 'charcoal',
     title: {
       en: 'Valiasr Shaded Civic Threshold',
       fa: 'گذر سایه‌دار شهری ولیعصر',
@@ -826,8 +936,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'residential',
     status: 'completed',
     location: 'shiraz',
+    architectId: 'kian',
     year: '2024',
     areaSqm: '2,640',
+    areaRange: 'medium',
+    materials: ['brick', 'limePlaster', 'timber'],
+    colorPalette: 'terracotta',
     title: {
       en: 'Shiraz Brick Arcade & Courtyard Flats',
       fa: 'مجموعه رواق آجر و باغ مسکونی شیراز',
@@ -914,8 +1028,12 @@ export const ARCHITECTURAL_PROJECTS: readonly ArchitecturalProject[] = [
     type: 'hospitality',
     status: 'completed',
     location: 'tehran',
+    architectId: 'sara',
     year: '2025',
     areaSqm: '1,850',
+    areaRange: 'medium',
+    materials: ['limestone', 'timber', 'limePlaster'],
+    colorPalette: 'limestone',
     title: {
       en: 'Laleh Park Atelier & Residence',
       fa: 'اقامتگاه و آتلیه پارک لاله تهران',

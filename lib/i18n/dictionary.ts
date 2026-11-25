@@ -1,9 +1,14 @@
 import type { Locale, NavItemId, NavSubItemId } from '@/lib/config/site';
 import type {
+  ProjectArchitectId,
+  ProjectAreaId,
+  ProjectColorId,
   ProjectLocationId,
+  ProjectMaterialId,
   ProjectMode,
   ProjectStatusId,
   ProjectTypeId,
+  ProjectYearId,
 } from '@/lib/data/projects';
 
 export interface Dictionary {
@@ -199,9 +204,25 @@ export interface Dictionary {
     readonly typeLabel: string;
     readonly statusLabel: string;
     readonly locationLabel: string;
+    readonly categoriesLabel: string;
+    readonly cityRegionLabel: string;
+    readonly architectsLabel: string;
+    readonly yearLabel: string;
+    readonly materialsLabel: string;
+    readonly areaLabel: string;
+    readonly colorLabel: string;
+    readonly applyFiltersLabel: string;
+    readonly clearFiltersLabel: string;
+    readonly activeFiltersLabel: string;
+    readonly closeFiltersAriaLabel: string;
     readonly typeOptions: Record<ProjectTypeId, string>;
     readonly statusOptions: Record<ProjectStatusId, string>;
     readonly locationOptions: Record<ProjectLocationId, string>;
+    readonly architectOptions: Record<ProjectArchitectId, string>;
+    readonly yearOptions: Record<ProjectYearId, string>;
+    readonly materialOptions: Record<ProjectMaterialId, string>;
+    readonly areaOptions: Record<ProjectAreaId, string>;
+    readonly colorOptions: Record<ProjectColorId, string>;
     readonly resetFilters: string;
     readonly emptyTitle: string;
     readonly emptyDescription: string;
@@ -484,6 +505,17 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       typeLabel: 'TYPE',
       statusLabel: 'STATUS',
       locationLabel: 'LOCATION',
+      categoriesLabel: 'Categories',
+      cityRegionLabel: 'City / Region',
+      architectsLabel: 'Architects',
+      yearLabel: 'Year',
+      materialsLabel: 'Materials',
+      areaLabel: 'Area',
+      colorLabel: 'Color',
+      applyFiltersLabel: 'Apply Filters',
+      clearFiltersLabel: 'Clear Filters',
+      activeFiltersLabel: 'Active Filters',
+      closeFiltersAriaLabel: 'Close filters panel',
       typeOptions: {
         all: 'All Types',
         residential: 'Residential',
@@ -505,6 +537,39 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
         lavasan: 'Lavasan',
         tehran: 'Tehran',
         isfahan: 'Isfahan',
+      },
+      architectOptions: {
+        dariush: 'Dariush Rasman',
+        sara: 'Sara Farahmand',
+        navid: 'Navid Mansouri',
+        kian: 'Kian Sohrabi',
+        mina: 'Mina Tavakoli',
+      },
+      yearOptions: {
+        '2026': '2026',
+        '2025': '2025',
+        '2024': '2024',
+      },
+      materialOptions: {
+        rammedEarth: 'Rammed Earth',
+        limestone: 'Limestone & Stone',
+        timber: 'Mass Timber',
+        brick: 'Brick Masonry',
+        limePlaster: 'Lime Plaster',
+        glassSteel: 'Glass & Steel',
+      },
+      areaOptions: {
+        small: 'Under 1,000 m²',
+        medium: '1,000 – 3,000 m²',
+        large: 'Over 3,000 m²',
+      },
+      colorOptions: {
+        ochre: 'Earth Ochre',
+        limestone: 'Warm Limestone',
+        terracotta: 'Terracotta Brick',
+        timber: 'Oiled Oak',
+        charcoal: 'Basalt Charcoal',
+        olivine: 'Botanical Green',
       },
       resetFilters: 'Reset',
       emptyTitle: 'No projects match these criteria.',
@@ -787,6 +852,17 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       typeLabel: 'نوع پروژه',
       statusLabel: 'وضعیت',
       locationLabel: 'شهر',
+      categoriesLabel: 'دسته‌بندی کاربری',
+      cityRegionLabel: 'شهر و اقلیم',
+      architectsLabel: 'معماران',
+      yearLabel: 'سال اجرا',
+      materialsLabel: 'مصالح',
+      areaLabel: 'زیربنا',
+      colorLabel: 'طیف رنگ',
+      applyFiltersLabel: 'اعمال فیلتر',
+      clearFiltersLabel: 'حذف فیلترها',
+      activeFiltersLabel: 'فیلترهای فعال',
+      closeFiltersAriaLabel: 'بستن پنل فیلترها',
       typeOptions: {
         all: 'همه کاربری‌ها',
         residential: 'مسکونی',
@@ -808,6 +884,39 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
         lavasan: 'لواسان',
         tehran: 'تهران',
         isfahan: 'اصفهان',
+      },
+      architectOptions: {
+        dariush: 'داریوش رسمان',
+        sara: 'سارا فرهمند',
+        navid: 'نوید منصوری',
+        kian: 'کیان سهرابی',
+        mina: 'مینا توکلی',
+      },
+      yearOptions: {
+        '2026': '۲۰۲۶',
+        '2025': '۲۰۲۵',
+        '2024': '۲۰۲۴',
+      },
+      materialOptions: {
+        rammedEarth: 'خاک کوبیده',
+        limestone: 'سنگ آهک و بومی',
+        timber: 'چوب مهندسی',
+        brick: 'آجر بنایی',
+        limePlaster: 'اندود آهکی',
+        glassSteel: 'شیشه و فولاد',
+      },
+      areaOptions: {
+        small: 'زیر ۱٬۰۰۰ مترمربع',
+        medium: '۱٬۰۰۰ تا ۳٬۰۰۰ مترمربع',
+        large: 'بالای ۳٬۰۰۰ مترمربع',
+      },
+      colorOptions: {
+        ochre: 'خاکی اخرایی',
+        limestone: 'آهکی گرم',
+        terracotta: 'سفالی آجری',
+        timber: 'بلوط طبیعی',
+        charcoal: 'بازالت تیره',
+        olivine: 'سبز گیاهی',
       },
       resetFilters: 'حذف فیلتر',
       emptyTitle: 'پروژه‌ای با این فیلترها یافت نشد.',
@@ -1090,6 +1199,17 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       typeLabel: 'النوع',
       statusLabel: 'الحالة',
       locationLabel: 'المدينة',
+      categoriesLabel: 'التصنيفات',
+      cityRegionLabel: 'المدينة والإقليم',
+      architectsLabel: 'المعماريون',
+      yearLabel: 'السنة',
+      materialsLabel: 'المواد',
+      areaLabel: 'المساحة',
+      colorLabel: 'اللون',
+      applyFiltersLabel: 'تطبيق الفلاتر',
+      clearFiltersLabel: 'مسح الفلاتر',
+      activeFiltersLabel: 'الفلاتر النشطة',
+      closeFiltersAriaLabel: 'إغلاق لوحة الفلاتر',
       typeOptions: {
         all: 'جميع الأنواع',
         residential: 'سكني',
@@ -1111,6 +1231,39 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
         lavasan: 'لواسان',
         tehran: 'طهران',
         isfahan: 'أصفهان',
+      },
+      architectOptions: {
+        dariush: 'داريوش رسمان',
+        sara: 'سارة فرهمند',
+        navid: 'نويد منصوري',
+        kian: 'كيان سهرابي',
+        mina: 'مينا توكلي',
+      },
+      yearOptions: {
+        '2026': '٢٠٢٦',
+        '2025': '٢٠٢٥',
+        '2024': '٢٠٢٤',
+      },
+      materialOptions: {
+        rammedEarth: 'التربة المدكوكة',
+        limestone: 'الحجر الجيري',
+        timber: 'الخشب الهيكلي',
+        brick: 'الطوب البنائي',
+        limePlaster: 'الجص الجيري',
+        glassSteel: 'الزجاج والفولاذ',
+      },
+      areaOptions: {
+        small: 'أقل من ١٬٠٠٠ م²',
+        medium: '١٬٠٠٠ – ٣٬٠٠٠ م²',
+        large: 'أكثر من ٣٬٠٠٠ م²',
+      },
+      colorOptions: {
+        ochre: 'مغرة ترابية',
+        limestone: 'جيري دافئ',
+        terracotta: 'طوب تراكوتا',
+        timber: 'بلوط مدهون',
+        charcoal: 'بازلت داكن',
+        olivine: 'أخضر نباتي',
       },
       resetFilters: 'إعادة ضبط',
       emptyTitle: 'لا توجد مشاريع مطابقة لهذه المعايير.',

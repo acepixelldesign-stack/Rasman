@@ -13,15 +13,21 @@ import { cn } from '@/lib/utils';
 interface ProjectCardProps {
   readonly project: ArchitecturalProject;
   readonly priority?: boolean;
+  readonly isMobileActive?: boolean;
 }
 
 /**
  * Large Horizontal Gallery Project Card (4px Architectural Radius):
- * - Smooth lazy-load dissolve when imagery finishes decoding
- * - Borderless card, gradient scrim, bottom hover blur veil, top-end directional action button
+ * - Mobile & Desktop: tall vertically stretched proportion closely unified across breakpoints
+ * - Mobile: description matches desktop default (hidden) and reveals smoothly as cards slide into view horizontally
+ * - Desktop: hover/focus reveal with subtle masked bottom backdrop blur
  * - Full LTR/RTL logical alignment and arrow mirroring
  */
-export function ProjectCard({ project, priority = false }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  priority = false,
+  isMobileActive = false,
+}: ProjectCardProps) {
   const { locale, isRtl, dictionary } = useAppContext();
 
   const title = getProjectLocalizedText(project.title, locale);
@@ -37,8 +43,8 @@ export function ProjectCard({ project, priority = false }: ProjectCardProps) {
       className={cn(
         'group relative block shrink-0 overflow-hidden rounded-[4px]',
         'bg-[var(--surface-hover)]',
-        'h-auto w-[80vw] max-w-[348px] aspect-square',
-        'desktop:h-[clamp(276px,calc(100dvh-var(--grid-header)-var(--grid-bottom)-204px),460px)] desktop:w-[clamp(276px,calc(100dvh-var(--grid-header)-var(--grid-bottom)-204px),460px)]',
+        'h-full w-[72vw] max-w-[292px]',
+        'desktop:h-full desktop:w-[clamp(284px,27vw,372px)] desktop:max-w-none',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]'
       )}
     >
@@ -49,21 +55,33 @@ export function ProjectCard({ project, priority = false }: ProjectCardProps) {
         fill
         priority={priority}
         loading={priority ? undefined : 'lazy'}
-        sizes="(max-width: 767px) 80vw, 460px"
+        sizes="(max-width: 767px) 72vw, 372px"
         referrerPolicy="no-referrer"
-        className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.035] group-focus-visible:scale-[1.035]"
+        className={cn(
+          'object-cover transition-transform duration-500 ease-out group-hover:scale-[1.035] group-focus-visible:scale-[1.035]',
+          isMobileActive && 'scale-[1.025] desktop:scale-100'
+        )}
       />
 
       {/* Base Legibility Gradient Scrim */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/82 via-black/26 to-black/10 transition-opacity duration-300 group-hover:from-black/88 group-hover:via-black/42"
+        className={cn(
+          'pointer-events-none absolute inset-0 bg-gradient-to-t from-black/82 via-black/26 to-black/10 transition-opacity duration-300 group-hover:from-black/88 group-hover:via-black/42',
+          isMobileActive &&
+            'from-black/88 via-black/42 desktop:from-black/82 desktop:via-black/26'
+        )}
       />
 
-      {/* Subtle Masked Backdrop Blur Revealing Cleanly on Hover / Focus */}
+      {/* Subtle Masked Backdrop Blur Revealing on Desktop Hover/Focus or Mobile Active Scroll */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-black/20 opacity-0 backdrop-blur-[5px] transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100 [mask-image:linear-gradient(to_top,black_45%,transparent_100%)]"
+        className={cn(
+          'pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-black/20 backdrop-blur-[5px] transition-opacity duration-350 [mask-image:linear-gradient(to_top,black_45%,transparent_100%)]',
+          isMobileActive
+            ? 'opacity-100 desktop:opacity-0 desktop:group-hover:opacity-100 desktop:group-focus-visible:opacity-100'
+            : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
+        )}
       />
 
       {/* Top-End Circular Action Indicator */}
@@ -71,8 +89,10 @@ export function ProjectCard({ project, priority = false }: ProjectCardProps) {
         aria-hidden="true"
         className={cn(
           'absolute top-4 end-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full',
-          'bg-black/25 text-white backdrop-blur-sm [transform:translateZ(0)]',
-          'transition-all duration-300 group-hover:bg-[var(--brand-primary)] group-focus-visible:bg-[var(--brand-primary)]'
+          'text-white backdrop-blur-sm [transform:translateZ(0)] transition-all duration-300',
+          isMobileActive
+            ? 'bg-[var(--brand-primary)] desktop:bg-black/25 desktop:group-hover:bg-[var(--brand-primary)] desktop:group-focus-visible:bg-[var(--brand-primary)]'
+            : 'bg-black/25 group-hover:bg-[var(--brand-primary)] group-focus-visible:bg-[var(--brand-primary)]'
         )}
       >
         <MdArrowOutward
@@ -86,7 +106,7 @@ export function ProjectCard({ project, priority = false }: ProjectCardProps) {
         />
       </span>
 
-      {/* Bottom Title & Hover-Expandable Summary */}
+      {/* Bottom Title & Expandable Summary (Default Collapsed on Both Desktop & Mobile) */}
       <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end p-5 desktop:p-6">
         <p className="mb-1.5 flex items-center gap-2 text-[11px] font-medium tracking-[0.05em] text-white/75 uppercase rtl:normal-case rtl:tracking-normal">
           <span>{locationLabel}</span>
@@ -106,10 +126,24 @@ export function ProjectCard({ project, priority = false }: ProjectCardProps) {
           {title}
         </h2>
 
-        {/* Smooth CSS Grid Row Reveal on Hover / Focus (Always visible on mobile touch) */}
-        <div className="grid grid-rows-[1fr] transition-[grid-template-rows] duration-400 ease-out desktop:grid-rows-[0fr] desktop:group-hover:grid-rows-[1fr] desktop:group-focus-visible:grid-rows-[1fr]">
+        {/* Smooth CSS Grid Row Reveal: Default Collapsed Like Desktop; Reveals on Mobile Horizontal Slide-In or Desktop Hover/Focus */}
+        <div
+          className={cn(
+            'grid transition-[grid-template-rows] duration-400 ease-out',
+            isMobileActive
+              ? 'grid-rows-[1fr] desktop:grid-rows-[0fr] desktop:group-hover:grid-rows-[1fr] desktop:group-focus-visible:grid-rows-[1fr]'
+              : 'grid-rows-[0fr] desktop:group-hover:grid-rows-[1fr] desktop:group-focus-visible:grid-rows-[1fr]'
+          )}
+        >
           <div className="overflow-hidden">
-            <p className="pt-2 text-[13px] leading-[1.6] text-white/85 opacity-95 transition-opacity duration-400 desktop:opacity-0 desktop:group-hover:opacity-100 desktop:group-focus-visible:opacity-100 rtl:leading-[1.8]">
+            <p
+              className={cn(
+                'pt-2 text-[13px] leading-[1.6] text-white/85 transition-opacity duration-400 rtl:leading-[1.8]',
+                isMobileActive
+                  ? 'opacity-95 desktop:opacity-0 desktop:group-hover:opacity-100 desktop:group-focus-visible:opacity-100'
+                  : 'opacity-0 desktop:group-hover:opacity-100 desktop:group-focus-visible:opacity-100'
+              )}
+            >
               {subtitle}
             </p>
           </div>

@@ -36,8 +36,13 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: SITE_CONFIG.metadata.title,
   description: SITE_CONFIG.metadata.description,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: SITE_CONFIG.metadata.title,
+  },
   other: {
-    'color-scheme': 'only light',
+    'color-scheme': 'light dark',
   },
   openGraph: {
     title: SITE_CONFIG.metadata.title,
