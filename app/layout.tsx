@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import '@fontsource/jost/latin-300.css';
-import '@fontsource/jost/latin-400.css';
-import '@fontsource/jost/latin-500.css';
-import '@fontsource/jost/latin-600.css';
-import '@fontsource/jost/latin-700.css';
+import '@fontsource/exo-2/latin-300.css';
+import '@fontsource/exo-2/latin-400.css';
+import '@fontsource/exo-2/latin-500.css';
+import '@fontsource/exo-2/latin-600.css';
+import '@fontsource/exo-2/latin-700.css';
 import '@fontsource/vazirmatn/arabic-300.css';
 import '@fontsource/vazirmatn/arabic-400.css';
 import '@fontsource/vazirmatn/arabic-500.css';
@@ -73,6 +73,7 @@ export default function RootLayout({
   readonly children: React.ReactNode;
 }) {
   const customPersianFontCss = getCustomPersianFontCss();
+  const themeInitScript = `(function(){try{var t=window.localStorage.getItem(${JSON.stringify(SITE_CONFIG.storageKeys.theme)});var m=t==='dark'||t==='light'?t:${JSON.stringify(SITE_CONFIG.defaultTheme)};var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(m);}catch(e){}})();`;
 
   return (
     <html
@@ -81,6 +82,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <script
+          id="rasman-theme-init"
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
         {customPersianFontCss ? (
           <style id="rasman-custom-persian-font">{customPersianFontCss}</style>
         ) : null}

@@ -177,7 +177,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                   href={`/projects?mode=${project.mode}`}
                   onClick={() => setNextStickyBarDirection('back')}
                   aria-label={dictionary.projects.detail.backToProjects}
-                  className="inline-flex h-[var(--grid-subbar)] shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+                  className="inline-flex h-[var(--grid-subbar)] shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--ink-primary)]"
                 >
                   <MdArrowBack
                     size={18}
@@ -213,10 +213,8 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                     : dictionary.projects.detail.shareProjectLabel
                 }
                 className={cn(
-                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-cell)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
-                  copied
-                    ? 'text-[var(--brand-text-hover)]'
-                    : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
+                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-cell)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] text-[var(--ink-primary)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
+                  copied && 'bg-[var(--surface-hover)]'
                 )}
               >
                 {copied ? (
@@ -573,13 +571,13 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                   className={cn(
                     'group inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-5 desktop:flex-none',
                     'border border-[var(--grid-line-strong)] bg-transparent text-[13px] font-medium text-[var(--ink-primary)] desktop:text-[14px]',
-                    'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                    'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                   )}
                 >
                   <span>{dictionary.projects.detail.viewAllGalleryLabel}</span>
                   <span
                     dir="ltr"
-                    className="bidi-isolate text-[12px] text-[var(--ink-muted)] tabular-nums transition-colors duration-200 group-hover:text-[var(--brand-text-hover)]"
+                    className="bidi-isolate text-[12px] text-[var(--ink-muted)] tabular-nums transition-colors duration-200 group-hover:text-[var(--ink-primary)]"
                   >
                     ({categorizedMedia.length})
                   </span>
@@ -601,7 +599,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                       aria-label={
                         dictionary.projects.detail.galleryPrevAriaLabel
                       }
-                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
                     >
                       {isRtl ? (
                         <MdChevronRight size={22} aria-hidden="true" />
@@ -616,7 +614,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                       aria-label={
                         dictionary.projects.detail.galleryNextAriaLabel
                       }
-                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]"
+                      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)] transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
                     >
                       {isRtl ? (
                         <MdChevronLeft size={22} aria-hidden="true" />
@@ -692,7 +690,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                 aria-hidden="true"
                 className={cn(
                   'shrink-0 text-[var(--ink-muted)] transition-all duration-250',
-                  'group-hover:text-[var(--brand-text-hover)] group-hover:-translate-x-0.5',
+                  'group-hover:text-[var(--ink-primary)] group-hover:-translate-x-0.5',
                   isRtl && '-scale-x-100 group-hover:translate-x-0.5'
                 )}
               />
@@ -726,7 +724,7 @@ export function ProjectDetailStage({ slug }: ProjectDetailStageProps) {
                 aria-hidden="true"
                 className={cn(
                   'shrink-0 text-[var(--ink-muted)] transition-all duration-250',
-                  'group-hover:text-[var(--brand-text-hover)] group-hover:translate-x-0.5',
+                  'group-hover:text-[var(--ink-primary)] group-hover:translate-x-0.5',
                   isRtl && '-scale-x-100 group-hover:-translate-x-0.5'
                 )}
               />

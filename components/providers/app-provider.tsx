@@ -12,7 +12,6 @@ import {
 } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
-import { ThemeProvider as NextThemesProvider, useTheme } from 'next-themes';
 import { MotionConfig } from 'motion/react';
 import {
   SITE_CONFIG,
@@ -33,14 +32,16 @@ import {
   subscribeScrollLock,
 } from '@/hooks/use-body-scroll-lock';
 
-const StartProjectModal = dynamic(() =>
-  import('@/components/auth/start-project-modal').then(
-    (mod) => mod.StartProjectModal
-  )
+const StartProjectModal = dynamic(
+  () =>
+    import('@/components/auth/start-project-modal').then(
+      (mod) => mod.StartProjectModal
+    ),
+  { ssr: false }
 );
 
 export type AccountType = 'individual' | 'legal';
-export type UserRole = 'designer' | 'investor' | 'landowner';
+export type UserRole = 'designer' | 'investor' | 'landowner' | 'client';
 
 export interface UserProfile {
   readonly firstName: string;
@@ -53,11 +54,13 @@ export interface UserProfile {
 
 interface AppPreferencesState {
   locale: Locale;
+  theme: ThemeMode;
   userProfile: UserProfile | null;
 }
 
 const DEFAULT_PREFERENCES: AppPreferencesState = {
   locale: SITE_CONFIG.defaultLocale,
+  theme: SITE_CONFIG.defaultTheme,
   userProfile: null,
 };
 
@@ -77,6 +80,18 @@ function readStoredLocale(): Locale {
   return SITE_CONFIG.defaultLocale;
 }
 
+function readStoredTheme(): ThemeMode {
+  try {
+    const raw = window.localStorage.getItem(SITE_CONFIG.storageKeys.theme);
+    if (raw === 'light' || raw === 'dark') {
+      return raw;
+    }
+  } catch {
+    // Gracefully degrade if storage is unavailable in restricted contexts
+  }
+  return SITE_CONFIG.defaultTheme;
+}
+
 function readStoredUserProfile(): UserProfile | null {
   try {
     const raw = window.localStorage.getItem(SITE_CONFIG.storageKeys.userProfile);
@@ -89,7 +104,8 @@ function readStoredUserProfile(): UserProfile | null {
       (parsed.accountType === 'individual' || parsed.accountType === 'legal') &&
       (parsed.userRole === 'designer' ||
         parsed.userRole === 'investor' ||
-        parsed.userRole === 'landowner') &&
+        parsed.userRole === 'landowner' ||
+        parsed.userRole === 'client') &&
       typeof parsed.phone === 'string'
     ) {
       return {
@@ -107,19 +123,29 @@ function readStoredUserProfile(): UserProfile | null {
   return null;
 }
 
+function applyThemeClassToRoot(nextTheme: ThemeMode): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.classList.remove('light', 'dark');
+  root.classList.add(nextTheme);
+}
+
 function hydrateClientPreferencesFromStorage(): void {
   if (clientInitialized || typeof window === 'undefined') {
     return;
   }
   clientInitialized = true;
   const storedLocale = readStoredLocale();
+  const storedTheme = readStoredTheme();
   const storedProfile = readStoredUserProfile();
   if (
     storedLocale !== currentPreferences.locale ||
+    storedTheme !== currentPreferences.theme ||
     storedProfile !== currentPreferences.userProfile
   ) {
     currentPreferences = {
       locale: storedLocale,
+      theme: storedTheme,
       userProfile: storedProfile,
     };
     emitPreferencesChange();
@@ -152,9 +178,16 @@ function updateStoredPreferences(partial: Partial<AppPreferencesState>): void {
     ...partial,
   };
 
+  if (partial.theme !== undefined) {
+    applyThemeClassToRoot(partial.theme);
+  }
+
   try {
     if (partial.locale !== undefined) {
       window.localStorage.setItem(SITE_CONFIG.storageKeys.locale, partial.locale);
+    }
+    if (partial.theme !== undefined) {
+      window.localStorage.setItem(SITE_CONFIG.storageKeys.theme, partial.theme);
     }
     if (partial.userProfile !== undefined) {
       if (partial.userProfile === null) {
@@ -197,22 +230,57 @@ function markClientMounted(): void {
   mountedListeners.forEach((listener) => listener());
 }
 
-function hasPendingSuspenseTemplates(): boolean {
+function hasPendingRouteSuspense(): boolean {
   if (typeof document === 'undefined') return false;
-  return document.querySelector('template[id^="B:"]') !== null;
+  return (
+    document.querySelector('template[id^="B:"]') !== null ||
+    document.querySelector('#main-canvas [aria-busy="true"]') !== null
+  );
+}
+
+let routeContentReady = false;
+let scheduledHydrationRaf: number | null = null;
+let hydrationFallbackTimer: number | null = null;
+
+function cancelScheduledHydration(): void {
+  if (typeof window === 'undefined') return;
+  if (scheduledHydrationRaf !== null) {
+    window.cancelAnimationFrame(scheduledHydrationRaf);
+    scheduledHydrationRaf = null;
+  }
+  if (hydrationFallbackTimer !== null) {
+    window.clearTimeout(hydrationFallbackTimer);
+    hydrationFallbackTimer = null;
+  }
+}
+
+function commitClientHydration(): void {
+  cancelScheduledHydration();
+  hydrateClientPreferencesFromStorage();
+  markClientMounted();
 }
 
 /**
- * Commit client-stored locale, profile, and mounted theme only after streamed
+ * Commit client-stored locale, theme, and profile only after streamed
  * Suspense route boundaries have finished hydrating so client renders match SSR HTML.
  */
 export function markRouteContentHydrated(): void {
   if (typeof window === 'undefined') return;
+  routeContentReady = true;
   if (clientInitialized && isClientMounted) return;
-  if (hasPendingSuspenseTemplates()) return;
+  if (hasPendingRouteSuspense()) return;
 
-  hydrateClientPreferencesFromStorage();
-  markClientMounted();
+  if (hydrationFallbackTimer !== null) {
+    window.clearTimeout(hydrationFallbackTimer);
+    hydrationFallbackTimer = null;
+  }
+
+  if (scheduledHydrationRaf !== null) return;
+  scheduledHydrationRaf = window.requestAnimationFrame(() => {
+    scheduledHydrationRaf = null;
+    if (hasPendingRouteSuspense()) return;
+    commitClientHydration();
+  });
 }
 
 function isEditableElement(target: EventTarget | null): boolean {
@@ -263,7 +331,6 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     getScrollLockClientSnapshot,
     getScrollLockServerSnapshot
   );
-  const { theme: resolvedNextTheme, setTheme: setNextTheme } = useTheme();
   const pathname = usePathname();
 
   const [announcement, setAnnouncement] = useState<string>('');
@@ -279,74 +346,124 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     ? ambientMode
     : null;
 
+  // Coordinate post-hydration preference commit:
+  // - Normal routes signal via FramedSection / ProjectsStage AFTER their Suspense boundary hydrates.
+  // - Non-FramedSection fallback routes (e.g. 404/error pages) commit only after window 'load'
+  //   AND all streamed Suspense templates/busy states have resolved, never on a premature timer.
   useEffect(() => {
     if (clientInitialized && isClientMounted) return;
 
-    let rafId: number | null = null;
     let observer: MutationObserver | null = null;
+    let disposed = false;
 
-    const trySync = () => {
-      if (hasPendingSuspenseTemplates()) return false;
-      markRouteContentHydrated();
-      return true;
-    };
-
-    const scheduleAfterCommit = () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
+    const scheduleFallbackAfterLoad = () => {
+      if (disposed || (clientInitialized && isClientMounted)) return;
+      if (routeContentReady) {
+        markRouteContentHydrated();
+        return;
       }
-      rafId = window.requestAnimationFrame(() => {
-        rafId = null;
-        trySync();
-      });
+      if (hasPendingRouteSuspense()) return;
+
+      if (hydrationFallbackTimer !== null) {
+        window.clearTimeout(hydrationFallbackTimer);
+      }
+      const fallbackId = window.setTimeout(() => {
+        if (hydrationFallbackTimer === fallbackId) {
+          hydrationFallbackTimer = null;
+        }
+        if (disposed || hasPendingRouteSuspense()) return;
+        observer?.disconnect();
+        observer = null;
+        commitClientHydration();
+      }, 600);
+      hydrationFallbackTimer = fallbackId;
     };
 
-    if (hasPendingSuspenseTemplates()) {
+    if (hasPendingRouteSuspense()) {
       observer = new MutationObserver(() => {
-        if (!hasPendingSuspenseTemplates()) {
+        if (!hasPendingRouteSuspense()) {
           observer?.disconnect();
           observer = null;
-          scheduleAfterCommit();
+          if (routeContentReady) {
+            markRouteContentHydrated();
+          } else if (document.readyState === 'complete') {
+            scheduleFallbackAfterLoad();
+          }
         }
       });
       observer.observe(document.body, { childList: true, subtree: true });
-    } else {
-      scheduleAfterCommit();
     }
 
-    const fallbackTimer = window.setTimeout(() => {
-      observer?.disconnect();
-      observer = null;
-      hydrateClientPreferencesFromStorage();
-      markClientMounted();
-    }, 600);
+    const handleWindowLoad = () => {
+      scheduleFallbackAfterLoad();
+    };
+
+    if (document.readyState === 'complete') {
+      scheduleFallbackAfterLoad();
+    } else {
+      window.addEventListener('load', handleWindowLoad, { once: true });
+    }
 
     return () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
+      disposed = true;
       observer?.disconnect();
-      window.clearTimeout(fallbackTimer);
+      window.removeEventListener('load', handleWindowLoad);
+      if (hydrationFallbackTimer !== null) {
+        window.clearTimeout(hydrationFallbackTimer);
+        hydrationFallbackTimer = null;
+      }
     };
   }, []);
 
-  const { locale, userProfile } = preferences;
-  const theme: ThemeMode =
-    isHydrated && resolvedNextTheme === 'dark' ? 'dark' : 'light';
+  // Cross-tab synchronization for locale, theme, and profile changes
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key === SITE_CONFIG.storageKeys.locale ||
+        event.key === SITE_CONFIG.storageKeys.theme ||
+        event.key === SITE_CONFIG.storageKeys.userProfile
+      ) {
+        const nextLocale = readStoredLocale();
+        const nextTheme = readStoredTheme();
+        const nextProfile = readStoredUserProfile();
+        currentPreferences = {
+          locale: nextLocale,
+          theme: nextTheme,
+          userProfile: nextProfile,
+        };
+        applyThemeClassToRoot(nextTheme);
+        emitPreferencesChange();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [isHydrated]);
+
+  const { locale, theme: storedTheme, userProfile } = preferences;
+  const theme: ThemeMode = isHydrated ? storedTheme : SITE_CONFIG.defaultTheme;
   const dir = getDirectionForLocale(locale);
   const isRtl = dir === 'rtl';
   const isDark = theme === 'dark';
   const dictionary = useMemo(() => getDictionary(locale), [locale]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     const root = document.documentElement;
     root.lang = locale;
     root.dir = dir;
-  }, [locale, dir]);
+  }, [isHydrated, locale, dir]);
 
-  // Sync full-viewport Projects ambient mode, OS-immune color-scheme, & cross-browser toolbar/status bar color
+  // Sync full-viewport theme class, Projects ambient mode, OS-immune color-scheme, & toolbar/status bar color
   useEffect(() => {
+    if (!isHydrated) return;
     const root = document.documentElement;
+    applyThemeClassToRoot(theme);
+
     const isDarkSurface = Boolean(effectiveAmbientMode) || theme === 'dark';
     const lockedColorScheme = isDarkSurface ? 'only dark' : 'only light';
 
@@ -449,7 +566,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
           isDarkSurface ? 'black-translucent' : 'default'
         );
       });
-  }, [effectiveAmbientMode, theme]);
+  }, [isHydrated, effectiveAmbientMode, theme]);
 
   // Content copy & image drag protection (while preserving copy/paste inside form inputs)
   useEffect(() => {
@@ -492,18 +609,15 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
     setAnnouncement(nextDict.announcements.switchedLocale);
   }, []);
 
-  const setTheme = useCallback(
-    (nextTheme: ThemeMode) => {
-      setNextTheme(nextTheme);
-      const activeDict = getDictionary(currentPreferences.locale);
-      setAnnouncement(
-        nextTheme === 'dark'
-          ? activeDict.announcements.switchedToDark
-          : activeDict.announcements.switchedToLight
-      );
-    },
-    [setNextTheme]
-  );
+  const setTheme = useCallback((nextTheme: ThemeMode) => {
+    updateStoredPreferences({ theme: nextTheme });
+    const activeDict = getDictionary(currentPreferences.locale);
+    setAnnouncement(
+      nextTheme === 'dark'
+        ? activeDict.announcements.switchedToDark
+        : activeDict.announcements.switchedToLight
+    );
+  }, []);
 
   const toggleTheme = useCallback(() => {
     const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark';
@@ -581,7 +695,10 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <MotionConfig reducedMotion="user" transition={MOTION_TRANSITIONS.base}>
+      <MotionConfig
+        reducedMotion={isHydrated ? 'user' : 'never'}
+        transition={MOTION_TRANSITIONS.base}
+      >
         <RasmanEntryLoader />
         <SmoothScrollProvider isPaused={isStartProjectOpen || isScrollLocked}>
           <PersistentShell>{children}</PersistentShell>
@@ -601,18 +718,7 @@ function AppProviderInner({ children }: { readonly children: ReactNode }) {
 }
 
 export function AppProvider({ children }: { readonly children: ReactNode }) {
-  return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme={SITE_CONFIG.defaultTheme}
-      themes={['light', 'dark']}
-      enableSystem={false}
-      enableColorScheme={false}
-      storageKey={SITE_CONFIG.storageKeys.theme}
-    >
-      <AppProviderInner>{children}</AppProviderInner>
-    </NextThemesProvider>
-  );
+  return <AppProviderInner>{children}</AppProviderInner>;
 }
 
 export function useAppContext(): AppContextValue {

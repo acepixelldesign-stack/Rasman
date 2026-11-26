@@ -76,7 +76,7 @@ export function ArchitecturalHeader({
                 aria-hidden="true"
                 className={cn(
                   'absolute start-0 block h-[2px] origin-center rounded-full bg-[var(--ink-primary)]',
-                  'transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:bg-[var(--brand-text-hover)]',
+                  'transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-70',
                   isMenuOpen
                     ? 'top-1/2 w-[18px] -translate-y-1/2 rotate-45'
                     : 'top-0 w-[11px] translate-y-0 rotate-0'
@@ -87,7 +87,7 @@ export function ArchitecturalHeader({
                 aria-hidden="true"
                 className={cn(
                   'absolute start-0 block h-[2px] origin-center rounded-full bg-[var(--ink-primary)]',
-                  'transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:bg-[var(--brand-text-hover)]',
+                  'transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-70',
                   isMenuOpen
                     ? 'top-1/2 w-[18px] -translate-y-1/2 -rotate-45'
                     : 'top-full w-[20px] -translate-y-full rotate-0'

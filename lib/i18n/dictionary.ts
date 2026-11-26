@@ -128,6 +128,10 @@ export interface Dictionary {
     readonly lastNameLabel: string;
     readonly birthDateLabel: string;
     readonly birthDatePlaceholder: string;
+    readonly birthYearLabel: string;
+    readonly birthMonthLabel: string;
+    readonly birthDayLabel: string;
+    readonly birthMonths: readonly string[];
     readonly accountTypeLabel: string;
     readonly accountTypes: {
       readonly individual: string;
@@ -138,6 +142,7 @@ export interface Dictionary {
       readonly designer: string;
       readonly investor: string;
       readonly landowner: string;
+      readonly client: string;
     };
     readonly registerSubmitCta: string;
     readonly errors: {
@@ -331,14 +336,14 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
     },
     podcast: {
       regionAriaLabel: 'Rasman Podcast Studio',
-      sidebarAriaLabel: 'Podcast categories and episodes',
-      categoryTitle: 'category',
-      openCategoriesAriaLabel: 'Open categories',
-      closeCategoriesAriaLabel: 'Close categories',
+      sidebarAriaLabel: 'Podcast categories and shows',
+      categoryTitle: 'Category',
+      openCategoriesAriaLabel: 'Open podcast categories',
+      closeCategoriesAriaLabel: 'Close podcast categories',
       mobileEpisodesTrigger: 'Categories & Podcasts',
-      closeEpisodesDrawerAriaLabel: 'Close episodes list',
-      speakersLabel: 'Speakers',
-      totalTimeLabel: 'Duration',
+      closeEpisodesDrawerAriaLabel: 'Close podcasts list',
+      speakersLabel: 'Hosts',
+      totalTimeLabel: 'Total Duration',
       listenOrSeeIn: 'listen or see in:',
       shareLabel: 'share',
       shareCopiedLabel: 'copied',
@@ -354,10 +359,10 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       platformCastboxLabel: 'Listen on Podcasts',
       platformSpotifyLabel: 'Listen on Audio Stream',
       platformYoutubeLabel: 'Watch on Video',
-      emptyTitle: 'No episodes in this category yet.',
-      emptyResetLabel: 'Show all episodes',
-      openDetailsAriaLabel: 'Show episode details',
-      closeDetailsAriaLabel: 'Hide episode details',
+      emptyTitle: 'No podcasts in this category yet.',
+      emptyResetLabel: 'Show all podcasts',
+      openDetailsAriaLabel: 'Show podcast details',
+      closeDetailsAriaLabel: 'Hide podcast details',
     },
     blog: {
       regionAriaLabel: 'Rasman Architectural Magazine',
@@ -419,22 +424,40 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       lastNameLabel: 'Last Name',
       birthDateLabel: 'Date of Birth',
       birthDatePlaceholder: 'YYYY/MM/DD',
+      birthYearLabel: 'Year',
+      birthMonthLabel: 'Month',
+      birthDayLabel: 'Day',
+      birthMonths: [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ],
       accountTypeLabel: 'Account Type',
       accountTypes: {
         individual: 'Individual',
         legal: 'Corporate',
       },
-      userRoleLabel: 'User Role',
+      userRoleLabel: 'Role',
       userRoles: {
         designer: 'Designer',
         investor: 'Investor',
         landowner: 'Landowner',
+        client: 'Client (Personal Project)',
       },
       registerSubmitCta: 'Register & Enter Panel',
       errors: {
         firstNameRequired: 'Please enter your first name.',
         lastNameRequired: 'Please enter your last name.',
-        birthDateRequired: 'Please enter a valid date of birth (YYYY/MM/DD).',
+        birthDateRequired: 'Please select your year, month, and day of birth.',
       },
     },
     panel: {
@@ -683,12 +706,12 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
     },
     podcast: {
       regionAriaLabel: 'پادکست استودیو رسمان',
-      sidebarAriaLabel: 'دسته‌بندی‌ها و اپیزودهای پادکست',
+      sidebarAriaLabel: 'دسته‌بندی‌ها و لیست پادکست‌ها',
       categoryTitle: 'دسته‌بندی',
       openCategoriesAriaLabel: 'باز کردن دسته‌بندی‌ها',
       closeCategoriesAriaLabel: 'بستن دسته‌بندی‌ها',
       mobileEpisodesTrigger: 'دسته‌بندی و پادکست‌ها',
-      closeEpisodesDrawerAriaLabel: 'بستن لیست اپیزودها',
+      closeEpisodesDrawerAriaLabel: 'بستن لیست پادکست‌ها',
       speakersLabel: 'گویندگان',
       totalTimeLabel: 'مدت زمان',
       listenOrSeeIn: 'شنیدن یا تماشا در:',
@@ -706,10 +729,10 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       platformCastboxLabel: 'شنیدن در پادکست',
       platformSpotifyLabel: 'شنیدن در استریم صوتی',
       platformYoutubeLabel: 'تماشا در ویدیو',
-      emptyTitle: 'هنوز اپیزودی در این دسته‌بندی ثبت نشده است.',
-      emptyResetLabel: 'نمایش همه اپیزودها',
-      openDetailsAriaLabel: 'نمایش جزئیات اپیزود',
-      closeDetailsAriaLabel: 'بستن جزئیات اپیزود',
+      emptyTitle: 'هنوز پادکستی در این دسته‌بندی ثبت نشده است.',
+      emptyResetLabel: 'نمایش همه پادکست‌ها',
+      openDetailsAriaLabel: 'نمایش جزئیات پادکست',
+      closeDetailsAriaLabel: 'بستن جزئیات پادکست',
     },
     blog: {
       regionAriaLabel: 'مجله معماری رسمان',
@@ -771,22 +794,40 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       lastNameLabel: 'نام خانوادگی',
       birthDateLabel: 'تاریخ تولد',
       birthDatePlaceholder: '1370/05/12',
+      birthYearLabel: 'سال',
+      birthMonthLabel: 'ماه',
+      birthDayLabel: 'روز',
+      birthMonths: [
+        'فروردین',
+        'اردیبهشت',
+        'خرداد',
+        'تیر',
+        'مرداد',
+        'شهریور',
+        'مهر',
+        'آبان',
+        'آذر',
+        'دی',
+        'بهمن',
+        'اسفند',
+      ],
       accountTypeLabel: 'نوع حساب',
       accountTypes: {
         individual: 'حقیقی',
         legal: 'حقوقی',
       },
-      userRoleLabel: 'نوع کاربری',
+      userRoleLabel: 'نقش کاربری',
       userRoles: {
         designer: 'طراح',
         investor: 'سرمایه‌گذار',
         landowner: 'صاحب زمین',
+        client: 'کارفرما (پروژه شخصی)',
       },
       registerSubmitCta: 'ثبت‌نام و ورود به پنل',
       errors: {
         firstNameRequired: 'لطفاً نام خود را وارد کنید.',
         lastNameRequired: 'لطفاً نام خانوادگی خود را وارد کنید.',
-        birthDateRequired: 'لطفاً تاریخ تولد را به‌درستی (مثلاً 1370/05/12) وارد کنید.',
+        birthDateRequired: 'لطفاً سال، ماه و روز تولد خود را انتخاب کنید.',
       },
     },
     panel: {
@@ -1035,12 +1076,12 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
     },
     podcast: {
       regionAriaLabel: 'بودكاست استوديو رسمان',
-      sidebarAriaLabel: 'تصنيفات وحلقات البودكاست',
+      sidebarAriaLabel: 'تصنيفات وقائمة البودكاست',
       categoryTitle: 'التصنيف',
       openCategoriesAriaLabel: 'فتح التصنيفات',
       closeCategoriesAriaLabel: 'إغلاق التصنيفات',
       mobileEpisodesTrigger: 'التصنيفات والبودكاست',
-      closeEpisodesDrawerAriaLabel: 'إغلاق قائمة الحلقات',
+      closeEpisodesDrawerAriaLabel: 'إغلاق قائمة البودكاست',
       speakersLabel: 'المتحدثون',
       totalTimeLabel: 'المدة',
       listenOrSeeIn: 'استمع أو شاهد عبر:',
@@ -1058,10 +1099,10 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       platformCastboxLabel: 'الاستماع على بودكاست',
       platformSpotifyLabel: 'الاستماع عبر البث الصوتي',
       platformYoutubeLabel: 'المشاهدة بالفيديو',
-      emptyTitle: 'لا توجد حلقات في هذا التصنيف حالياً.',
-      emptyResetLabel: 'عرض جميع الحلقات',
-      openDetailsAriaLabel: 'عرض تفاصيل الحلقة',
-      closeDetailsAriaLabel: 'إخفاء تفاصيل الحلقة',
+      emptyTitle: 'لا توجد بودكاستات في هذا التصنيف حالياً.',
+      emptyResetLabel: 'عرض جميع البودكاستات',
+      openDetailsAriaLabel: 'عرض تفاصيل البودكاست',
+      closeDetailsAriaLabel: 'إخفاء تفاصيل البودكاست',
     },
     blog: {
       regionAriaLabel: 'مجلة رسمان المعمارية',
@@ -1123,6 +1164,23 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
       lastNameLabel: 'اسم العائلة',
       birthDateLabel: 'تاريخ الميلاد',
       birthDatePlaceholder: 'YYYY/MM/DD',
+      birthYearLabel: 'السنة',
+      birthMonthLabel: 'الشهر',
+      birthDayLabel: 'اليوم',
+      birthMonths: [
+        'يناير',
+        'فبراير',
+        'مارس',
+        'أبريل',
+        'مايو',
+        'يونيو',
+        'يوليو',
+        'أغسطس',
+        'سبتمبر',
+        'أكتوبر',
+        'نوفمبر',
+        'ديسمبر',
+      ],
       accountTypeLabel: 'نوع الحساب',
       accountTypes: {
         individual: 'فردي',
@@ -1133,12 +1191,13 @@ export const DICTIONARY: Record<Locale, Dictionary> = {
         designer: 'مصمم',
         investor: 'مستثمر',
         landowner: 'مالك أرض',
+        client: 'صاحب عمل (مشروع شخصي)',
       },
       registerSubmitCta: 'التسجيل والدخول إلى اللوحة',
       errors: {
         firstNameRequired: 'يرجى إدخال الاسم الأول.',
         lastNameRequired: 'يرجى إدخال اسم العائلة.',
-        birthDateRequired: 'يرجى إدخال تاريخ ميلاد صالح (YYYY/MM/DD).',
+        birthDateRequired: 'يرجى اختيار سنة وشهر ويوم الميلاد.',
       },
     },
     panel: {

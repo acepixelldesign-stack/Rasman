@@ -27,7 +27,7 @@ import {
 import { SITE_CONFIG } from '@/lib/config/site';
 import {
   PODCAST_CATEGORIES,
-  PODCAST_EPISODES,
+  PODCAST_SHOWS,
   getLocalizedText,
   type PodcastCategoryId,
 } from '@/lib/data/podcasts';
@@ -125,8 +125,8 @@ function AudioPlaybackIndicator({
           className={cn(
             'block h-full w-[2px] origin-bottom rounded-full transition-colors duration-200',
             isSelected
-              ? 'bg-[var(--brand-primary)]'
-              : 'bg-[var(--grid-line-strong)] group-hover:bg-[var(--brand-text-hover)]'
+              ? 'bg-[var(--ink-primary)]'
+              : 'bg-[var(--grid-line-strong)] group-hover:bg-[var(--ink-primary)]'
           )}
         />
       ))}
@@ -149,14 +149,17 @@ export function PodcastStage() {
   const [hasSelectedCategory, setHasSelectedCategory] = useState<boolean>(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState<boolean>(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
+  const [selectedPodcastId, setSelectedPodcastId] = useState<string>(
+    PODCAST_SHOWS[0].id
+  );
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string>(
-    PODCAST_EPISODES[0].id
+    PODCAST_SHOWS[0].episodes[0].id
   );
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(193);
   const [speedIndex, setSpeedIndex] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [copiedEpisodeId, setCopiedEpisodeId] = useState<string | null>(null);
+  const [copiedPodcastId, setCopiedPodcastId] = useState<string | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const mobilePanelId = useId();
@@ -170,27 +173,36 @@ export function PodcastStage() {
   const oscRef = useRef<OscillatorNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
 
-  const filteredEpisodes = useMemo(() => {
+  const filteredPodcasts = useMemo(() => {
     if (activeCategory === 'all') {
-      return PODCAST_EPISODES;
+      return PODCAST_SHOWS;
     }
-    return PODCAST_EPISODES.filter((ep) => ep.categoryId === activeCategory);
+    return PODCAST_SHOWS.filter((show) => show.categoryId === activeCategory);
   }, [activeCategory]);
 
-  const activeEpisode = useMemo(() => {
-    const inFiltered = filteredEpisodes.find((ep) => ep.id === selectedEpisodeId);
+  const activePodcast = useMemo(() => {
+    const inFiltered = filteredPodcasts.find(
+      (show) => show.id === selectedPodcastId
+    );
     if (inFiltered) return inFiltered;
-    const inAll = PODCAST_EPISODES.find((ep) => ep.id === selectedEpisodeId);
-    return inAll ?? PODCAST_EPISODES[0];
-  }, [filteredEpisodes, selectedEpisodeId]);
+    const inAll = PODCAST_SHOWS.find((show) => show.id === selectedPodcastId);
+    return inAll ?? PODCAST_SHOWS[0];
+  }, [filteredPodcasts, selectedPodcastId]);
+
+  const podcastEpisodes = activePodcast.episodes;
+
+  const activeEpisode = useMemo(() => {
+    const match = podcastEpisodes.find((ep) => ep.id === selectedEpisodeId);
+    return match ?? podcastEpisodes[0];
+  }, [podcastEpisodes, selectedEpisodeId]);
 
   const heroDescriptionWords = useMemo(
     () =>
-      getLocalizedText(activeEpisode.description, locale)
+      getLocalizedText(activePodcast.description, locale)
         .trim()
         .split(/\s+/)
         .filter(Boolean),
-    [activeEpisode.description, locale]
+    [activePodcast.description, locale]
   );
 
   const playbackRate = PLAYBACK_RATES[speedIndex] ?? 1;
@@ -478,11 +490,27 @@ export function PodcastStage() {
     };
   }, [stopAudioEngine]);
 
-  const handleSelectEpisode = useCallback(
-    (episodeId: string, autoPlay = false, closeMobilePanel = false) => {
+  const handleSelectPodcast = useCallback(
+    (podcastId: string, closeMobilePanel = false) => {
       if (closeMobilePanel) {
         setIsMobileFilterOpen(false);
       }
+      if (podcastId === activePodcast.id) {
+        return;
+      }
+      const nextPodcast = PODCAST_SHOWS.find((show) => show.id === podcastId);
+      if (!nextPodcast) return;
+      setSelectedPodcastId(nextPodcast.id);
+      setSelectedEpisodeId(nextPodcast.episodes[0].id);
+      setCurrentTime(0);
+      setIsPlaying(false);
+      announce(dictionary.announcements.episodeSelected);
+    },
+    [activePodcast.id, announce, dictionary.announcements.episodeSelected]
+  );
+
+  const handleSelectEpisode = useCallback(
+    (episodeId: string, autoPlay = false) => {
       const isSame = episodeId === activeEpisode.id;
       if (isSame) {
         if (autoPlay) {
@@ -507,10 +535,11 @@ export function PodcastStage() {
       }
       const nextList =
         categoryId === 'all'
-          ? PODCAST_EPISODES
-          : PODCAST_EPISODES.filter((ep) => ep.categoryId === categoryId);
+          ? PODCAST_SHOWS
+          : PODCAST_SHOWS.filter((show) => show.categoryId === categoryId);
       if (nextList.length > 0) {
-        setSelectedEpisodeId(nextList[0].id);
+        setSelectedPodcastId(nextList[0].id);
+        setSelectedEpisodeId(nextList[0].episodes[0].id);
         setCurrentTime(0);
         setIsPlaying(false);
       }
@@ -520,15 +549,17 @@ export function PodcastStage() {
 
   const handleStepEpisode = useCallback(
     (delta: -1 | 1) => {
-      const list =
-        filteredEpisodes.length > 0 ? filteredEpisodes : PODCAST_EPISODES;
-      const currentIdx = list.findIndex((ep) => ep.id === activeEpisode.id);
+      if (podcastEpisodes.length === 0) return;
+      const currentIdx = podcastEpisodes.findIndex(
+        (ep) => ep.id === activeEpisode.id
+      );
       const safeIdx = currentIdx === -1 ? 0 : currentIdx;
-      const nextIdx = (safeIdx + delta + list.length) % list.length;
-      setSelectedEpisodeId(list[nextIdx].id);
+      const nextIdx =
+        (safeIdx + delta + podcastEpisodes.length) % podcastEpisodes.length;
+      setSelectedEpisodeId(podcastEpisodes[nextIdx].id);
       setCurrentTime(0);
     },
-    [filteredEpisodes, activeEpisode.id]
+    [podcastEpisodes, activeEpisode.id]
   );
 
   const handleSeek = useCallback(
@@ -546,8 +577,8 @@ export function PodcastStage() {
   const handleShare = useCallback(async () => {
     const shareUrl =
       typeof window !== 'undefined'
-        ? `${window.location.origin}${window.location.pathname}#${activeEpisode.id}`
-        : `#${activeEpisode.id}`;
+        ? `${window.location.origin}${window.location.pathname}#${activePodcast.id}`
+        : `#${activePodcast.id}`;
 
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -557,22 +588,22 @@ export function PodcastStage() {
       // Safe fallback when clipboard API is restricted inside iframe
     }
 
-    setCopiedEpisodeId(activeEpisode.id);
+    setCopiedPodcastId(activePodcast.id);
     announce(dictionary.announcements.linkCopied);
     window.setTimeout(() => {
-      setCopiedEpisodeId((prev) => (prev === activeEpisode.id ? null : prev));
+      setCopiedPodcastId((prev) => (prev === activePodcast.id ? null : prev));
     }, 2000);
-  }, [activeEpisode.id, announce, dictionary.announcements.linkCopied]);
+  }, [activePodcast.id, announce, dictionary.announcements.linkCopied]);
 
   const enterX = isRtl ? -18 : 18;
-  const isCopied = copiedEpisodeId === activeEpisode.id;
+  const isCopied = copiedPodcastId === activePodcast.id;
 
   const mobileCategoryStep =
     PODCAST_CATEGORIES.length > 1
       ? 0.42 / (PODCAST_CATEGORIES.length - 1)
       : 0;
-  const mobileEpisodeStep =
-    filteredEpisodes.length > 1 ? 0.74 / (filteredEpisodes.length - 1) : 0;
+  const mobilePodcastStep =
+    filteredPodcasts.length > 1 ? 0.74 / (filteredPodcasts.length - 1) : 0;
 
   useStickySubBar({
     id: 'podcast-mobile',
@@ -666,8 +697,8 @@ export function PodcastStage() {
                       'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full border px-3.5 text-[12px] leading-none whitespace-nowrap',
                       'transition-colors duration-200',
                       isActive
-                        ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] font-medium text-[var(--brand-ink-on-primary)]'
-                        : 'border-[var(--grid-line-strong)] text-[var(--ink-primary)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                        ? 'border-[var(--btn-start-bg)] bg-[var(--btn-start-bg)] font-medium text-[var(--btn-start-ink)]'
+                        : 'border-[var(--grid-line-strong)] text-[var(--ink-muted)] hover:border-[var(--ink-primary)] hover:text-[var(--ink-primary)]'
                     )}
                   >
                     {getLocalizedText(category.label, locale)}
@@ -676,14 +707,14 @@ export function PodcastStage() {
               })}
             </div>
 
-            {/* Full-Height Live-Filtered Episodes List */}
+            {/* Full-Height Live-Filtered Podcasts List */}
             <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 pb-4">
               <ul className="divide-y divide-[var(--grid-line)]">
-                {filteredEpisodes.map((episode, idx) => {
-                  const isSelected = episode.id === activeEpisode.id;
+                {filteredPodcasts.map((podcast, idx) => {
+                  const isSelected = podcast.id === activePodcast.id;
                   return (
                     <motion.li
-                      key={`${activeCategory}-${episode.id}`}
+                      key={`${activeCategory}-${podcast.id}`}
                       initial={
                         prefersReducedMotion
                           ? { opacity: 1, y: 0 }
@@ -695,7 +726,7 @@ export function PodcastStage() {
                           ? { duration: 0.01 }
                           : {
                               duration: 0.48,
-                              delay: 0.78 + idx * mobileEpisodeStep,
+                              delay: 0.78 + idx * mobilePodcastStep,
                               ease: SITE_CONFIG.motion.ease,
                             }
                       }
@@ -703,22 +734,20 @@ export function PodcastStage() {
                     >
                       <button
                         type="button"
-                        onClick={() =>
-                          handleSelectEpisode(episode.id, false, true)
-                        }
+                        onClick={() => handleSelectPodcast(podcast.id, true)}
                         className="group flex w-full cursor-pointer items-center gap-3 text-start"
                       >
                         <span
                           className={cn(
                             'relative h-16 w-16 shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] ring-1 transition-all duration-200',
                             isSelected
-                              ? 'ring-[var(--brand-primary)]'
-                              : 'ring-transparent group-hover:ring-[var(--brand-primary)]'
+                              ? 'ring-[var(--ink-primary)]'
+                              : 'ring-transparent opacity-75 group-hover:opacity-100 group-hover:ring-[var(--grid-line-strong)]'
                           )}
                         >
                           <Image
-                            src={episode.coverImage}
-                            alt={getLocalizedText(episode.coverAlt, locale)}
+                            src={podcast.coverImage}
+                            alt={getLocalizedText(podcast.coverAlt, locale)}
                             fill
                             loading="lazy"
                             sizes="64px"
@@ -729,13 +758,13 @@ export function PodcastStage() {
                         <span className="flex min-w-0 flex-1 items-center">
                           <span
                             className={cn(
-                              'line-clamp-2 text-[16px] leading-[1.4] transition-colors duration-200 group-hover:text-[var(--brand-text-hover)] rtl:leading-[1.55]',
+                              'line-clamp-2 text-[16px] leading-[1.4] transition-colors duration-200 group-hover:text-[var(--ink-primary)] rtl:leading-[1.55]',
                               isSelected
-                                ? 'font-medium text-[var(--brand-text-hover)]'
-                                : 'font-normal text-[var(--ink-primary)]'
+                                ? 'font-medium text-[var(--ink-primary)]'
+                                : 'font-normal text-[var(--ink-muted)]'
                             )}
                           >
-                            {getLocalizedText(episode.title, locale)}
+                            {getLocalizedText(podcast.title, locale)}
                           </span>
                         </span>
                       </button>
@@ -745,7 +774,7 @@ export function PodcastStage() {
               </ul>
             </SmoothVerticalPane>
 
-            {/* Mobile Drag-Up Handle to Dismiss Episodes Sheet */}
+            {/* Mobile Drag-Up Handle to Dismiss Podcasts Sheet */}
             <div
               data-swipe-handle=""
               aria-hidden="true"
@@ -769,27 +798,27 @@ export function PodcastStage() {
         'desktop:h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] desktop:overflow-hidden'
       )}
     >
-      {/* Desktop Docked Start Architectural Sidebar (Stationary Across Route Transitions) */}
+      {/* Desktop Docked Start Architectural Sidebar (Lists Podcasts) */}
       <div className="hidden h-full w-[264px] shrink-0 border-e border-[var(--grid-line)] desktop:block desktop-wide:w-[304px]">
         <PodcastSidebar
           activeCategory={activeCategory}
           hasSelectedCategory={hasSelectedCategory}
           isCategoryOpen={isCategoryOpen}
-          episodes={filteredEpisodes}
-          activeEpisodeId={activeEpisode.id}
+          podcasts={filteredPodcasts}
+          activePodcastId={activePodcast.id}
           onToggleCategoryOpen={() => setIsCategoryOpen((prev) => !prev)}
           onSelectCategory={(id) => handleSelectCategory(id, true)}
-          onSelectEpisode={(id) => handleSelectEpisode(id, false)}
+          onSelectPodcast={(id) => handleSelectPodcast(id, false)}
         />
       </div>
 
       {/* Main Content Stage: Animated Hero + 24px Tracklist + Waveform Player */}
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-canvas)] desktop:h-full desktop:overflow-hidden">
-        {/* Band 1: Featured Episode Hero (Mobile: Artwork Beside Title + Open Details Directly Below | Desktop: Side-by-Side Hero) */}
+        {/* Band 1: Featured Podcast Hero */}
         <div className="shrink-0 border-b border-[var(--grid-line)] p-4 desktop:p-6">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
-              key={activeEpisode.id}
+              key={activePodcast.id}
               initial={{ opacity: 0, x: enterX }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -enterX }}
@@ -799,14 +828,14 @@ export function PodcastStage() {
               }}
               className="flex flex-col gap-4 desktop:flex-row desktop:items-stretch desktop:gap-7"
             >
-              {/* Desktop Square Episode Artwork */}
+              {/* Desktop Square Podcast Artwork */}
               <div
                 data-podcast-anim="hero-media"
                 className="relative hidden aspect-square shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] desktop:block desktop:w-48 desktop-wide:w-52"
               >
                 <Image
-                  src={activeEpisode.coverImage}
-                  alt={getLocalizedText(activeEpisode.coverAlt, locale)}
+                  src={activePodcast.coverImage}
+                  alt={getLocalizedText(activePodcast.coverAlt, locale)}
                   fill
                   priority
                   sizes="208px"
@@ -815,7 +844,7 @@ export function PodcastStage() {
                 />
               </div>
 
-              {/* Mobile Compact Header (Square Artwork Beside Title Matching Title Height) + Directly Visible Details Below */}
+              {/* Mobile Compact Header + Directly Visible Details Below */}
               <div className="flex min-w-0 flex-col gap-3.5 desktop:hidden">
                 <div className="flex items-center gap-3.5">
                   <div
@@ -823,8 +852,8 @@ export function PodcastStage() {
                     className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)] sm:h-[76px] sm:w-[76px]"
                   >
                     <Image
-                      src={activeEpisode.coverImage}
-                      alt={getLocalizedText(activeEpisode.coverAlt, locale)}
+                      src={activePodcast.coverImage}
+                      alt={getLocalizedText(activePodcast.coverAlt, locale)}
                       fill
                       priority
                       sizes="76px"
@@ -837,12 +866,12 @@ export function PodcastStage() {
                     data-podcast-anim="hero-title"
                     className="min-w-0 flex-1 text-start text-[18px] font-medium leading-[1.35] tracking-[-0.015em] text-[var(--ink-primary)] rtl:leading-[1.5] rtl:tracking-normal"
                   >
-                    {getLocalizedText(activeEpisode.title, locale)}
+                    {getLocalizedText(activePodcast.title, locale)}
                   </h1>
                 </div>
 
                 <p className="text-start text-[14px] leading-[1.7] text-[var(--ink-secondary)] rtl:leading-[1.9]">
-                  {getLocalizedText(activeEpisode.description, locale)}
+                  {getLocalizedText(activePodcast.description, locale)}
                 </p>
 
                 <div
@@ -862,7 +891,7 @@ export function PodcastStage() {
                       dir="ltr"
                       className="bidi-isolate font-normal text-[var(--ink-primary)] tabular-nums"
                     >
-                      {activeEpisode.durationLabel}
+                      {activePodcast.totalDurationLabel}
                     </span>
                   </span>
 
@@ -876,7 +905,7 @@ export function PodcastStage() {
                       {dictionary.podcast.speakersLabel}:
                     </span>
                     <span className="text-[var(--ink-primary)]">
-                      {getLocalizedText(activeEpisode.speakers, locale)}
+                      {getLocalizedText(activePodcast.speakers, locale)}
                     </span>
                   </span>
                 </div>
@@ -892,36 +921,36 @@ export function PodcastStage() {
 
                     <div className="flex items-center gap-2">
                       <a
-                        href={activeEpisode.platforms.castbox}
+                        href={activePodcast.platforms.castbox}
                         aria-label={dictionary.podcast.platformCastboxLabel}
                         className={cn(
                           'inline-flex h-10 w-10 items-center justify-center rounded-full',
                           'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
-                          'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                          'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                         )}
                       >
                         <MdPodcasts size={18} aria-hidden="true" />
                       </a>
 
                       <a
-                        href={activeEpisode.platforms.spotify}
+                        href={activePodcast.platforms.spotify}
                         aria-label={dictionary.podcast.platformSpotifyLabel}
                         className={cn(
                           'inline-flex h-10 w-10 items-center justify-center rounded-full',
                           'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
-                          'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                          'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                         )}
                       >
                         <MdHeadphones size={18} aria-hidden="true" />
                       </a>
 
                       <a
-                        href={activeEpisode.platforms.youtube}
+                        href={activePodcast.platforms.youtube}
                         aria-label={dictionary.podcast.platformYoutubeLabel}
                         className={cn(
                           'inline-flex h-10 w-10 items-center justify-center rounded-full',
                           'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
-                          'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                          'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                         )}
                       >
                         <MdSmartDisplay size={18} aria-hidden="true" />
@@ -935,9 +964,8 @@ export function PodcastStage() {
                     className={cn(
                       'inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5',
                       'border border-[var(--grid-line-strong)] text-[13px] font-normal text-[var(--ink-primary)]',
-                      'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]',
-                      isCopied &&
-                        'border-[var(--brand-primary)] text-[var(--brand-text-hover)]'
+                      'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]',
+                      isCopied && 'border-[var(--ink-primary)]'
                     )}
                   >
                     {isCopied ? (
@@ -954,19 +982,19 @@ export function PodcastStage() {
                 </div>
               </div>
 
-              {/* Desktop Episode Title, Word-by-Word Synopsis, Duration & Speakers, and Actions */}
+              {/* Desktop Podcast Title, Word-by-Word Synopsis, Duration & Hosts, and Actions */}
               <div className="hidden min-w-0 flex-1 flex-col justify-between gap-4 desktop:flex">
                 <div className="space-y-2.5">
                   <h1
                     data-podcast-anim="hero-title"
                     className="text-[clamp(1.2rem,1.9vw,1.65rem)] font-medium leading-[1.25] tracking-[-0.02em] text-[var(--ink-primary)] rtl:leading-[1.4] rtl:tracking-normal"
                   >
-                    {getLocalizedText(activeEpisode.title, locale)}
+                    {getLocalizedText(activePodcast.title, locale)}
                   </h1>
 
                   <p className="max-w-3xl text-[14px] leading-[1.65] text-[var(--ink-secondary)] rtl:leading-[1.85] desktop:text-[15px]">
                     {heroDescriptionWords.map((word, index) => (
-                      <span key={`${activeEpisode.id}-word-${index}`}>
+                      <span key={`${activePodcast.id}-word-${index}`}>
                         <span
                           data-podcast-anim="hero-word"
                           className="inline-block will-change-[opacity,transform,filter]"
@@ -978,7 +1006,7 @@ export function PodcastStage() {
                     ))}
                   </p>
 
-                  {/* Total Episode Duration + Speakers Row */}
+                  {/* Total Podcast Duration + Hosts Row */}
                   <div
                     data-podcast-anim="hero-meta"
                     className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-[13px] text-[var(--ink-muted)]"
@@ -996,7 +1024,7 @@ export function PodcastStage() {
                         dir="ltr"
                         className="bidi-isolate font-normal text-[var(--ink-primary)] tabular-nums"
                       >
-                        {activeEpisode.durationLabel}
+                        {activePodcast.totalDurationLabel}
                       </span>
                     </span>
 
@@ -1010,7 +1038,7 @@ export function PodcastStage() {
                         {dictionary.podcast.speakersLabel}:
                       </span>
                       <span className="text-[var(--ink-primary)]">
-                        {getLocalizedText(activeEpisode.speakers, locale)}
+                        {getLocalizedText(activePodcast.speakers, locale)}
                       </span>
                     </span>
                   </div>
@@ -1028,36 +1056,36 @@ export function PodcastStage() {
 
                     <div className="flex items-center gap-2">
                       <a
-                        href={activeEpisode.platforms.castbox}
+                        href={activePodcast.platforms.castbox}
                         aria-label={dictionary.podcast.platformCastboxLabel}
                         className={cn(
                           'inline-flex h-10 w-10 items-center justify-center rounded-full',
                           'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
-                          'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                          'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                         )}
                       >
                         <MdPodcasts size={18} aria-hidden="true" />
                       </a>
 
                       <a
-                        href={activeEpisode.platforms.spotify}
+                        href={activePodcast.platforms.spotify}
                         aria-label={dictionary.podcast.platformSpotifyLabel}
                         className={cn(
                           'inline-flex h-10 w-10 items-center justify-center rounded-full',
                           'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
-                          'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                          'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                         )}
                       >
                         <MdHeadphones size={18} aria-hidden="true" />
                       </a>
 
                       <a
-                        href={activeEpisode.platforms.youtube}
+                        href={activePodcast.platforms.youtube}
                         aria-label={dictionary.podcast.platformYoutubeLabel}
                         className={cn(
                           'inline-flex h-10 w-10 items-center justify-center rounded-full',
                           'border border-[var(--grid-line-strong)] text-[var(--ink-primary)]',
-                          'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                          'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                         )}
                       >
                         <MdSmartDisplay size={18} aria-hidden="true" />
@@ -1071,9 +1099,8 @@ export function PodcastStage() {
                     className={cn(
                       'inline-flex h-10 w-auto cursor-pointer items-center justify-center gap-2 rounded-full px-5',
                       'border border-[var(--grid-line-strong)] text-[13px] font-normal text-[var(--ink-primary)]',
-                      'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]',
-                      isCopied &&
-                        'border-[var(--brand-primary)] text-[var(--brand-text-hover)]'
+                      'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]',
+                      isCopied && 'border-[var(--ink-primary)]'
                     )}
                   >
                     {isCopied ? (
@@ -1093,9 +1120,9 @@ export function PodcastStage() {
           </AnimatePresence>
         </div>
 
-        {/* Band 2: Episode Tracklist (16px horizontal padding on mobile, 24px on desktop) */}
+        {/* Band 2: Selected Podcast Episode Playlist (16px horizontal padding on mobile, 24px on desktop) */}
         <SmoothVerticalPane className="flex-1 overflow-y-auto px-4 desktop:px-6">
-          {filteredEpisodes.length === 0 ? (
+          {podcastEpisodes.length === 0 ? (
             <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-4 py-12 text-center">
               <p className="text-[15px] text-[var(--ink-secondary)]">
                 {dictionary.podcast.emptyTitle}
@@ -1104,9 +1131,9 @@ export function PodcastStage() {
                 type="button"
                 onClick={() => handleSelectCategory('all', false)}
                 className={cn(
-                  'inline-flex h-9 cursor-pointer items-center justify-center rounded-full px-5',
-                  'bg-[var(--brand-primary)] text-[13px] font-medium text-[var(--brand-ink-on-primary)]',
-                  'transition-colors duration-200 hover:bg-[var(--brand-primary-hover)]'
+                  'inline-flex h-10 cursor-pointer items-center justify-center rounded-[4px] px-5',
+                  'bg-[var(--btn-start-bg)] text-[13px] font-medium text-[var(--btn-start-ink)]',
+                  'transition-colors duration-200 hover:bg-[var(--btn-start-hover)]'
                 )}
               >
                 {dictionary.podcast.emptyResetLabel}
@@ -1114,7 +1141,7 @@ export function PodcastStage() {
             </div>
           ) : (
             <ul className="divide-y divide-[var(--grid-line)] desktop:h-full">
-              {filteredEpisodes.map((episode) => {
+              {podcastEpisodes.map((episode) => {
                 const isSelected = episode.id === activeEpisode.id;
                 const isRowPlaying = isSelected && isPlaying;
 
@@ -1138,10 +1165,10 @@ export function PodcastStage() {
                         <span
                           className={cn(
                             'text-[15px] leading-[1.4] transition-colors duration-200 desktop:text-[16px]',
-                            'group-hover:text-[var(--brand-text-hover)]',
+                            'group-hover:text-[var(--ink-primary)]',
                             isSelected
-                              ? 'font-medium text-[var(--brand-text-hover)]'
-                              : 'font-normal text-[var(--ink-primary)]'
+                              ? 'font-medium text-[var(--ink-primary)]'
+                              : 'font-normal text-[var(--ink-muted)]'
                           )}
                         >
                           {getLocalizedText(episode.title, locale)}

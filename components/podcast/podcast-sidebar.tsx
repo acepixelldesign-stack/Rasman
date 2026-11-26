@@ -8,7 +8,7 @@ import {
   PODCAST_CATEGORIES,
   getLocalizedText,
   type PodcastCategoryId,
-  type PodcastEpisode,
+  type PodcastShow,
 } from '@/lib/data/podcasts';
 import { useAppContext } from '@/components/providers/app-provider';
 import { SmoothVerticalPane } from '@/components/providers/smooth-vertical-pane';
@@ -18,11 +18,11 @@ interface PodcastSidebarProps {
   readonly activeCategory: PodcastCategoryId;
   readonly hasSelectedCategory: boolean;
   readonly isCategoryOpen: boolean;
-  readonly episodes: readonly PodcastEpisode[];
-  readonly activeEpisodeId: string;
+  readonly podcasts: readonly PodcastShow[];
+  readonly activePodcastId: string;
   readonly onToggleCategoryOpen: () => void;
   readonly onSelectCategory: (categoryId: PodcastCategoryId) => void;
-  readonly onSelectEpisode: (episodeId: string) => void;
+  readonly onSelectPodcast: (podcastId: string) => void;
   readonly className?: string;
 }
 
@@ -69,19 +69,19 @@ const CATEGORY_ITEM_VARIANTS: Variants = {
 
 /**
  * Desktop docked podcast architectural sidebar:
- * - 16px side padding on category dropdown header; label updates to active category on selection
- * - 2.00s top-to-bottom sliding reveal with staggered categories; 1.00s upward collapse on selection
- * - 24px horizontal list padding, 14px episode titles, zero subtitles, zero duplicate category heading
+ * - Lists Podcast categories (dropdown) and Podcast shows (NOT individual episodes)
+ * - Active state: pure white in dark mode / pure black in light mode (--ink-primary)
+ * - Inactive state: muted grey (--ink-muted), smoothly rising to --ink-primary on hover
  */
 export function PodcastSidebar({
   activeCategory,
   hasSelectedCategory,
   isCategoryOpen,
-  episodes,
-  activeEpisodeId,
+  podcasts,
+  activePodcastId,
   onToggleCategoryOpen,
   onSelectCategory,
-  onSelectEpisode,
+  onSelectPodcast,
   className,
 }: PodcastSidebarProps) {
   const { locale, dictionary } = useAppContext();
@@ -141,7 +141,7 @@ export function PodcastSidebar({
         </button>
       </div>
 
-      {/* Vertical Sliding Body: Categories List (2s open / 1s collapse) OR Episodes (24px side padding) */}
+      {/* Vertical Sliding Body: Categories List OR Podcasts List (24px side padding) */}
       <SmoothVerticalPane className="flex-1 overflow-y-auto px-6 pb-4">
         <AnimatePresence mode="wait" initial={false}>
           {isCategoryOpen ? (
@@ -184,13 +184,14 @@ export function PodcastSidebar({
                       <button
                         type="button"
                         onClick={() => onSelectCategory(category.id)}
+                        aria-current={isActive ? 'true' : undefined}
                         className={cn(
                           'w-full cursor-pointer py-1 text-start text-[19px] leading-[1.35] tracking-[-0.015em] desktop:text-[21px]',
-                          'rtl:leading-[1.5] rtl:tracking-normal transition-colors duration-300',
-                          'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
+                          'rtl:leading-[1.5] rtl:tracking-normal transition-colors duration-250',
+                          'hover:text-[var(--ink-primary)] focus-visible:text-[var(--ink-primary)]',
                           isActive
-                            ? 'font-normal text-[var(--brand-text-hover)]'
-                            : 'font-light text-[var(--ink-primary)]'
+                            ? 'font-medium text-[var(--ink-primary)]'
+                            : 'font-light text-[var(--ink-muted)]'
                         )}
                       >
                         {getLocalizedText(category.label, locale)}
@@ -202,7 +203,7 @@ export function PodcastSidebar({
             </motion.div>
           ) : (
             <motion.div
-              key="episode-sidebar-list"
+              key="podcast-sidebar-list"
               initial={{ height: 0, opacity: 0 }}
               animate={{
                 height: 'auto',
@@ -235,19 +236,19 @@ export function PodcastSidebar({
               className="flex flex-col overflow-hidden pt-4"
             >
               <ul className="flex flex-col divide-y divide-[var(--grid-line)]">
-                {episodes.map((episode) => {
-                  const isSelected = episode.id === activeEpisodeId;
-                  const title = getLocalizedText(episode.title, locale);
+                {podcasts.map((podcast) => {
+                  const isSelected = podcast.id === activePodcastId;
+                  const title = getLocalizedText(podcast.title, locale);
 
                   return (
                     <li
-                      key={episode.id}
+                      key={podcast.id}
                       data-podcast-anim="sidebar-item"
                       className="py-3.5 first:pt-1"
                     >
                       <button
                         type="button"
-                        onClick={() => onSelectEpisode(episode.id)}
+                        onClick={() => onSelectPodcast(podcast.id)}
                         aria-current={isSelected ? 'true' : undefined}
                         className="group flex w-full cursor-pointer items-center gap-3.5 text-start"
                       >
@@ -256,13 +257,13 @@ export function PodcastSidebar({
                             'relative h-14 w-14 shrink-0 overflow-hidden rounded-[4px] bg-[var(--surface-hover)]',
                             'ring-1 transition-all duration-300',
                             isSelected
-                              ? 'ring-[var(--brand-primary)]'
-                              : 'ring-transparent group-hover:ring-[var(--brand-primary)]'
+                              ? 'ring-[var(--ink-primary)]'
+                              : 'ring-transparent opacity-75 group-hover:opacity-100 group-hover:ring-[var(--grid-line-strong)]'
                           )}
                         >
                           <Image
-                            src={episode.coverImage}
-                            alt={getLocalizedText(episode.coverAlt, locale)}
+                            src={podcast.coverImage}
+                            alt={getLocalizedText(podcast.coverAlt, locale)}
                             fill
                             loading="lazy"
                             sizes="56px"
@@ -274,11 +275,11 @@ export function PodcastSidebar({
                         <span className="flex min-w-0 flex-1 items-center">
                           <span
                             className={cn(
-                              'line-clamp-2 text-[14px] leading-[1.4] transition-colors duration-300',
-                              'group-hover:text-[var(--brand-text-hover)]',
+                              'line-clamp-2 text-[14px] leading-[1.4] transition-colors duration-250',
+                              'group-hover:text-[var(--ink-primary)]',
                               isSelected
-                                ? 'font-medium text-[var(--brand-text-hover)]'
-                                : 'font-normal text-[var(--ink-primary)]'
+                                ? 'font-medium text-[var(--ink-primary)]'
+                                : 'font-normal text-[var(--ink-muted)]'
                             )}
                           >
                             {title}

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type ClipboardEvent,
@@ -11,14 +12,15 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'motion/react';
-import { MdClose } from 'react-icons/md';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { MdClose, MdKeyboardArrowDown } from 'react-icons/md';
 import { SITE_CONFIG } from '@/lib/config/site';
 import {
   useAppContext,
   type AccountType,
   type UserRole,
 } from '@/components/providers/app-provider';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { cn } from '@/lib/utils';
 
 type AuthStep = 'phone' | 'otp' | 'register';
@@ -28,7 +30,12 @@ const VALID_OTP = SITE_CONFIG.auth.validOtpCode;
 const RESEND_SECONDS = SITE_CONFIG.auth.resendCooldownSeconds;
 
 const ACCOUNT_TYPES: readonly AccountType[] = ['individual', 'legal'];
-const USER_ROLES: readonly UserRole[] = ['designer', 'investor', 'landowner'];
+const USER_ROLES: readonly UserRole[] = [
+  'designer',
+  'investor',
+  'landowner',
+  'client',
+];
 
 function normalizeDigits(input: string): string {
   return input
@@ -40,19 +47,45 @@ function extractPhoneDigits(input: string): string {
   return normalizeDigits(input).replace(/\D/g, '');
 }
 
-function isValidBirthDate(input: string): boolean {
-  const digits = normalizeDigits(input).replace(/\D/g, '');
-  return digits.length >= 6 && digits.length <= 8;
+function getDaysInMonth(
+  yearStr: string,
+  monthStr: string,
+  isJalali: boolean
+): number {
+  const month = Number.parseInt(monthStr, 10);
+  if (!Number.isFinite(month) || month < 1 || month > 12) {
+    return 31;
+  }
+
+  if (isJalali) {
+    if (month <= 6) return 31;
+    if (month <= 11) return 30;
+    const year = Number.parseInt(yearStr, 10);
+    if (Number.isFinite(year)) {
+      const leapRemainders = [1, 5, 9, 13, 17, 22, 26, 30];
+      return leapRemainders.includes(year % 33) ? 30 : 29;
+    }
+    return 29;
+  }
+
+  const year = Number.parseInt(yearStr, 10);
+  const safeYear = Number.isFinite(year) ? year : 2000;
+  return new Date(safeYear, month, 0).getDate();
 }
 
 /**
- * Centered Glassmorphic Start Project & Registration Modal:
- * - Step 1: Mobile number input (Apple-style floating label + underline divider)
- * - Step 2: 5-digit OTP verification ("11111")
- * - Step 3: Registration (First Name, Last Name, Birth Date, Account Type, User Role) -> redirects to /panel
+ * Glassmorphic Start Project & Registration Flow:
+ * - Mobile: Bottom-docked glassmorphic drawer rising cleanly inside the architectural side rails
+ *   with '+' frame intersection crosshairs on both the drawer top edge and the docked bottom CTA bar
+ * - Desktop: Centered glassmorphic modal with matching docked bottom CTA bar
+ * - Step 1: Mobile number -> Step 2: 5-digit OTP ("11111") inside the same drawer -> Step 3: Registration
+ * - Neutral monochrome inputs & buttons (no green hover/filled states)
+ * - Birth Date: 3 selectable dropdowns (Year / Month / Day)
+ * - User Role: 4-option dropdown including Client (Personal Project)
  */
 export function StartProjectModal() {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const {
     isStartProjectOpen,
     closeStartProjectModal,
@@ -60,6 +93,7 @@ export function StartProjectModal() {
     setAuthenticatedPhone,
     setUserProfile,
     dictionary,
+    locale,
     isRtl,
     announce,
   } = useAppContext();
@@ -79,11 +113,13 @@ export function StartProjectModal() {
   // Registration Step State
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
+  const [birthYear, setBirthYear] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthDay, setBirthDay] = useState('');
   const [accountType, setAccountType] = useState<AccountType>('individual');
   const [userRole, setUserRole] = useState<UserRole>('designer');
   const [focusedField, setFocusedField] = useState<
-    'firstName' | 'lastName' | 'birthDate' | null
+    'firstName' | 'lastName' | null
   >(null);
   const [registerErrors, setRegisterErrors] = useState<{
     firstName?: string;
@@ -93,17 +129,51 @@ export function StartProjectModal() {
 
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
   const titleId = useId();
+  const phoneFormId = useId();
+  const otpFormId = useId();
+  const registerFormId = useId();
   const phoneFieldId = useId();
   const firstNameId = useId();
   const lastNameId = useId();
-  const birthDateId = useId();
+  const birthYearId = useId();
+  const birthMonthId = useId();
+  const birthDayId = useId();
+  const userRoleId = useId();
+
+  useBodyScrollLock(isStartProjectOpen);
+
+  const isJalali = locale === 'fa';
+
+  const yearOptions = useMemo(() => {
+    const startYear = isJalali ? 1396 : 2016;
+    const endYear = isJalali ? 1310 : 1930;
+    const years: string[] = [];
+    for (let y = startYear; y >= endYear; y -= 1) {
+      years.push(String(y));
+    }
+    return years;
+  }, [isJalali]);
+
+  const maxBirthDays = useMemo(
+    () => getDaysInMonth(birthYear, birthMonth, isJalali),
+    [birthYear, birthMonth, isJalali]
+  );
+
+  const effectiveBirthDay =
+    birthDay && Number.parseInt(birthDay, 10) > maxBirthDays ? '' : birthDay;
+
+  const dayOptions = useMemo(
+    () =>
+      Array.from({ length: maxBirthDays }, (_, idx) =>
+        String(idx + 1).padStart(2, '0')
+      ),
+    [maxBirthDays]
+  );
 
   const isPhoneFloating = isPhoneFocused || phoneInput.length > 0;
   const isFirstNameFloating =
     focusedField === 'firstName' || firstName.length > 0;
   const isLastNameFloating = focusedField === 'lastName' || lastName.length > 0;
-  const isBirthDateFloating =
-    focusedField === 'birthDate' || birthDate.length > 0;
 
   const resetModalState = useCallback(() => {
     setIsPhoneFocused(false);
@@ -298,7 +368,6 @@ export function StartProjectModal() {
 
     const cleanFirst = firstName.trim();
     const cleanLast = lastName.trim();
-    const cleanBirth = normalizeDigits(birthDate).trim();
 
     if (!cleanFirst) {
       nextErrors.firstName = dictionary.auth.errors.firstNameRequired;
@@ -306,7 +375,7 @@ export function StartProjectModal() {
     if (!cleanLast) {
       nextErrors.lastName = dictionary.auth.errors.lastNameRequired;
     }
-    if (!isValidBirthDate(cleanBirth)) {
+    if (!birthYear || !birthMonth || !effectiveBirthDay) {
       nextErrors.birthDate = dictionary.auth.errors.birthDateRequired;
     }
 
@@ -315,13 +384,14 @@ export function StartProjectModal() {
       return;
     }
 
+    const formattedBirthDate = `${birthYear}/${birthMonth}/${effectiveBirthDay}`;
     const verifiedPhone =
       authenticatedPhone ?? normalizeDigits(phoneInput).trim();
 
     setUserProfile({
       firstName: cleanFirst,
       lastName: cleanLast,
-      birthDate: cleanBirth,
+      birthDate: formattedBirthDate,
       accountType,
       userRole,
       phone: verifiedPhone,
@@ -340,6 +410,21 @@ export function StartProjectModal() {
         : dictionary.auth.modalTitleRegister;
 
   const isOtpComplete = otpDigits.every((digit) => digit.length === 1);
+  const activeFormId =
+    step === 'phone'
+      ? phoneFormId
+      : step === 'otp'
+        ? otpFormId
+        : registerFormId;
+
+  const activeSubmitLabel =
+    step === 'phone'
+      ? dictionary.auth.sendOtpCta
+      : step === 'otp'
+        ? dictionary.auth.verifyOtpCta
+        : dictionary.auth.registerSubmitCta;
+
+  const isSubmitDisabled = step === 'otp' && !isOtpComplete;
 
   return (
     <AnimatePresence>
@@ -353,10 +438,16 @@ export function StartProjectModal() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{
-            duration: SITE_CONFIG.motion.fastDuration,
+            duration: prefersReducedMotion
+              ? 0.01
+              : SITE_CONFIG.motion.fastDuration,
             ease: SITE_CONFIG.motion.ease,
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 desktop:p-6"
+          className={cn(
+            'fixed inset-0 z-50 flex items-end justify-center',
+            'ps-[var(--grid-rail)] pe-[var(--grid-rail)] pb-[var(--grid-bottom)] pt-[var(--grid-header)]',
+            'desktop:items-center desktop:p-6'
+          )}
         >
           {/* Backdrop */}
           <button
@@ -366,25 +457,55 @@ export function StartProjectModal() {
             className="fixed inset-0 cursor-default bg-black/35 backdrop-blur-[3px] dark:bg-black/65"
           />
 
-          {/* Centered Glassmorphic Card */}
+          {/* Mobile: Bottom Glassmorphic Drawer Framed Between Rails | Desktop: Centered Glassmorphic Modal */}
           <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            initial={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, y: 48 }
+            }
+            animate={{ opacity: 1, y: 0 }}
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, y: 40 }
+            }
             transition={{
-              duration: SITE_CONFIG.motion.standardDuration,
+              duration: prefersReducedMotion
+                ? 0.01
+                : SITE_CONFIG.motion.standardDuration,
               ease: SITE_CONFIG.motion.ease,
             }}
             className={cn(
-              'relative z-10 max-h-[calc(100dvh-32px)] w-full overflow-y-auto rounded-[4px]',
-              step === 'register' ? 'max-w-[480px]' : 'max-w-[440px]',
-              'border border-[var(--grid-line-strong)]',
-              'bg-[var(--bg-header-glass)] backdrop-blur-md backdrop-saturate-150',
-              'shadow-[0_24px_64px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.6)]'
+              'relative z-10 flex max-h-[calc(100dvh-var(--grid-header)-var(--grid-bottom))] w-full flex-col',
+              'border-t border-[var(--grid-line)]',
+              'bg-[var(--bg-header-glass)] backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]',
+              'desktop:max-h-[calc(100dvh-48px)] desktop:rounded-[4px] desktop:border desktop:border-[var(--grid-line-strong)]',
+              step === 'register'
+                ? 'desktop:max-w-[480px]'
+                : 'desktop:max-w-[440px]',
+              'shadow-[0_-16px_48px_rgba(0,0,0,0.14)] desktop:shadow-[0_24px_64px_rgba(0,0,0,0.16)]',
+              'dark:shadow-[0_-16px_48px_rgba(0,0,0,0.55)] desktop:dark:shadow-[0_24px_64px_rgba(0,0,0,0.6)]'
             )}
           >
-            {/* Top Bar */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-2">
+            {/* Mobile Top Frame-Rail Intersection '+' Crosshairs */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-[7px] -start-[7px] z-[55] block h-[13px] w-[13px] desktop:hidden"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-[7px] -end-[7px] z-[55] block h-[13px] w-[13px] desktop:hidden"
+            >
+              <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+            </span>
+
+            {/* Top Header Row (16px horizontal padding) */}
+            <div className="flex shrink-0 items-center justify-between px-4 pt-4 pb-2">
               <h2
                 id={titleId}
                 className="text-[16px] font-medium leading-[1.3] text-[var(--ink-primary)]"
@@ -396,17 +517,21 @@ export function StartProjectModal() {
                 type="button"
                 onClick={handleClose}
                 aria-label={dictionary.auth.closeModalAriaLabel}
-                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[var(--ink-muted)] transition-colors duration-200 hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
               >
                 <MdClose size={20} aria-hidden="true" />
               </button>
             </div>
 
-            {/* Step Body */}
-            <div className="px-6 pt-3 pb-7">
+            {/* Scrollable Step Body (16px horizontal padding) */}
+            <div
+              data-scroll-lock-allow=""
+              className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-5"
+            >
               <AnimatePresence mode="wait" initial={false}>
                 {step === 'phone' && (
                   <motion.form
+                    id={phoneFormId}
                     key="step-phone"
                     onSubmit={handlePhoneSubmit}
                     noValidate
@@ -417,13 +542,13 @@ export function StartProjectModal() {
                       duration: SITE_CONFIG.motion.fastDuration,
                       ease: SITE_CONFIG.motion.ease,
                     }}
-                    className="flex flex-col gap-6"
+                    className="flex flex-col gap-5"
                   >
                     <p className="text-[14px] leading-[1.65] text-[var(--ink-secondary)] rtl:leading-[1.85]">
                       {dictionary.auth.modalSubtitlePhone}
                     </p>
 
-                    {/* Apple-style Floating Label + Bottom Divider Input */}
+                    {/* Floating Label + Bottom Hairline Input */}
                     <div className="relative flex flex-col pt-5">
                       <label
                         htmlFor={phoneFieldId}
@@ -435,7 +560,7 @@ export function StartProjectModal() {
                           phoneError
                             ? 'text-red-500'
                             : isPhoneFocused
-                              ? 'text-[var(--brand-text-hover)]'
+                              ? 'text-[var(--ink-primary)]'
                               : 'text-[var(--ink-muted)]'
                         )}
                       >
@@ -460,8 +585,8 @@ export function StartProjectModal() {
                           phoneError
                             ? 'border-red-500 focus:border-red-500'
                             : isPhoneFocused
-                              ? 'border-[var(--brand-primary)]'
-                              : 'border-[var(--grid-line-strong)] focus:border-[var(--brand-primary)]'
+                              ? 'border-[var(--ink-primary)]'
+                              : 'border-[var(--grid-line-strong)] focus:border-[var(--ink-primary)]'
                         )}
                       />
                       {phoneError ? (
@@ -473,22 +598,12 @@ export function StartProjectModal() {
                         </p>
                       ) : null}
                     </div>
-
-                    <button
-                      type="submit"
-                      className={cn(
-                        'mt-1 flex h-12 w-full cursor-pointer items-center justify-center rounded-full px-6',
-                        'bg-[var(--btn-start-bg)] text-[14px] font-medium text-[var(--btn-start-ink)]',
-                        'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
-                      )}
-                    >
-                      {dictionary.auth.sendOtpCta}
-                    </button>
                   </motion.form>
                 )}
 
                 {step === 'otp' && (
                   <motion.form
+                    id={otpFormId}
                     key="step-otp"
                     onSubmit={handleOtpSubmit}
                     noValidate
@@ -517,7 +632,7 @@ export function StartProjectModal() {
                           setOtpError('');
                           setStep('phone');
                         }}
-                        className="cursor-pointer text-[12px] font-medium text-[var(--brand-text-hover)] transition-opacity duration-200 hover:opacity-75"
+                        className="cursor-pointer text-[12px] font-medium text-[var(--ink-primary)] underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
                       >
                         {dictionary.auth.changePhoneLabel}
                       </button>
@@ -559,8 +674,8 @@ export function StartProjectModal() {
                               otpError
                                 ? 'border-red-500 focus:border-red-500'
                                 : digit
-                                  ? 'border-[var(--brand-primary)]'
-                                  : 'border-[var(--grid-line-strong)] focus:border-[var(--brand-primary)]'
+                                  ? 'border-[var(--ink-primary)]'
+                                  : 'border-[var(--grid-line-strong)] focus:border-[var(--ink-primary)]'
                             )}
                           />
                         ))}
@@ -592,30 +707,18 @@ export function StartProjectModal() {
                         <button
                           type="button"
                           onClick={handleResend}
-                          className="cursor-pointer font-medium text-[var(--brand-text-hover)] transition-opacity duration-200 hover:opacity-75"
+                          className="cursor-pointer font-medium text-[var(--ink-primary)] underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
                         >
                           {dictionary.auth.resendCta}
                         </button>
                       )}
                     </div>
-
-                    <button
-                      type="submit"
-                      disabled={!isOtpComplete}
-                      className={cn(
-                        'mt-1 flex h-12 w-full items-center justify-center rounded-full px-6 text-[14px] font-medium transition-colors duration-200',
-                        isOtpComplete
-                          ? 'cursor-pointer bg-[var(--btn-start-bg)] text-[var(--btn-start-ink)] hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
-                          : 'cursor-not-allowed bg-[var(--surface-hover)] text-[var(--ink-muted)]'
-                      )}
-                    >
-                      {dictionary.auth.verifyOtpCta}
-                    </button>
                   </motion.form>
                 )}
 
                 {step === 'register' && (
                   <motion.form
+                    id={registerFormId}
                     key="step-register"
                     onSubmit={handleRegisterSubmit}
                     noValidate
@@ -646,7 +749,7 @@ export function StartProjectModal() {
                             registerErrors.firstName
                               ? 'text-red-500'
                               : focusedField === 'firstName'
-                                ? 'text-[var(--brand-text-hover)]'
+                                ? 'text-[var(--ink-primary)]'
                                 : 'text-[var(--ink-muted)]'
                           )}
                         >
@@ -674,7 +777,7 @@ export function StartProjectModal() {
                             registerErrors.firstName
                               ? 'border-red-500'
                               : focusedField === 'firstName'
-                                ? 'border-[var(--brand-primary)]'
+                                ? 'border-[var(--ink-primary)]'
                                 : 'border-[var(--grid-line-strong)]'
                           )}
                         />
@@ -700,7 +803,7 @@ export function StartProjectModal() {
                             registerErrors.lastName
                               ? 'text-red-500'
                               : focusedField === 'lastName'
-                                ? 'text-[var(--brand-text-hover)]'
+                                ? 'text-[var(--ink-primary)]'
                                 : 'text-[var(--ink-muted)]'
                           )}
                         >
@@ -728,7 +831,7 @@ export function StartProjectModal() {
                             registerErrors.lastName
                               ? 'border-red-500'
                               : focusedField === 'lastName'
-                                ? 'border-[var(--brand-primary)]'
+                                ? 'border-[var(--ink-primary)]'
                                 : 'border-[var(--grid-line-strong)]'
                           )}
                         />
@@ -743,60 +846,175 @@ export function StartProjectModal() {
                       </div>
                     </div>
 
-                    {/* Date of Birth */}
-                    <div className="relative flex flex-col pt-5">
-                      <label
-                        htmlFor={birthDateId}
+                    {/* Date of Birth: 3 Selectable Dropdowns (Day / Month / Year) */}
+                    <div className="flex flex-col gap-2">
+                      <span
                         className={cn(
-                          'pointer-events-none absolute start-0 transition-all duration-200 ease-out',
-                          isBirthDateFloating
-                            ? 'top-0 text-[11px] font-medium'
-                            : 'top-[28px] text-[14px] font-normal',
+                          'text-[11px] font-medium',
                           registerErrors.birthDate
                             ? 'text-red-500'
-                            : focusedField === 'birthDate'
-                              ? 'text-[var(--brand-text-hover)]'
-                              : 'text-[var(--ink-muted)]'
+                            : 'text-[var(--ink-muted)]'
                         )}
                       >
                         {dictionary.auth.birthDateLabel}
-                      </label>
-                      <input
-                        id={birthDateId}
-                        type="text"
-                        inputMode="numeric"
-                        dir="ltr"
-                        placeholder={
-                          focusedField === 'birthDate'
-                            ? dictionary.auth.birthDatePlaceholder
-                            : ''
-                        }
-                        value={birthDate}
-                        onFocus={() => setFocusedField('birthDate')}
-                        onBlur={() => setFocusedField(null)}
-                        onChange={(event) => {
-                          setBirthDate(event.target.value);
-                          if (registerErrors.birthDate) {
-                            setRegisterErrors((prev) => ({
-                              ...prev,
-                              birthDate: undefined,
-                            }));
-                          }
-                        }}
-                        aria-invalid={Boolean(registerErrors.birthDate)}
-                        className={cn(
-                          'bidi-isolate h-10 w-full rounded-none border-0 border-b bg-transparent px-0 text-start text-[14px] text-[var(--ink-primary)] tabular-nums transition-colors duration-200 placeholder:text-[var(--ink-muted)]/60 focus:outline-none rtl:text-end',
-                          registerErrors.birthDate
-                            ? 'border-red-500'
-                            : focusedField === 'birthDate'
-                              ? 'border-[var(--brand-primary)]'
-                              : 'border-[var(--grid-line-strong)]'
-                        )}
-                      />
+                      </span>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        {/* Day Select */}
+                        <div className="relative">
+                          <select
+                            id={birthDayId}
+                            aria-label={dictionary.auth.birthDayLabel}
+                            value={effectiveBirthDay}
+                            onChange={(event) => {
+                              setBirthDay(event.target.value);
+                              if (registerErrors.birthDate) {
+                                setRegisterErrors((prev) => ({
+                                  ...prev,
+                                  birthDate: undefined,
+                                }));
+                              }
+                            }}
+                            aria-invalid={Boolean(registerErrors.birthDate)}
+                            className={cn(
+                              'h-10 w-full cursor-pointer appearance-none rounded-[4px] border bg-transparent ps-2.5 pe-7 text-start text-[13px] tabular-nums transition-colors duration-200 focus:outline-none',
+                              effectiveBirthDay
+                                ? 'text-[var(--ink-primary)]'
+                                : 'text-[var(--ink-muted)]',
+                              registerErrors.birthDate
+                                ? 'border-red-500'
+                                : 'border-[var(--grid-line-strong)] focus:border-[var(--ink-primary)]'
+                            )}
+                          >
+                            <option
+                              value=""
+                              className="bg-[var(--bg-canvas)] text-[var(--ink-muted)]"
+                            >
+                              {dictionary.auth.birthDayLabel}
+                            </option>
+                            {dayOptions.map((day) => (
+                              <option
+                                key={day}
+                                value={day}
+                                className="bg-[var(--bg-canvas)] text-[var(--ink-primary)]"
+                              >
+                                {day}
+                              </option>
+                            ))}
+                          </select>
+                          <MdKeyboardArrowDown
+                            size={18}
+                            aria-hidden="true"
+                            className="pointer-events-none absolute top-1/2 end-2 -translate-y-1/2 text-[var(--ink-muted)]"
+                          />
+                        </div>
+
+                        {/* Month Select */}
+                        <div className="relative">
+                          <select
+                            id={birthMonthId}
+                            aria-label={dictionary.auth.birthMonthLabel}
+                            value={birthMonth}
+                            onChange={(event) => {
+                              setBirthMonth(event.target.value);
+                              if (registerErrors.birthDate) {
+                                setRegisterErrors((prev) => ({
+                                  ...prev,
+                                  birthDate: undefined,
+                                }));
+                              }
+                            }}
+                            aria-invalid={Boolean(registerErrors.birthDate)}
+                            className={cn(
+                              'h-10 w-full cursor-pointer appearance-none rounded-[4px] border bg-transparent ps-2.5 pe-7 text-start text-[13px] transition-colors duration-200 focus:outline-none',
+                              birthMonth
+                                ? 'text-[var(--ink-primary)]'
+                                : 'text-[var(--ink-muted)]',
+                              registerErrors.birthDate
+                                ? 'border-red-500'
+                                : 'border-[var(--grid-line-strong)] focus:border-[var(--ink-primary)]'
+                            )}
+                          >
+                            <option
+                              value=""
+                              className="bg-[var(--bg-canvas)] text-[var(--ink-muted)]"
+                            >
+                              {dictionary.auth.birthMonthLabel}
+                            </option>
+                            {dictionary.auth.birthMonths.map((monthName, i) => {
+                              const monthValue = String(i + 1).padStart(2, '0');
+                              return (
+                                <option
+                                  key={monthValue}
+                                  value={monthValue}
+                                  className="bg-[var(--bg-canvas)] text-[var(--ink-primary)]"
+                                >
+                                  {monthName}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <MdKeyboardArrowDown
+                            size={18}
+                            aria-hidden="true"
+                            className="pointer-events-none absolute top-1/2 end-2 -translate-y-1/2 text-[var(--ink-muted)]"
+                          />
+                        </div>
+
+                        {/* Year Select */}
+                        <div className="relative">
+                          <select
+                            id={birthYearId}
+                            aria-label={dictionary.auth.birthYearLabel}
+                            value={birthYear}
+                            onChange={(event) => {
+                              setBirthYear(event.target.value);
+                              if (registerErrors.birthDate) {
+                                setRegisterErrors((prev) => ({
+                                  ...prev,
+                                  birthDate: undefined,
+                                }));
+                              }
+                            }}
+                            aria-invalid={Boolean(registerErrors.birthDate)}
+                            className={cn(
+                              'h-10 w-full cursor-pointer appearance-none rounded-[4px] border bg-transparent ps-2.5 pe-7 text-start text-[13px] tabular-nums transition-colors duration-200 focus:outline-none',
+                              birthYear
+                                ? 'text-[var(--ink-primary)]'
+                                : 'text-[var(--ink-muted)]',
+                              registerErrors.birthDate
+                                ? 'border-red-500'
+                                : 'border-[var(--grid-line-strong)] focus:border-[var(--ink-primary)]'
+                            )}
+                          >
+                            <option
+                              value=""
+                              className="bg-[var(--bg-canvas)] text-[var(--ink-muted)]"
+                            >
+                              {dictionary.auth.birthYearLabel}
+                            </option>
+                            {yearOptions.map((year) => (
+                              <option
+                                key={year}
+                                value={year}
+                                className="bg-[var(--bg-canvas)] text-[var(--ink-primary)]"
+                              >
+                                {year}
+                              </option>
+                            ))}
+                          </select>
+                          <MdKeyboardArrowDown
+                            size={18}
+                            aria-hidden="true"
+                            className="pointer-events-none absolute top-1/2 end-2 -translate-y-1/2 text-[var(--ink-muted)]"
+                          />
+                        </div>
+                      </div>
+
                       {registerErrors.birthDate ? (
                         <p
                           role="alert"
-                          className="pt-1.5 text-[11.5px] text-red-500"
+                          className="text-[11.5px] text-red-500"
                         >
                           {registerErrors.birthDate}
                         </p>
@@ -804,14 +1022,14 @@ export function StartProjectModal() {
                     </div>
 
                     {/* Account Type (Individual vs Corporate/Legal) */}
-                    <div className="flex flex-col gap-2 pt-1">
+                    <div className="flex flex-col gap-2 pt-0.5">
                       <span className="text-[11px] font-medium text-[var(--ink-muted)]">
                         {dictionary.auth.accountTypeLabel}
                       </span>
                       <div
                         role="radiogroup"
                         aria-label={dictionary.auth.accountTypeLabel}
-                        className="flex items-center rounded-full bg-[var(--surface-hover)] p-1"
+                        className="flex items-center rounded-[4px] bg-[var(--surface-hover)] p-1"
                       >
                         {ACCOUNT_TYPES.map((type) => {
                           const isSelected = accountType === type;
@@ -823,7 +1041,7 @@ export function StartProjectModal() {
                               aria-checked={isSelected}
                               onClick={() => setAccountType(type)}
                               className={cn(
-                                'relative flex h-8 flex-1 cursor-pointer items-center justify-center rounded-full text-[12px] font-medium transition-colors duration-200',
+                                'relative flex h-8 flex-1 cursor-pointer items-center justify-center rounded-[4px] text-[12px] font-medium transition-colors duration-200',
                                 isSelected
                                   ? 'text-[var(--ink-primary)]'
                                   : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
@@ -836,7 +1054,7 @@ export function StartProjectModal() {
                                     duration: SITE_CONFIG.motion.fastDuration,
                                     ease: SITE_CONFIG.motion.ease,
                                   }}
-                                  className="absolute inset-0 rounded-full bg-[var(--glass-control-thumb)]"
+                                  className="absolute inset-0 rounded-[4px] bg-[var(--glass-control-thumb)]"
                                 />
                               )}
                               <span className="relative z-10">
@@ -848,52 +1066,79 @@ export function StartProjectModal() {
                       </div>
                     </div>
 
-                    {/* User Role (Designer / Investor / Landowner) */}
+                    {/* User Role Dropdown (4 Options including Client (Personal Project)) */}
                     <div className="flex flex-col gap-2">
-                      <span className="text-[11px] font-medium text-[var(--ink-muted)]">
-                        {dictionary.auth.userRoleLabel}
-                      </span>
-                      <div
-                        role="radiogroup"
-                        aria-label={dictionary.auth.userRoleLabel}
-                        className="grid grid-cols-3 gap-2"
+                      <label
+                        htmlFor={userRoleId}
+                        className="text-[11px] font-medium text-[var(--ink-muted)]"
                       >
-                        {USER_ROLES.map((role) => {
-                          const isSelected = userRole === role;
-                          return (
-                            <button
+                        {dictionary.auth.userRoleLabel}
+                      </label>
+                      <div className="relative">
+                        <select
+                          id={userRoleId}
+                          value={userRole}
+                          onChange={(event) =>
+                            setUserRole(event.target.value as UserRole)
+                          }
+                          className={cn(
+                            'h-10 w-full cursor-pointer appearance-none rounded-[4px] border border-[var(--grid-line-strong)] bg-transparent ps-3 pe-9 text-start text-[13.5px] font-normal text-[var(--ink-primary)]',
+                            'transition-colors duration-200 focus:border-[var(--ink-primary)] focus:outline-none'
+                          )}
+                        >
+                          {USER_ROLES.map((role) => (
+                            <option
                               key={role}
-                              type="button"
-                              role="radio"
-                              aria-checked={isSelected}
-                              onClick={() => setUserRole(role)}
-                              className={cn(
-                                'flex h-10 cursor-pointer items-center justify-center rounded-full px-3 text-[12px] font-medium transition-colors duration-200',
-                                isSelected
-                                  ? 'bg-[var(--btn-start-bg)] text-[var(--btn-start-ink)]'
-                                  : 'bg-[var(--surface-hover)] text-[var(--ink-secondary)] hover:bg-[var(--surface-active)] hover:text-[var(--ink-primary)]'
-                              )}
+                              value={role}
+                              className="bg-[var(--bg-canvas)] text-[var(--ink-primary)]"
                             >
                               {dictionary.auth.userRoles[role]}
-                            </button>
-                          );
-                        })}
+                            </option>
+                          ))}
+                        </select>
+                        <MdKeyboardArrowDown
+                          size={20}
+                          aria-hidden="true"
+                          className="pointer-events-none absolute top-1/2 end-2.5 -translate-y-1/2 text-[var(--ink-muted)]"
+                        />
                       </div>
                     </div>
-
-                    <button
-                      type="submit"
-                      className={cn(
-                        'mt-2 flex h-12 w-full cursor-pointer items-center justify-center rounded-full px-6',
-                        'bg-[var(--btn-start-bg)] text-[14px] font-medium text-[var(--btn-start-ink)]',
-                        'transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
-                      )}
-                    >
-                      {dictionary.auth.registerSubmitCta}
-                    </button>
                   </motion.form>
                 )}
               </AnimatePresence>
+            </div>
+
+            {/* Bottom Docked Sticky CTA Bar With Architectural '+' Crosshair Intersections */}
+            <div className="relative shrink-0 border-t border-[var(--grid-line)] bg-[var(--bg-header-glass)] px-4 py-3 backdrop-blur-xl desktop:rounded-b-[4px]">
+              {/* Top-Start & Top-End Frame Rail Intersection '+' Crosshairs */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -top-[7px] -start-[7px] z-[55] block h-[13px] w-[13px]"
+              >
+                <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+                <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              </span>
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -top-[7px] -end-[7px] z-[55] block h-[13px] w-[13px]"
+              >
+                <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+                <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+              </span>
+
+              <button
+                type="submit"
+                form={activeFormId}
+                disabled={isSubmitDisabled}
+                className={cn(
+                  'flex h-[40px] w-full items-center justify-center rounded-[4px] px-4 text-[14px] font-medium leading-none transition-colors duration-200',
+                  isSubmitDisabled
+                    ? 'cursor-not-allowed bg-[var(--surface-hover)] text-[var(--ink-muted)]'
+                    : 'cursor-pointer bg-[var(--btn-start-bg)] text-[var(--btn-start-ink)] hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)]'
+                )}
+              >
+                {activeSubmitLabel}
+              </button>
             </div>
           </motion.div>
         </motion.div>

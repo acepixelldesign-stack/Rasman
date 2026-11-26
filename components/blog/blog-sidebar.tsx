@@ -59,10 +59,10 @@ export function BlogSidebar({
                   aria-current={isActive ? 'true' : undefined}
                   className={cn(
                     'group flex w-full cursor-pointer items-center gap-3.5 py-4 text-start transition-colors duration-200',
-                    'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
+                    'hover:text-[var(--ink-primary)] focus-visible:text-[var(--ink-primary)]',
                     isActive
-                      ? 'font-medium text-[var(--brand-text-hover)]'
-                      : 'font-normal text-[var(--ink-primary)]'
+                      ? 'font-medium text-[var(--ink-primary)]'
+                      : 'font-normal text-[var(--ink-muted)]'
                   )}
                 >
                   <BlogCategoryIcon
@@ -71,8 +71,8 @@ export function BlogSidebar({
                     className={cn(
                       'shrink-0 transition-colors duration-200',
                       isActive
-                        ? 'text-[var(--brand-text-hover)]'
-                        : 'text-[var(--ink-muted)] group-hover:text-[var(--brand-text-hover)]'
+                        ? 'text-[var(--ink-primary)]'
+                        : 'text-[var(--ink-muted)] group-hover:text-[var(--ink-primary)]'
                     )}
                   />
                   <span className="text-[16px] leading-[1.35] tracking-[-0.01em] rtl:leading-[1.55] rtl:tracking-normal">

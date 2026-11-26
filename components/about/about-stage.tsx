@@ -702,7 +702,7 @@ export function AboutStage() {
                       className={cn(
                         'inline-flex h-9 w-9 items-center justify-center rounded-full desktop:h-10 desktop:w-10',
                         'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)]',
-                        'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                        'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]'
                       )}
                     >
                       {renderSocialIcon(social.platform)}
@@ -778,7 +778,7 @@ export function AboutStage() {
                           className={cn(
                             'inline-flex h-8 w-8 items-center justify-center rounded-full',
                             'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-secondary)]',
-                            'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                            'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]'
                           )}
                         >
                           {renderSocialIcon(social.platform)}

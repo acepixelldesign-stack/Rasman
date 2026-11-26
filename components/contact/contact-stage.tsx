@@ -953,7 +953,7 @@ export function ContactStage() {
                     'inline-flex h-10 w-10 items-center justify-center rounded-full',
                     'border border-[var(--grid-line-strong)] bg-[var(--bg-canvas)]/80 backdrop-blur-sm',
                     'text-[var(--ink-secondary)] transition-colors duration-300',
-                    'hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                    'hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]'
                   )}
                 >
                   {renderSocialIcon(social.platform)}

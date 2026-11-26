@@ -27,7 +27,7 @@ export function ThemeToggle() {
       className={cn(
         'relative inline-flex h-full w-full cursor-pointer items-center justify-center rounded-none',
         'text-[var(--ink-primary)] transition-colors duration-200',
-        'hover:bg-[var(--surface-hover)] hover:text-[var(--brand-text-hover)]'
+        'hover:bg-[var(--surface-hover)]'
       )}
     >
       <AnimatePresence mode="wait" initial={false}>

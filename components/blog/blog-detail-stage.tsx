@@ -313,7 +313,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
                   href="/magazine"
                   onClick={() => setNextStickyBarDirection('back')}
                   aria-label={dictionary.blog.backToMagazine}
-                  className="inline-flex h-[var(--grid-subbar)] shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--brand-text-hover)]"
+                  className="inline-flex h-[var(--grid-subbar)] shrink-0 items-center gap-2 ps-4 pe-3 text-[13px] font-medium text-[var(--ink-secondary)] transition-colors duration-200 hover:text-[var(--ink-primary)]"
                 >
                   <MdArrowBack
                     size={18}
@@ -349,10 +349,8 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
                     : dictionary.blog.shareStoryLabel
                 }
                 className={cn(
-                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-cell)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] transition-colors duration-200',
-                  copied
-                    ? 'text-[var(--brand-text-hover)]'
-                    : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
+                  'inline-flex h-[var(--grid-subbar)] w-[var(--grid-cell)] shrink-0 cursor-pointer items-center justify-center border-s border-[var(--grid-line)] text-[var(--ink-primary)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
+                  copied && 'bg-[var(--surface-hover)]'
                 )}
               >
                 {copied ? (
@@ -533,7 +531,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
                 className={cn(
                   'inline-flex h-10 w-10 items-center justify-center rounded-full',
                   'border border-[var(--grid-line-strong)] bg-transparent text-[var(--ink-primary)]',
-                  'transition-colors duration-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-text-hover)]'
+                  'transition-colors duration-200 hover:border-[var(--ink-primary)] hover:bg-[var(--surface-hover)]'
                 )}
               >
                 {renderSocialIcon(social.platform)}
@@ -627,7 +625,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
                 aria-hidden="true"
                 className={cn(
                   'shrink-0 text-[var(--ink-muted)] transition-all duration-250',
-                  'group-hover:text-[var(--brand-text-hover)] group-hover:-translate-x-0.5',
+                  'group-hover:text-[var(--ink-primary)] group-hover:-translate-x-0.5',
                   isRtl && '-scale-x-100 group-hover:translate-x-0.5'
                 )}
               />
@@ -661,7 +659,7 @@ export function BlogDetailStage({ slug }: BlogDetailStageProps) {
                 aria-hidden="true"
                 className={cn(
                   'shrink-0 text-[var(--ink-muted)] transition-all duration-250',
-                  'group-hover:text-[var(--brand-text-hover)] group-hover:translate-x-0.5',
+                  'group-hover:text-[var(--ink-primary)] group-hover:translate-x-0.5',
                   isRtl && '-scale-x-100 group-hover:-translate-x-0.5'
                 )}
               />

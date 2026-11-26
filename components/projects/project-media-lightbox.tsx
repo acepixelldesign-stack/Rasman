@@ -236,7 +236,7 @@ export function ProjectMediaLightbox({
                     ? dictionary.projects.detail.lightbox.nextAriaLabel
                     : dictionary.projects.detail.lightbox.prevAriaLabel
                 }
-                className="hidden h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white backdrop-blur-md transition-colors duration-200 hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink-on-primary)] desktop:absolute desktop:start-2 desktop:inline-flex"
+                className="hidden h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white backdrop-blur-md transition-colors duration-200 hover:bg-white/25 hover:text-white desktop:absolute desktop:start-2 desktop:inline-flex"
               >
                 {isRtl ? (
                   <MdChevronRight size={24} aria-hidden="true" />
@@ -279,7 +279,7 @@ export function ProjectMediaLightbox({
                     ? dictionary.projects.detail.lightbox.prevAriaLabel
                     : dictionary.projects.detail.lightbox.nextAriaLabel
                 }
-                className="hidden h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white backdrop-blur-md transition-colors duration-200 hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink-on-primary)] desktop:absolute desktop:end-2 desktop:inline-flex"
+                className="hidden h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white backdrop-blur-md transition-colors duration-200 hover:bg-white/25 hover:text-white desktop:absolute desktop:end-2 desktop:inline-flex"
               >
                 {isRtl ? (
                   <MdChevronLeft size={24} aria-hidden="true" />
@@ -311,7 +311,7 @@ export function ProjectMediaLightbox({
                       ? dictionary.projects.detail.lightbox.nextAriaLabel
                       : dictionary.projects.detail.lightbox.prevAriaLabel
                   }
-                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white transition-colors duration-200 hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink-on-primary)] desktop:hidden"
+                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white transition-colors duration-200 hover:bg-white/25 hover:text-white desktop:hidden"
                 >
                   {isRtl ? (
                     <MdChevronRight size={20} aria-hidden="true" />
@@ -361,7 +361,7 @@ export function ProjectMediaLightbox({
                       ? dictionary.projects.detail.lightbox.prevAriaLabel
                       : dictionary.projects.detail.lightbox.nextAriaLabel
                   }
-                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white transition-colors duration-200 hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink-on-primary)] desktop:hidden"
+                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/12 text-white transition-colors duration-200 hover:bg-white/25 hover:text-white desktop:hidden"
                 >
                   {isRtl ? (
                     <MdChevronLeft size={20} aria-hidden="true" />

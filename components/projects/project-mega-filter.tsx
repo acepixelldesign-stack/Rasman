@@ -420,7 +420,7 @@ export function ProjectMegaFilter({
       initial="hidden"
       animate="visible"
       exit="exit"
-      className="rasman-glass-sheet flex flex-col overflow-hidden border-t border-[var(--grid-line)]"
+      className="rasman-glass-sheet flex flex-col border-t border-[var(--grid-line)]"
     >
       {/* Removable Active Filters Summary Bar */}
       <AnimatePresence initial={false}>
@@ -586,43 +586,61 @@ export function ProjectMegaFilter({
         </div>
       </div>
 
-      {/* Borderless Footer Actions: Charcoal (Light) / Pure White (Dark) Full-Radius Apply + Adjacent Circular Clear Icon Button */}
-      <div className="flex shrink-0 items-center justify-end gap-2.5 px-4 pt-4 pb-2 desktop:px-6 desktop:py-5">
-        <button
-          type="button"
-          onClick={() => onApply(draftFilters)}
-          className="inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border border-[var(--grid-line-strong)] bg-[var(--btn-contrast-bg)] px-6 text-[13px] font-medium text-[var(--btn-contrast-ink)] transition-all duration-200 hover:bg-[var(--btn-contrast-hover)] active:scale-[0.99] desktop:flex-initial desktop:min-w-[184px]"
+      {/* Bottom Docked Sticky Action Bar With '+' Frame Intersection Crosshairs */}
+      <div className="relative shrink-0 border-t border-[var(--grid-line)] bg-[var(--bg-header-glass)] backdrop-blur-xl">
+        {/* Top-Start & Top-End Frame Rail Intersection '+' Crosshairs */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-[7px] -start-[7px] z-[36] block h-[13px] w-[13px]"
         >
-          <span>{dictionary.projects.applyFiltersLabel}</span>
-          <span dir="ltr" className="bidi-isolate tabular-nums opacity-75">
-            ({previewCount})
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={handleClearAll}
-          disabled={isClearDisabled}
-          aria-label={dictionary.projects.clearFiltersLabel}
-          title={dictionary.projects.clearFiltersLabel}
-          className={cn(
-            'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--grid-line-strong)] bg-[var(--surface-hover)] transition-all duration-200',
-            isClearDisabled
-              ? 'cursor-not-allowed text-[var(--ink-muted)] opacity-40'
-              : 'cursor-pointer text-[var(--ink-primary)] hover:border-[var(--ink-primary)] active:scale-[0.96]'
-          )}
+          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+        </span>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-[7px] -end-[7px] z-[36] block h-[13px] w-[13px]"
         >
-          <MdRestartAlt size={20} aria-hidden="true" />
-        </button>
-      </div>
+          <span className="absolute inset-y-0 start-[6px] block w-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+          <span className="absolute inset-x-0 top-[6px] block h-px bg-[var(--grid-crosshair)] transition-colors duration-200" />
+        </span>
 
-      {/* Mobile Drag-Up Handle to Dismiss Mega Filter */}
-      <div
-        data-swipe-handle=""
-        aria-hidden="true"
-        className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center pb-1 active:cursor-grabbing desktop:hidden"
-      >
-        <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
+        <div className="flex items-center justify-end gap-2.5 px-4 pt-3 pb-1 desktop:px-6 desktop:py-3.5">
+          <button
+            type="button"
+            onClick={() => onApply(draftFilters)}
+            className="inline-flex h-[40px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-[4px] bg-[var(--btn-start-bg)] px-5 text-[13px] font-medium text-[var(--btn-start-ink)] transition-colors duration-200 hover:bg-[var(--btn-start-hover)] active:bg-[var(--btn-start-active)] desktop:flex-initial desktop:min-w-[184px]"
+          >
+            <span>{dictionary.projects.applyFiltersLabel}</span>
+            <span dir="ltr" className="bidi-isolate tabular-nums opacity-75">
+              ({previewCount})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleClearAll}
+            disabled={isClearDisabled}
+            aria-label={dictionary.projects.clearFiltersLabel}
+            title={dictionary.projects.clearFiltersLabel}
+            className={cn(
+              'inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[4px] border border-[var(--grid-line-strong)] bg-[var(--surface-hover)] transition-colors duration-200',
+              isClearDisabled
+                ? 'cursor-not-allowed text-[var(--ink-muted)] opacity-40'
+                : 'cursor-pointer text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
+            )}
+          >
+            <MdRestartAlt size={20} aria-hidden="true" />
+          </button>
+        </div>
+
+        {/* Mobile Drag-Up Handle to Dismiss Mega Filter */}
+        <div
+          data-swipe-handle=""
+          aria-hidden="true"
+          className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center pb-1 active:cursor-grabbing desktop:hidden"
+        >
+          <span className="block h-[3px] w-9 rounded-full bg-[var(--grid-crosshair)]" />
+        </div>
       </div>
     </motion.div>
   );

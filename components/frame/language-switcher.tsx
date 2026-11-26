@@ -123,10 +123,10 @@ export function LanguageSwitcher() {
                       onClick={() => handleSelect(code)}
                       className={cn(
                         'group flex w-full cursor-pointer items-center gap-4 py-4 text-start transition-colors duration-200',
-                        'hover:text-[var(--brand-text-hover)] focus-visible:text-[var(--brand-text-hover)]',
+                        'hover:text-[var(--ink-primary)] focus-visible:text-[var(--ink-primary)]',
                         isSelected
-                          ? 'font-medium text-[var(--brand-text-hover)]'
-                          : 'font-normal text-[var(--ink-primary)]'
+                          ? 'font-medium text-[var(--ink-primary)]'
+                          : 'font-normal text-[var(--ink-muted)]'
                       )}
                     >
                       <span
@@ -134,8 +134,8 @@ export function LanguageSwitcher() {
                         className={cn(
                           'bidi-isolate w-7 shrink-0 text-[12px] font-medium tracking-[0.08em] tabular-nums transition-colors duration-200',
                           isSelected
-                            ? 'text-[var(--brand-text-hover)]'
-                            : 'text-[var(--ink-muted)] group-hover:text-[var(--brand-text-hover)]'
+                            ? 'text-[var(--ink-primary)]'
+                            : 'text-[var(--ink-muted)] group-hover:text-[var(--ink-primary)]'
                         )}
                       >
                         {item.shortCode}
@@ -194,10 +194,8 @@ export function LanguageSwitcher() {
         }}
         className={cn(
           'inline-flex h-full w-full cursor-pointer items-center justify-center rounded-none',
-          'transition-colors duration-200 hover:bg-[var(--surface-hover)] hover:text-[var(--brand-text-hover)]',
-          isOpen
-            ? 'text-[var(--brand-text-hover)]'
-            : 'text-[var(--ink-primary)]'
+          'text-[var(--ink-primary)] transition-colors duration-200 hover:bg-[var(--surface-hover)]',
+          isOpen && 'bg-[var(--surface-hover)]'
         )}
       >
         <Globe size={18} strokeWidth={1.65} aria-hidden="true" />

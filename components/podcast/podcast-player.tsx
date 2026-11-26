@@ -67,7 +67,7 @@ export function PodcastPlayer({
         className={cn(
           'bidi-isolate inline-flex h-6 w-6 items-center justify-center rounded-full',
           'bg-[var(--ink-primary)] text-[9px] font-semibold leading-none tracking-tight text-[var(--bg-canvas)] tabular-nums',
-          'transition-colors duration-200 group-hover:bg-[var(--brand-primary)] group-hover:text-[var(--brand-ink-on-primary)]'
+          'transition-opacity duration-200 group-hover:opacity-75'
         )}
       >
         {playbackRate}x
@@ -87,8 +87,8 @@ export function PodcastPlayer({
       }
       className={cn(
         'inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full',
-        'text-[var(--ink-primary)] transition-colors duration-200',
-        'hover:text-[var(--brand-text-hover)]'
+        'text-[var(--ink-primary)] transition-opacity duration-200',
+        'hover:opacity-65'
       )}
     >
       {isMuted ? (
@@ -107,8 +107,8 @@ export function PodcastPlayer({
         aria-label={dictionary.podcast.previousEpisodeAriaLabel}
         className={cn(
           'inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full',
-          'text-[var(--ink-primary)] transition-colors duration-200',
-          'hover:text-[var(--brand-text-hover)]'
+          'text-[var(--ink-primary)] transition-opacity duration-200',
+          'hover:opacity-65'
         )}
       >
         <MdSkipPrevious size={22} aria-hidden="true" />
@@ -124,10 +124,10 @@ export function PodcastPlayer({
         }
         className={cn(
           'inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full',
-          'transition-colors duration-200',
+          'transition-all duration-200',
           isPlaying
-            ? 'bg-[var(--brand-primary)] text-[var(--brand-ink-on-primary)] hover:bg-[var(--brand-primary-hover)]'
-            : 'text-[var(--ink-primary)] hover:text-[var(--brand-text-hover)]'
+            ? 'bg-[var(--btn-start-bg)] text-[var(--btn-start-ink)] hover:bg-[var(--btn-start-hover)]'
+            : 'text-[var(--ink-primary)] hover:opacity-65'
         )}
       >
         {isPlaying ? (
@@ -143,8 +143,8 @@ export function PodcastPlayer({
         aria-label={dictionary.podcast.nextEpisodeAriaLabel}
         className={cn(
           'inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full',
-          'text-[var(--ink-primary)] transition-colors duration-200',
-          'hover:text-[var(--brand-text-hover)]'
+          'text-[var(--ink-primary)] transition-opacity duration-200',
+          'hover:opacity-65'
         )}
       >
         <MdSkipNext size={22} aria-hidden="true" />
